@@ -16,6 +16,20 @@
 days = ["mon", "thu"]
 hour = 7
 
+# How far back run #1 reaches when there is no previous issue to join to.
+#
+# Every other run's coverage window starts where the last real issue's window
+# ended (walking back past stubs, so a failed run's days are reclaimed rather
+# than lost). Run #1 has nothing to join to, and the spec deliberately left the
+# number open rather than inventing one — so this is the fallback, and it is a
+# config fact for the same reason cadence is: it should be reviewable in a diff.
+#
+# 7 days ~ two baseline cycles: enough for a first digest to have something to
+# say, short enough that it isn't reporting stale news as new. It applies
+# exactly once in the system's life, and again only if 12 consecutive issues
+# stub out — at which point the window is the least of the problems.
+cold_start_lookback_days = 7
+
 [surge]
 # What a surge window does. Windows themselves live in calendar.toml.
 # v1 exposes one knob: cadence. Beat roster, backstop depth and model tier are

@@ -41,6 +41,7 @@ Three numbers and one set of stances were adopted as defaults rather than chosen
 - Raw-findings retention: **24 runs** ([09](docs/spec/09-orchestrator.md#retention))
 - Continuity lookback floor: **12 issues** ([06](docs/spec/06-validator-and-critic.md#the-lookback-floor))
 - Stale-calendar counter `N`: **8 cycles** ([02](docs/spec/02-cadence-and-surge.md#staleness))
+- Cold-start lookback: **7 days** (`config/cadence.toml`) — how far back run #1 reaches when there is no previous issue to join to. Surfaced during build 01: every other run's window starts where the last real issue's ended, but run #1 has nothing to join to and the window still needs a bound. Applies exactly once in the system's life.
 - Four of six thesis stances are `agent_draft_delegated` ([03](docs/spec/03-state-and-governance.md#stance-provenance))
 
 None blocks a build. All are one-line config or content edits.
