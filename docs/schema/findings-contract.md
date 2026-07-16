@@ -1,5 +1,7 @@
 # findings.json — researcher output contract (v0.1.0)
 
+> **Superseded by [`docs/spec/04-researchers.md`](../spec/04-researchers.md).** Kept for its reasoning. Where the two disagree, **the spec wins** — it rules the two questions this document left open: entity-key naming (`entity_id` everywhere) and findings retention (24 runs).
+
 Asset for ticket [#6](https://github.com/cmengu/Research-Swarm/issues/6). This is what one researcher hands back; [`issue.json`](README.md) is what the manager hands back. They are deliberately different shapes.
 
 Template that produces it: [`prompts/researcher.md`](../../prompts/researcher.md). Beat roster: [`config/beats.toml`](../../config/beats.toml).
@@ -56,7 +58,7 @@ So these fields are deliberately **absent** from findings: `thesis_impact`, `res
 
 ### Field rules
 
-- **`entity_ids`** — the spine, resolving against `state/watchlist.json` → `entities[].id` (schema note 1 in [README](README.md)). Same referencing convention the catalyst queue already uses, so the validator's existing `dangling_entity` check covers findings for free. Note the roster mixes companies and **assets** (`tier: frontier_asset`, e.g. `asset_daraxonrasib`) — both are valid refs. A finding about something off-roster carries `entity_ids: []` and a `proposed_entity`; the manager decides whether it becomes a `new_on_radar` entry with a `promotion_proposal`.
+- **`entity_ids`** — the spine, resolving against `state/watchlist.json` → `entities[].entity_id` (renamed from `id` at spec compilation; see [the spine ruling](../spec/03-state-and-governance.md#the-entity_id-spine)). Same referencing convention the catalyst queue already uses, so the validator's existing `dangling_entity` check covers findings for free. Note the roster mixes companies and **assets** (`tier: frontier_asset`, e.g. `asset_daraxonrasib`) — both are valid refs. A finding about something off-roster carries `entity_ids: []` and a `proposed_entity`; the manager decides whether it becomes a `new_on_radar` entry with a `promotion_proposal`.
 - **`sources`** — objects, never strings, all four fields required (+ `paywalled`). At least one per finding.
 - **`unconfirmed`** — set when an aggregator was the only traceable source. The finding still ships to the manager; it just can't pass as solid. See sourcing rule 2 in the template.
 - **`catalyst_refs`** — how every-run queue status transitions get their mandatory citation: a finding referencing a queue item is the evidence a `delivered`/`slipped` transition needs.

@@ -1,5 +1,7 @@
 # Catalyst queue — schema v0.3.0 delta
 
+> **Superseded by [`docs/spec/03-state-and-governance.md`](../spec/03-state-and-governance.md) (governance) and [`docs/spec/07-issue-schema.md`](../spec/07-issue-schema.md) (the snapshot block).** Kept for its reasoning. Where the two disagree, **the spec wins** — the v0.3.0 deltas here are folded into issue.json v1.0.0.
+
 Decision asset for ticket [#17](https://github.com/cmengu/Research-Swarm/issues/17). Canonical state file: [`state/catalyst-queue.json`](../../state/catalyst-queue.json).
 
 ## Why this is not just another watchlist tier
