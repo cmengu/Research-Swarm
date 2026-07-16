@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import sys
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
@@ -163,6 +164,151 @@ class TestResearchStage:
         assert len(stub["sources_and_method"]["beats_failed"]) == 6
         # No beat produced findings, so nothing was persisted.
         assert not list((fake_repo / "runs").rglob("findings/*.json"))
+
+
+SYNTH_RUN_ID = "run_20260716_0700"
+
+
+def _valid_draft(run_id=SYNTH_RUN_ID, thesis_version=2):
+    """The minimal draft the seam accepts — enough keys, empty stats, a so_what,
+    and a run block echoing the identifiers run.py handed the manager."""
+    return {
+        "schema_version": "1.0.0",
+        "issue": {
+            "id": "2026-07-16",
+            "published_at": "2026-07-16T07:00:00+08:00",
+            "coverage_window": {"from": "2026-07-13", "to": "2026-07-16"},
+            "run": {
+                "run_id": run_id, "status": "published_uncritiqued",
+                "critic_verdict": "not_run", "critic_retries": 0,
+                "thesis_version": thesis_version,
+                "models": {"researchers": "sonnet", "manager": "claude-opus-4-8", "critic": None},
+            },
+        },
+        "headline": {"title": "t", "summary": "s", "so_what": "matters today",
+                     "entity_refs": [], "confidence": "high", "sources": []},
+        "stats": {},
+        "tldr_bullets": [],
+        "catalyst_queue": {"snapshot_of": "state/catalyst-queue.json", "recut_at": None, "items": []},
+        "watchlist": [],
+        "quiet_this_cycle": {"no_news": [], "critic_catches": [], "open_threads": []},
+        "new_on_radar": [],
+        "themes_and_signals": [],
+        "elsewhere_on_frontier": [],
+        "thesis_updates": [],
+        "critic_report": {"verdict": "not_run", "retries_used": 0, "blocking_findings": [],
+                          "advisory_findings": [], "validator_report": None},
+        "sources_and_method": {"beats_run": [], "beats_failed": [],
+                               "source_tier_counts": {}, "paywalled_flagged": []},
+    }
+
+
+def _manager_runner(prompts=None, draft=None):
+    """A fake subprocess.run for the manager: records the prompt it was handed
+    and returns one valid-draft envelope."""
+    payload = draft if draft is not None else _valid_draft()
+
+    def runner(command, **kwargs):
+        if prompts is not None:
+            prompts.append(command[command.index("-p") + 1])
+        envelope = json.dumps(
+            {"is_error": False, "result": json.dumps(payload),
+             "total_cost_usd": 0.42, "num_turns": 7}
+        )
+        return SimpleNamespace(returncode=0, stdout=envelope, stderr="")
+
+    return runner
+
+
+def _synthesis_args(fake_repo, *, beats_run, beats_failed):
+    """Everything run_synthesis_stage needs, loaded from the fake repo, with the
+    beats_run's findings pre-seeded on disk (run.py is the sole reader here)."""
+    import run
+    from researchswarm.beats import load_beats
+    from researchswarm.manager import load_models
+    from researchswarm.prompts import RunContext, load_template
+    from researchswarm.state import load_state
+
+    findings_dir = fake_repo / "runs" / SYNTH_RUN_ID / "findings"
+    findings_dir.mkdir(parents=True)
+    for beat_id in beats_run:
+        (findings_dir / f"{beat_id}.json").write_text(
+            json.dumps({"beat": beat_id, "findings": [], "quiet": True})
+        )
+
+    return {
+        "run_id": SYNTH_RUN_ID,
+        "ctx": RunContext(run_id=SYNTH_RUN_ID, coverage_window_from="2026-07-13",
+                          coverage_window_to="2026-07-16"),
+        "state": load_state(fake_repo / "state"),
+        "beats": load_beats(fake_repo / "config" / "beats.toml"),
+        "beats_run": beats_run,
+        "beats_failed": beats_failed,
+        "models_config": load_models(fake_repo / "config" / "models.toml"),
+        "manager_template": load_template(fake_repo / "prompts" / "manager.md"),
+        "prior_quiet": {},
+        "published_at": "2026-07-16T07:00:00+08:00",
+        "issue_id": "2026-07-16",
+    }
+
+
+class TestSynthesisStage:
+    def test_manager_success_writes_the_draft(self, fake_repo):
+        """run.py is the sole writer: the manager's draft lands at
+        runs/<run_id>/issue-draft.json, no earlier and nowhere else."""
+        import run
+
+        args = _synthesis_args(fake_repo, beats_run=["ma_dealmaking"], beats_failed=[])
+        result, path = run.run_synthesis_stage(fake_repo, runner=_manager_runner(), **args)
+
+        assert path == fake_repo / "runs" / SYNTH_RUN_ID / "issue-draft.json"
+        written = json.loads(path.read_text())
+        assert written["schema_version"] == "1.0.0"
+        assert written["issue"]["run"]["run_id"] == SYNTH_RUN_ID
+        assert result.cost_usd == 0.42
+
+    def test_beats_failed_subset_flows_into_the_manager_prompt(self, fake_repo):
+        """The manager must be told which beats died so it can mark their
+        sections inline — a thin section read as a fact is the misled-reader bar."""
+        import run
+
+        prompts = []
+        args = _synthesis_args(
+            fake_repo, beats_run=["ma_dealmaking", "backstop"], beats_failed=["policy_regulation"]
+        )
+        run.run_synthesis_stage(fake_repo, runner=_manager_runner(prompts), **args)
+
+        assert len(prompts) == 1
+        assert "policy_regulation" in prompts[0]
+        assert "beat_failed" in prompts[0]  # the degradation duty is spelled out
+
+    def test_manager_failure_stubs_synthesis_and_exits_nonzero(self, fake_repo, monkeypatch):
+        """A dead manager is a synthesis stub, not a degradation: facts exist but
+        no issue does. Driven through main() so the wiring — stub stage, exit
+        code — is what an operator would observe."""
+        import run
+        from researchswarm.manager import ManagerFailed
+        from researchswarm.research import ResearchStage
+
+        # Research succeeds (so the run reaches stage 3); the manager then dies.
+        monkeypatch.setattr(
+            run, "run_research_stage",
+            lambda *a, **k: ResearchStage(beats_run=["ma_dealmaking"], beats_failed=["backstop"]),
+        )
+
+        def dead_manager(*a, **k):
+            raise ManagerFailed("manager: invalid output after 2 attempts: garbage")
+
+        monkeypatch.setattr(run, "run_synthesis_stage", dead_manager)
+
+        code = run.main(["--today", "2026-07-16", "--root", str(fake_repo)])
+        assert code == 1
+
+        stub = json.loads((fake_repo / "issues" / "2026-07-16.json").read_text())
+        assert stub["issue"]["run"]["status"] == "failed"
+        assert stub["issue"]["failure"]["stage"] == "synthesis"
+        # The degradation record survives into the stub for the audit trail.
+        assert stub["sources_and_method"]["beats_failed"] == ["backstop"]
 
 
 class TestFailureModes:

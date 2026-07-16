@@ -15,12 +15,23 @@ Spec: docs/spec/04-researchers.md, docs/spec/03-state-and-governance.md
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from researchswarm.beats import Beat
 from researchswarm.state import State
+
+# The factual fields a catalyst-queue item carries into the published snapshot.
+# what_it_would_prove is DELIBERATELY absent: the manager authors it (thesis-
+# gated), so handing it the pre-existing value would invite a copy where an
+# argument belongs. seed_note is internal scaffolding and never rendered.
+QUEUE_SNAPSHOT_FIELDS = (
+    "id", "asset", "entity_ids", "holders", "catalyst", "first_expected_window",
+    "expected_window", "window_source", "status", "slip_log", "bears_on_thesis_slot",
+    "sources",
+)
 
 TEMPLATE_FENCE = re.compile(r"```text\n(.*?)```", re.DOTALL)
 PLACEHOLDER = re.compile(r"\{\{(\w+)\}\}")
@@ -143,6 +154,16 @@ def render_researcher_prompt(
         "catalyst_queue_active": _catalyst_queue_active(state),
     }
 
+    return _substitute(template, values)
+
+
+def _substitute(template: str, values: dict[str, str]) -> str:
+    """Fill every {{placeholder}}, or raise if one has no value.
+
+    Shared by both renderers: a literal {{leftover}} reaching a model is a
+    silent instruction to invent, and it must never happen for either role.
+    """
+
     def substitute(match: re.Match) -> str:
         key = match.group(1)
         if key not in values:
@@ -152,3 +173,113 @@ def render_researcher_prompt(
         return values[key]
 
     return PLACEHOLDER.sub(substitute, template)
+
+
+def _manager_watchlist_roster(state: State) -> str:
+    """Full roster: entity_id · name · tier · priority, one line each.
+
+    Unlike the researcher roster, this keeps EVERY entity, not just the ones a
+    beat touches: the manager's accounting duty is that every tracked entity
+    lands in watchlist or quiet_this_cycle, so it needs the whole set in front
+    of it. name and tier are what the manager authors each entry's name/type
+    from — watch_for is dropped here because the manager is deciding placement,
+    not running a coverage sweep.
+    """
+    return "\n".join(
+        "- {entity_id} · {name} · {tier} · {priority}".format(
+            entity_id=e["entity_id"],
+            name=e["name"],
+            tier=e["tier"],
+            priority=e["priority"],
+        )
+        for e in state.watchlist.get("entities", [])
+    )
+
+
+def _catalyst_queue_snapshot(state: State) -> str:
+    """The queue as indented JSON, not a table.
+
+    The manager must reproduce the factual fields VERBATIM into the published
+    snapshot, so it is handed JSON to copy rather than a compact line it would
+    have to re-serialise (and could silently mangle). Every item is included
+    regardless of status: the snapshot freezes the whole queue at publication,
+    not just the active slice a researcher chases.
+    """
+    snapshot = {
+        "snapshot_of": "state/catalyst-queue.json",
+        "recut_at": state.catalyst_queue.get("last_recut_at"),
+        "items": [
+            {field: item.get(field) for field in QUEUE_SNAPSHOT_FIELDS}
+            for item in state.catalyst_queue.get("queue", [])
+        ],
+    }
+    # ensure_ascii=False keeps em-dashes and the like literal — the model reads
+    # cleaner text, and the manager can reproduce the fields byte-for-byte.
+    return json.dumps(snapshot, indent=2, ensure_ascii=False)
+
+
+def _findings_corpus(findings_by_beat: dict[str, dict], beats_failed: list[str]) -> str:
+    """Each surviving beat's findings.json as a labelled JSON block.
+
+    Beat order is whatever the caller passes (run.py keeps roster order). The
+    failed beats get an explicit line rather than a block, because they have no
+    findings — and naming them here, next to the facts, is what lets the manager
+    see the hole it must mark inline rather than reading a thin section as truth.
+    """
+    blocks = [
+        f"=== findings from beat: {beat_id} ===\n"
+        f"{json.dumps(findings, indent=2, ensure_ascii=False)}"
+        for beat_id, findings in findings_by_beat.items()
+    ]
+    failed = ", ".join(beats_failed) if beats_failed else "(none)"
+    blocks.append(f"=== beats that failed (no findings this cycle): {failed} ===")
+    return "\n\n".join(blocks)
+
+
+def _prior_quiet_counts(prior_quiet: dict[str, int]) -> str:
+    """entity_id: cycles_quiet lines the manager increments from.
+
+    An empty map renders as run #1's honest value: there is no previous issue to
+    increment from, so every quiet entity this cycle starts at 1.
+    """
+    if not prior_quiet:
+        return "(no previous issue)"
+    return "\n".join(f"- {entity_id}: {count}" for entity_id, count in sorted(prior_quiet.items()))
+
+
+def render_manager_prompt(
+    template: str,
+    ctx: RunContext,
+    state: State,
+    *,
+    findings_by_beat: dict[str, dict],
+    beats_failed: list[str],
+    prior_quiet: dict[str, int],
+    models: dict,
+    issue_id: str,
+    published_at: str,
+) -> str:
+    """Interpolate the manager prompt. Raises if any placeholder is left over.
+
+    Stances arrive via _thesis_slots exactly as the researcher sees them — read
+    fresh, dormant slots marked, provenance attached — because the propagation
+    contract binds the manager as tightly as the researcher: an owner who edits
+    a stance must see the next issue argue the new one, and a template that
+    inlined stance text would break that silently.
+    """
+    values = {
+        "run_id": ctx.run_id,
+        "thesis_version": str(state.thesis.get("version", "?")),
+        "issue_id": issue_id,
+        "published_at": published_at,
+        "coverage_window_from": ctx.coverage_window_from,
+        "coverage_window_to": ctx.coverage_window_to,
+        "models_json": json.dumps(models, indent=2),
+        "watchlist_roster": _manager_watchlist_roster(state),
+        "thesis_slots": _thesis_slots(state),
+        "catalyst_queue_snapshot": _catalyst_queue_snapshot(state),
+        "prior_quiet_counts": _prior_quiet_counts(prior_quiet),
+        "beats_failed": ", ".join(beats_failed) if beats_failed else "(none)",
+        "findings_corpus": _findings_corpus(findings_by_beat, beats_failed),
+    }
+    return _substitute(template, values)
