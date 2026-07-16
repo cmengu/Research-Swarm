@@ -1,0 +1,36 @@
+# Cadence policy — when run.py actually does a run.
+#
+# The OS scheduler is a DUMB DAILY HEARTBEAT: it fires run.py at 07:00 local,
+# every day, forever, and is never rewritten. This file is the only thing that
+# decides whether today is a run day. Qualifies CAPTURE #12 (the scheduler no
+# longer owns the recipe's timing) and #17 (Mon+Thu is a config fact, not cron).
+#
+# Why: a surge needs a variable cadence, and rewriting Task Scheduler / cron /
+# launchd entries would mean per-OS code, elevated privileges on Windows, and a
+# silent failure mode on the one machine you cannot debug remotely. Self-gating
+# keeps cadence declarative, versioned, OS-agnostic, and testable by faking the
+# date instead of waiting a week.
+
+[baseline]
+# Days a normal cycle runs. Local time on the host.
+days = ["mon", "thu"]
+hour = 7
+
+[surge]
+# What a surge window does. Windows themselves live in calendar.toml.
+# v1 exposes one knob: cadence. Beat roster, backstop depth and model tier are
+# deliberately NOT knobs yet — adding one later is a line here, not a code change.
+enabled = true
+cadence = "daily"
+
+[surge.guard]
+# The calendar fails TOWARD surging, never toward silence: a wasted run costs
+# quota, a missed ASCO plenary costs the year's biggest story (both 2026
+# repricing events landed at a single ASCO plenary — see docs/research/
+# oncology-bellwethers-2026.md).
+#
+# But an unverified window must not fire a surge on a hallucinated date, so:
+# a window surges only once its dates are verified against a primary source.
+# An unverified or stale window surges nothing and says so, loudly.
+require_verified_dates = true
+max_surge_days = 7          # a window claiming to run longer than this is a data error

@@ -1,0 +1,95 @@
+# Conference calendar — the windows that trigger surge mode.
+#
+# WHY THIS FILE EXISTS
+# Agenda-setting emissions in oncology are episodic and calendared. Both 2026
+# repricing events in the bellwether research (daraxonrasib HR 0.40; HARMONi-6
+# HR 0.66) landed at a SINGLE ASCO plenary. A flat Mon+Thu cadence reads the
+# biggest 72 hours of the year at the same rate as a dead August week.
+# See docs/research/oncology-bellwethers-2026.md and docs/surge-mode.md.
+#
+# WHO MAINTAINS IT
+# Seeded once by a human; the loop re-verifies upcoming windows each cycle
+# against the societies' own pages (these are primary-source facts — societies
+# publish their own dates) and writes changes as a visible git diff with the
+# source cited. Per CAPTURE #6: self-maintaining, no approval step, drift
+# auditable. Never let the loop invent a date it did not read from `source`.
+#
+# STALENESS IS A DECLARED DEGRADATION (see docs/critic-rubric.md, #7)
+# A stale calendar is the only failure in this system that would otherwise be
+# SILENT: surge just never fires, and a perfectly normal Monday digest ships
+# while ASCO reprices two companies. So: if `valid_through` has passed, or a
+# window's dates are unverified, every issue carries a loud marker and the
+# critic files a `calendar_stale` advisory. Bend the output, mark the absence.
+
+valid_through = 2027-01-31   # past this, every issue is marked stale until re-verified
+
+# ---------------------------------------------------------------------------
+# SEEDED UNVERIFIED. `starts`/`ends` are deliberately null: exact dates were NOT
+# invented here. `typical_window` is the reliable month-level pattern and tells
+# the verifier when to go looking; the first run that resolves a window against
+# `source` fills in the dates and stamps `verified_at`.
+#
+# Until then `require_verified_dates` (cadence.toml) means these windows surge
+# NOTHING and the stale marker explains why. An honest gap beats a guessed date
+# that surges on the wrong week — or worse, doesn't surge on the right one.
+# ---------------------------------------------------------------------------
+
+[[window]]
+id             = "jpm"
+name           = "J.P. Morgan Healthcare Conference"
+typical_window = "mid-January"
+note           = "Deal-announcement venue, not a data venue — the year's M&A tone is set here."
+source         = "https://www.jpmorgan.com/insights/events/healthcare-conference"
+starts         = ""
+ends           = ""
+verified_at    = ""
+
+[[window]]
+id             = "aacr"
+name           = "AACR Annual Meeting"
+typical_window = "April"
+note           = "Earlier-stage science; platform and mechanism signals ahead of clinical readouts."
+source         = "https://www.aacr.org/meeting/aacr-annual-meeting/"
+starts         = ""
+ends           = ""
+verified_at    = ""
+
+[[window]]
+id             = "asco"
+name           = "ASCO Annual Meeting"
+typical_window = "late May – early June"
+note           = "The big one. Both 2026 repricing events landed at a single ASCO plenary. Plenary + late-breakers are the agenda."
+source         = "https://conferences.asco.org/am/attend"
+starts         = ""
+ends           = ""
+verified_at    = ""
+
+[[window]]
+id             = "wclc"
+name           = "IASLC World Conference on Lung Cancer"
+typical_window = "September"
+note           = "Lung-specific; HARMONi-2 (ivonescimab vs pembrolizumab) landed here in 2024."
+source         = "https://wclc2026.iaslc.org/"
+starts         = ""
+ends           = ""
+verified_at    = ""
+
+[[window]]
+id             = "esmo"
+name           = "ESMO Congress"
+typical_window = "September – October"
+note           = "European counterweight to ASCO. ESMO 2026 (Oct) had not happened as of the bellwether research — H2's agenda is unknown."
+source         = "https://www.esmo.org/meetings"
+starts         = ""
+ends           = ""
+verified_at    = ""
+
+[[window]]
+id             = "ash"
+name           = "ASH Annual Meeting"
+typical_window = "early December"
+note           = "Heme-onc. Cell therapy and bispecifics; lower M&A salience than ASCO but real readouts."
+source         = "https://www.hematology.org/meetings/annual-meeting"
+starts         = ""
+ends           = ""
+verified_at    = ""
