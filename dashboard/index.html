@@ -1,0 +1,201 @@
+<meta charset="utf-8">
+<title>ResearchSwarm — Issue 2026-07-16</title>
+<style>
+  :root {
+    --ink: #1B1832; --ink-2: #4A4463; --ink-3: #7C7594;
+    --paper: #FAF7F9; --paper-2: #F1ECF2; --rule: #E0D9E6;
+    --hema: #4A3F8F; --eosin: #C8375D; --eosin-soft: #F7E4EA;
+    --confirms: #2E7D6B; --challenges: #B4661E; --stamp: #C8375D;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --s1: 0.375rem; --s2: 0.75rem; --s3: 1.25rem; --s4: 2rem; --s5: 3.25rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink: #EDE9F2; --ink-2: #B9B2CC; --ink-3: #857DA0; --paper: #15121F; --paper-2: #1E1A2C; --rule: #302943;
+      --hema: #9B8FE0; --eosin: #F0708F; --eosin-soft: #341C27; --confirms: #5FBFA6; --challenges: #E0A055; --stamp: #F0708F; }
+  }
+  :root[data-theme="dark"] { --ink: #EDE9F2; --ink-2: #B9B2CC; --ink-3: #857DA0; --paper: #15121F; --paper-2: #1E1A2C; --rule: #302943;
+      --hema: #9B8FE0; --eosin: #F0708F; --eosin-soft: #341C27; --confirms: #5FBFA6; --challenges: #E0A055; --stamp: #F0708F; }
+  :root[data-theme="light"] { --ink: #1B1832; --ink-2: #4A4463; --ink-3: #7C7594; --paper: #FAF7F9; --paper-2: #F1ECF2; --rule: #E0D9E6;
+      --hema: #4A3F8F; --eosin: #C8375D; --eosin-soft: #F7E4EA; --confirms: #2E7D6B; --challenges: #B4661E; --stamp: #C8375D; }
+
+  body { background: var(--paper); color: var(--ink); font-family: var(--sans); line-height: 1.55; }
+  .wrap { display: grid; grid-template-columns: 15rem minmax(0,1fr); gap: var(--s5); max-width: 78rem; margin: 0 auto; padding: var(--s4) var(--s3) var(--s5); align-items: start; }
+  @media (max-width: 60rem) { .wrap { grid-template-columns: 1fr; gap: var(--s4); } .rail { position: static; } }
+  .rail { position: sticky; top: var(--s4); display: flex; flex-direction: column; gap: var(--s3); }
+  .brand { font-family: var(--serif); font-size: 1.35rem; letter-spacing: -0.01em; }
+  .brand em { color: var(--eosin); font-style: normal; }
+  .brand small { display: block; font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); margin-top: var(--s1); }
+  select { width: 100%; font-family: var(--mono); font-size: 0.85rem; padding: var(--s2); color: var(--ink); background: var(--paper-2); border: 1px solid var(--rule); border-radius: 2px; }
+  select:focus-visible { outline: 2px solid var(--hema); outline-offset: 1px; }
+  .window { font-family: var(--mono); font-size: 0.7rem; color: var(--ink-3); line-height: 1.7; }
+  .window b { color: var(--ink-2); font-weight: 600; }
+  nav { display: flex; flex-direction: column; gap: 1px; border-top: 1px solid var(--rule); padding-top: var(--s2); }
+  nav a { font-size: 0.82rem; color: var(--ink-2); text-decoration: none; padding: 0.2rem 0 0.2rem var(--s2); border-left: 2px solid transparent; }
+  nav a:hover, nav a:focus-visible { color: var(--eosin); border-left-color: var(--eosin); outline: none; }
+  nav a span { font-family: var(--mono); font-size: 0.68rem; color: var(--ink-3); }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .stat { background: var(--paper); padding: var(--s2); }
+  .stat b { display: block; font-family: var(--mono); font-size: 1.15rem; font-variant-numeric: tabular-nums; color: var(--hema); }
+  .stat span { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+  .stat.flag b { color: var(--eosin); }
+  main { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
+  section { display: flex; flex-direction: column; gap: var(--s3); scroll-margin-top: var(--s3); }
+  h2 { font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-3); font-weight: 600; padding-bottom: var(--s1); border-bottom: 1px solid var(--rule); }
+  .hero { gap: var(--s2); }
+  .hero .eyebrow { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--eosin); }
+  .hero h1 { font-family: var(--serif); font-size: clamp(1.75rem, 3.6vw, 2.6rem); line-height: 1.12; letter-spacing: -0.02em; text-wrap: balance; }
+  .hero p { font-size: 1.02rem; color: var(--ink-2); max-width: 62ch; }
+  .sowhat { font-family: var(--serif); font-style: italic; font-size: 1.05rem; padding-left: var(--s3); border-left: 3px solid var(--eosin); color: var(--ink); max-width: 60ch; }
+  ul.bullets { list-style: none; display: flex; flex-direction: column; gap: var(--s2); }
+  ul.bullets li { display: grid; grid-template-columns: auto 1fr; gap: var(--s2); align-items: baseline; font-size: 0.95rem; }
+  .chip { font-family: var(--mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.15rem 0.4rem; border: 1px solid currentColor; border-radius: 2px; white-space: nowrap; }
+  .p-high { color: var(--eosin); } .p-medium { color: var(--hema); } .p-low { color: var(--ink-3); }
+  .cat { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.06em; color: var(--ink-3); background: var(--paper-2); padding: 0.15rem 0.4rem; border-radius: 2px; }
+  .entity { display: flex; flex-direction: column; gap: var(--s2); padding-left: var(--s3); border-left: 3px solid var(--rule); }
+  .entity.confirms { border-left-color: var(--confirms); }
+  .entity.challenges { border-left-color: var(--challenges); }
+  .ehead { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: baseline; }
+  .ehead h3 { font-family: var(--serif); font-size: 1.3rem; letter-spacing: -0.01em; }
+  .slug { font-family: var(--mono); font-size: 0.68rem; color: var(--ink-3); }
+  .summary { color: var(--ink-2); font-size: 0.95rem; max-width: 66ch; }
+  .angle { background: var(--paper-2); padding: var(--s3); border-radius: 2px; display: flex; flex-direction: column; gap: var(--s2); }
+  .angle .lbl { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; }
+  .angle .lbl b { color: var(--eosin); font-weight: 600; }
+  .angle p { font-family: var(--serif); font-size: 1rem; line-height: 1.6; max-width: 64ch; }
+  .impact { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; }
+  .impact.confirms { color: var(--confirms); } .impact.challenges { color: var(--challenges); } .impact.neutral { color: var(--ink-3); }
+  .srcs { display: flex; flex-wrap: wrap; gap: var(--s2); font-family: var(--mono); font-size: 0.68rem; }
+  .srcs a { color: var(--ink-3); text-decoration: none; border-bottom: 1px dotted var(--ink-3); }
+  .srcs a:hover, .srcs a:focus-visible { color: var(--eosin); border-bottom-color: var(--eosin); outline: none; }
+  .tier { font-weight: 700; letter-spacing: 0.06em; }
+  .tier-primary { color: var(--confirms); } .tier-trade { color: var(--hema); } .tier-aggregator { color: var(--ink-3); }
+  .status { font-family: var(--mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+  .status.developing::before { content: "\25D0 "; color: var(--challenges); }
+  .status.concluded::before { content: "\25CF "; color: var(--ink-3); }
+  .catch { border: 1px solid var(--eosin); background: var(--eosin-soft); padding: var(--s3); display: flex; flex-direction: column; gap: var(--s2); }
+  .catch .claim { font-family: var(--serif); font-size: 1.05rem; text-decoration: line-through; text-decoration-color: var(--eosin); text-decoration-thickness: 2px; color: var(--ink-2); max-width: 60ch; }
+  .catch .why { font-size: 0.9rem; color: var(--ink-2); max-width: 64ch; }
+  .catch .rejected { align-self: flex-start; font-family: var(--mono); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--stamp); border: 2px solid var(--stamp); padding: 0.2rem 0.5rem; transform: rotate(-2deg); }
+  .quiet-grid { display: flex; flex-wrap: wrap; gap: var(--s2); }
+  .quiet-pill { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-3); border: 1px dashed var(--rule); padding: 0.2rem 0.5rem; border-radius: 2px; }
+  .quiet-pill b { color: var(--ink-2); font-weight: 500; }
+  .thread { display: flex; flex-direction: column; gap: var(--s1); padding-left: var(--s3); border-left: 2px dashed var(--challenges); }
+  .thread b { font-size: 0.92rem; }
+  .thread span { font-family: var(--mono); font-size: 0.7rem; color: var(--ink-3); }
+  .theme { display: flex; flex-direction: column; gap: var(--s2); }
+  .theme h3 { font-family: var(--serif); font-size: 1.2rem; }
+  .theme p { color: var(--ink-2); font-size: 0.95rem; max-width: 66ch; }
+  .drift { border: 1px solid var(--rule); border-radius: 2px; overflow: hidden; }
+  .drift .dh { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.1em; text-transform: uppercase; padding: var(--s2); background: var(--paper-2); color: var(--ink-3); border-bottom: 1px solid var(--rule); }
+  .drift .db { padding: var(--s3); display: flex; flex-direction: column; gap: var(--s2); font-size: 0.92rem; }
+  .drift .before { color: var(--ink-3); text-decoration: line-through; }
+  .drift .after { color: var(--ink); font-family: var(--serif); font-size: 1rem; }
+  .finding { display: grid; grid-template-columns: auto 1fr; gap: var(--s2); font-size: 0.88rem; align-items: baseline; color: var(--ink-2); }
+  .verdict { align-self: flex-start; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.25rem 0.5rem; border-radius: 2px; color: var(--challenges); border: 1px solid var(--challenges); }
+  footer { font-family: var(--mono); font-size: 0.7rem; color: var(--ink-3); line-height: 1.9; border-top: 1px solid var(--rule); padding-top: var(--s3); }
+  .proto { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--eosin); border: 1px dashed var(--eosin); padding: var(--s2); text-align: center; }
+</style>
+
+<div class="wrap">
+  <aside class="rail">
+    <div class="brand">Research<em>Swarm</em><small>Oncology &amp; Pharma M&amp;A</small></div>
+    <select id="issuePicker" aria-label="Select issue">
+      <option>2026-07-16</option><option>2026-07-13</option><option>2026-07-09</option>
+    </select>
+    <div class="window" id="window"></div>
+    <div class="stats" id="stats"></div>
+    <nav id="nav"></nav>
+    <div class="proto">Prototype &mdash; content fabricated</div>
+  </aside>
+  <main>
+    <section class="hero" id="top">
+      <div class="eyebrow" id="heroEyebrow"></div>
+      <h1 id="heroTitle"></h1>
+      <p id="heroSummary"></p>
+      <div class="sowhat" id="heroSoWhat"></div>
+    </section>
+    <section id="tldr"><h2>The cycle in bullets</h2><ul class="bullets" id="bullets"></ul></section>
+    <section id="watchlist"><h2>Tracked watchlist</h2><div id="watchlistBody" style="display:flex;flex-direction:column;gap:2.5rem"></div></section>
+    <section id="quiet"><h2>Quiet this cycle</h2><div id="quietBody" style="display:flex;flex-direction:column;gap:1.5rem"></div></section>
+    <section id="radar"><h2>New on our radar</h2><div id="radarBody" style="display:flex;flex-direction:column;gap:2rem"></div></section>
+    <section id="themes"><h2>Themes &amp; signals</h2><div id="themesBody" style="display:flex;flex-direction:column;gap:1.75rem"></div></section>
+    <section id="frontier"><h2>Elsewhere on the frontier</h2><div id="frontierBody" style="display:flex;flex-direction:column;gap:1.75rem"></div></section>
+    <section id="thesis"><h2>Thesis drift</h2><div id="thesisBody" style="display:flex;flex-direction:column;gap:1rem"></div></section>
+    <section id="critic"><h2>Critic report</h2><div id="criticBody" style="display:flex;flex-direction:column;gap:1rem"></div></section>
+    <footer id="method"></footer>
+  </main>
+</div>
+
+<script src="_sample.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const chip = (p) => '<span class="chip p-' + esc(p) + '">' + esc(p) + '</span>';
+  const srcList = (srcs) => '<div class="srcs">' + srcs.map(s =>
+    '<a href="' + esc(s.url) + '" target="_blank" rel="noopener"><span class="tier tier-' + esc(s.tier) + '">' + esc(s.tier) + '</span> ' + esc(s.publisher) + ' &middot; ' + esc(s.published_at) + '</a>').join('') + '</div>';
+  const d = ISSUE;
+
+  $('window').innerHTML = 'coverage<br><b>' + esc(d.issue.coverage_window.from) + '</b> &rarr; <b>' + esc(d.issue.coverage_window.to) + '</b><br>prev issue ' + esc(d.stats.previous_issue);
+  const S = d.stats;
+  $('stats').innerHTML = [['tracked', S.tracked_updates, 0], ['quiet', S.tracked_quiet, 0], ['radar', S.new_on_radar, 0],
+    ['frontier', S.frontier_items, 0], ['sources', S.sources_cited, 0], ['catches', S.critic_catches, 1]]
+    .map(a => '<div class="stat ' + (a[2] ? 'flag' : '') + '"><b>' + a[1] + '</b><span>' + a[0] + '</span></div>').join('');
+  $('nav').innerHTML = [['tldr','Bullets',d.tldr_bullets.length],['watchlist','Watchlist',d.watchlist.length],['quiet','Quiet',S.tracked_quiet],
+    ['radar','Radar',d.new_on_radar.length],['themes','Themes',d.themes_and_signals.length],['frontier','Frontier',d.elsewhere_on_frontier.length],
+    ['thesis','Thesis drift',d.thesis_updates.length],['critic','Critic',S.critic_catches]]
+    .map(a => '<a href="#' + a[0] + '">' + a[1] + ' <span>' + a[2] + '</span></a>').join('');
+
+  $('heroEyebrow').textContent = 'Issue ' + d.issue.id + ' · confidence ' + d.headline.confidence;
+  $('heroTitle').textContent = d.headline.title;
+  $('heroSummary').textContent = d.headline.summary;
+  $('heroSoWhat').textContent = d.headline.so_what;
+  $('bullets').innerHTML = d.tldr_bullets.map(b => '<li>' + chip(b.priority) + '<span>' + esc(b.text) + '</span></li>').join('');
+
+  $('watchlistBody').innerHTML = d.watchlist.map(e =>
+    '<article class="entity ' + esc(e.thesis_impact) + '"><div class="ehead"><h3>' + esc(e.name) + '</h3><span class="slug">' + esc(e.entity_id) + '</span>' +
+    chip(e.priority) + e.categories.map(c => '<span class="cat">' + esc(c) + '</span>').join('') +
+    '<span class="status ' + esc(e.status) + '">' + esc(e.status) + '</span><span class="status">conf: ' + esc(e.confidence) + '</span></div>' +
+    '<p class="summary">' + esc(e.summary) + '</p><div class="angle"><div class="lbl"><b>Research Angle</b><span class="impact ' + esc(e.thesis_impact) + '">' + esc(e.thesis_impact) + ' thesis</span></div><p>' + esc(e.research_angle) + '</p></div>' +
+    srcList(e.sources) + '</article>').join('');
+
+  const q = d.quiet_this_cycle;
+  $('quietBody').innerHTML =
+    '<div class="quiet-grid">' + q.no_news.map(n => '<span class="quiet-pill"><b>' + esc(n.name) + '</b> &middot; ' + n.cycles_quiet + ' cycle' + (n.cycles_quiet > 1 ? 's' : '') + '</span>').join('') + '</div>' +
+    q.critic_catches.map(c => '<div class="catch"><div class="rejected">Rejected &middot; ' + esc(c.rejected_because) + '</div><div class="claim">' + esc(c.claim) + '</div><div class="why">' + esc(c.detail) + '</div>' + srcList(c.sources) + '</div>').join('') +
+    q.open_threads.map(t => '<div class="thread"><b>' + esc(t.thread) + '</b><span>open since ' + esc(t.since) + ' &middot; ' + esc(t.next_expected) + '</span></div>').join('');
+
+  $('radarBody').innerHTML = d.new_on_radar.map(r =>
+    '<article class="entity"><div class="ehead"><h3>' + esc(r.name) + '</h3><span class="slug">' + esc(r.entity_id) + '</span>' + chip(r.priority) +
+    r.categories.map(c => '<span class="cat">' + esc(c) + '</span>').join('') + '</div><p class="summary">' + esc(r.what_they_do) + ' &mdash; ' + esc(r.development) + '</p>' +
+    '<div class="angle"><div class="lbl"><b>Why we care</b>' + (r.promotion_proposal.promote_to_watchlist ? '<span class="impact confirms">promoting to watchlist</span>' : '') + '</div><p>' + esc(r.why_we_care) + '</p></div>' +
+    srcList(r.sources) + '</article>').join('');
+
+  $('themesBody').innerHTML = d.themes_and_signals.map(t =>
+    '<div class="theme"><h3>' + esc(t.theme) + ' <span class="impact ' + esc(t.thesis_impact) + '">' + esc(t.thesis_impact) + '</span></h3><p>' + esc(t.argument) + '</p>' +
+    '<div class="srcs">' + t.evidence_refs.map(r => '<span class="slug">' + esc(r) + '</span>').join('') + '</div></div>').join('');
+
+  $('frontierBody').innerHTML = d.elsewhere_on_frontier.map(f =>
+    '<div class="theme"><h3>' + esc(f.actor) + ' &mdash; ' + esc(f.move) + '</h3><p>' + esc(f.detail) + '</p><p style="color:var(--eosin)">' + esc(f.why_it_matters) + '</p>' + srcList(f.sources) + '</div>').join('');
+
+  $('thesisBody').innerHTML = d.thesis_updates.map(u =>
+    '<div class="drift"><div class="dh">' + esc(u.change) + ' &middot; ' + esc(u.field) + ' &middot; triggered by ' + u.triggered_by.map(esc).join(', ') + '</div>' +
+    '<div class="db"><span class="before">' + esc(u.before) + '</span><span class="after">' + esc(u.after) + '</span></div></div>').join('');
+
+  const c = d.critic_report;
+  $('criticBody').innerHTML = '<span class="verdict">' + esc(c.verdict.replace(/_/g, ' ')) + ' &middot; ' + c.retries_used + ' retry</span>' +
+    c.blocking_findings.map(f => '<div class="finding">' + chip('high') + '<span>' + esc(f.note) + '</span></div>').join('') +
+    c.advisory_findings.map(f => '<div class="finding"><span class="cat">' + esc(f.kind) + '</span><span><b class="slug">' + esc(f.where) + '</b> &mdash; ' + esc(f.note) + '</span></div>').join('');
+
+  const m = d.sources_and_method;
+  $('method').innerHTML = 'beats: ' + m.beats_run.map(esc).join(' &middot; ') + '<br>sources: ' +
+    Object.keys(m.source_tier_counts).map(k => '<span class="tier tier-' + k + '">' + k + '</span> ' + m.source_tier_counts[k]).join(' &middot; ') + '<br>' +
+    m.paywalled_flagged.map(p => '<span style="color:var(--eosin)">paywalled &mdash; assess manually:</span> ' + esc(p.claim) + ' (' + esc(p.publisher) + ')').join('<br>') +
+    '<br>models: researchers ' + esc(d.issue.run.models.researchers) + ' &middot; manager ' + esc(d.issue.run.models.manager) + ' &middot; critic ' + esc(d.issue.run.models.critic) +
+    '<br>run ' + esc(d.issue.run.run_id) + ' &middot; published ' + esc(d.issue.published_at);
+
+  $('issuePicker').addEventListener('change', (e) => {
+    if (e.target.value !== d.issue.id) alert('Prototype: only ' + d.issue.id + ' has data. Production fetches issues/<id>.json.');
+  });
+</script>
