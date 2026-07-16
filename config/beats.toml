@@ -1,0 +1,147 @@
+# Beat roster — ResearchSwarm researchers (v0.1.0)
+#
+# Asset for ticket #6. Beats differ in SCOPE, never in RULES: trust tiers,
+# citation discipline, read-only expectations and the output contract are
+# identical for all and live once in prompts/researcher.md.
+#
+# Adding a seventh beat = one [[beat]] block. No code change.
+# Roster per CAPTURE #4 (5 beats + catch-all backstop).
+
+[defaults]
+model = "sonnet"        # CAPTURE #2; per-beat override below
+max_turns = 30          # hard cap per researcher; cap-hit ships thin, not empty
+                        # surge runs inherit these unchanged (see docs/surge-mode.md)
+
+# --- The five beats ---------------------------------------------------------
+
+[[beat]]
+id = "ma_dealmaking"
+name = "Pharma M&A & dealmaking"
+charter = """
+Acquisitions, mergers, licensing and option deals, regional rights carve-outs,
+and the money moving through oncology biotech. Centre of the beat is the deal
+itself: who bought/licensed what, for how much, and on what terms. Deal
+rumours are in scope when trade-reported.
+"""
+seed_angles = [
+  "acquisitions and takeouts announced this window",
+  "in-licensing / out-licensing deals, especially China-origin assets",
+  "deal rumours from trade press ('people familiar with the matter')",
+  "terms disclosed in SEC filings (upfronts, milestones, royalties)",
+  "auction processes and reported bidders for named assets",
+]
+notes = """
+Beat-specific: label rumour vs confirmed in every deal summary — a
+trade-reported rumour and a signed agreement are different facts. Where a
+deal is confirmed, prefer the company PR or SEC filing as primary and let
+trade coverage ride along.
+"""
+
+[[beat]]
+id = "startup_frontier"
+name = "Oncology startup frontier"
+charter = """
+What's at the frontier from young companies: launches, emergences from
+stealth, first-in-human entries, platform debuts, and financing rounds that
+signal a new modality or approach. Centre of the beat is novelty, not size.
+"""
+seed_angles = [
+  "companies emerging from stealth in oncology",
+  "Series A/B rounds with a named novel modality",
+  "first-in-human / IND-cleared novel mechanisms",
+  "new platform debuts (radioligand, TCE, ADC, cell therapy, AI-native discovery)",
+  "academic spinouts with disclosed lead programmes",
+]
+notes = """
+Beat-specific: most companies here are NOT on the watchlist — that is
+expected and correct. Use proposed_entity for radar candidates rather than
+forcing a roster slug.
+"""
+
+[[beat]]
+id = "clinical_scientific"
+name = "Clinical & scientific developments"
+charter = """
+Data. Readouts, trial results, publications, preprints, conference
+presentations and trial-registry changes across oncology. Centre of the beat
+is what the evidence now says.
+"""
+seed_angles = [
+  "Phase 2/3 readouts in window",
+  "conference presentations and late-breaking abstracts",
+  "publications and preprints (PubMed, bioRxiv, medRxiv)",
+  "ClinicalTrials.gov status changes, enrolment halts, primary-completion moves",
+  "safety signals and discontinuations",
+]
+notes = """
+Beat-specific: distinguish a READOUT (topline results disclosed) from an
+ABSTRACT TITLE (presentation scheduled, data not yet public) — they are
+routinely conflated in coverage and are very different facts. Say which
+one you have in the summary.
+"""
+
+[[beat]]
+id = "policy_regulation"
+name = "Policy & regulation"
+charter = """
+Regulators and payers: FDA/EMA decisions, approvals, CRLs, AdComms, guidance
+documents, designations, CMS coverage and pricing policy, and legislative
+moves that reprice oncology assets. Centre of the beat is the rule and the
+ruling.
+"""
+seed_angles = [
+  "FDA approvals, CRLs, and PDUFA actions in window",
+  "AdComm scheduling and outcomes",
+  "new or draft guidance touching oncology endpoints or trial design",
+  "CMS coverage / reimbursement decisions and pricing policy",
+  "EMA and other ex-US regulator decisions on watchlist assets",
+]
+notes = """
+Beat-specific: FDA/EMA/CMS are themselves on the watchlist as entities —
+use their slugs. Regulator positions on generalizability of foreign trial
+data are a standing interest.
+"""
+
+[[beat]]
+id = "incumbent_moves"
+name = "Incumbent moves & new entrants"
+charter = """
+Big pharma behaviour that isn't a deal and isn't a readout: pipeline
+reprioritisation, programme kills, restructurings, leadership changes at
+oncology R&D, capacity and manufacturing bets, and large players entering
+oncology from outside. Centre of the beat is strategic posture.
+"""
+seed_angles = [
+  "pipeline reprioritisations and programme discontinuations",
+  "oncology R&D leadership changes",
+  "restructurings, site closures, manufacturing build-outs",
+  "non-oncology majors or tech entrants moving into oncology",
+  "capital-allocation signals from earnings calls",
+]
+notes = ""
+
+# --- The backstop -----------------------------------------------------------
+
+[[beat]]
+id = "backstop"
+name = "Biotech-wide catch-all sweep"
+charter = """
+A biotech-wide sweep of the cycle's biggest stories, deliberately ignoring
+beat boundaries and the oncology-first focus. Your job is precisely what the
+five narrow beats miss: the story nobody's query was shaped to find. Breadth
+over depth — if a story is big and the other beats plausibly missed it,
+that's yours, whatever it's about.
+"""
+seed_angles = [
+  "biggest biotech stories of the window, any therapeutic area",
+  "stories crossing beat boundaries (a deal that is really a policy story, etc.)",
+  "non-oncology events that reprice oncology players",
+  "market-structure moves: IPOs, delistings, bankruptcies, activist positions",
+  "what the trade press led with this window",
+]
+notes = """
+Beat-specific: do NOT self-censor as 'probably covered by another beat' —
+duplication is the point of the backstop, and a duplicate is free. Coverage
+duty for high-priority roster entities does not apply to you; sweep by
+story size instead.
+"""
