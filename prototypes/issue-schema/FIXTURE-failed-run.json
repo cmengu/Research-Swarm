@@ -1,4 +1,6 @@
 {
+  "_FIXTURE": true,
+  "_WARNING": "SYNTHETIC SAMPLE — invented content exercising the failed-run stub schema. Not research output. Never publish, never copy into issues/.",
   "schema_version": "1.0.0",
   "issue_id": "2026-07-13",
   "status": "failed",

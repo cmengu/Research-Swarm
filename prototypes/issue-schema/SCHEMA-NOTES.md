@@ -1,7 +1,25 @@
 # issue.json — field-level contract (draft for reaction)
 
 One file per cycle: `issues/<issue_id>.json`, where `issue_id` is the date (`YYYY-MM-DD`).
-Sample: `2026-07-16.issue.json` (published). Stub variant: `2026-07-13.issue.failed.json`.
+Samples: `FIXTURE-published.json`, `FIXTURE-failed-run.json` — synthetic, never publishable.
+
+## Synthetic data must be unpublishable by construction
+
+The samples carry fabricated content that is *designed* to look like real investor-grade
+research. That's what makes them useful and what makes them dangerous: the failure mode is
+fiction escaping into a digest a human then acts on. Three cheap barriers, all in place:
+
+1. **Filenames can't impersonate a real issue.** `FIXTURE-*.json`, never `<date>.issue.json`.
+   A real issue is named for its date; a fixture never is.
+2. **A `_FIXTURE: true` marker plus a `_WARNING` string sit at the top of every sample.**
+   Visible in the first line of any diff, any `head`, any editor tab.
+3. **The renderer and the orchestrator must hard-refuse any issue carrying `_FIXTURE`** —
+   loudly, not by skipping it. Carry this into the build spec: a real `issue.json` must
+   never contain the key, so refusing on its presence costs nothing and closes the path.
+
+Barrier 3 is the load-bearing one — 1 and 2 are conventions a future agent can fumble;
+3 is a wall. It's also why `_FIXTURE` is a *presence* check rather than a `true`/`false`
+field: a real issue omits the key entirely, so there's no "false" to forge or forget.
 
 ## Design rules baked into the sample
 

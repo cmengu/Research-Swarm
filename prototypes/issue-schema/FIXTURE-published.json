@@ -1,4 +1,6 @@
 {
+  "_FIXTURE": true,
+  "_WARNING": "SYNTHETIC SAMPLE — every company, deal, trial result, and source in this file is INVENTED to exercise the schema. Not research output. Never publish, never cite, never copy into issues/. A real issue.json must not carry the _FIXTURE key.",
   "schema_version": "1.0.0",
   "issue_id": "2026-07-16",
   "status": "published",
