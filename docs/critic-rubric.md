@@ -1,5 +1,7 @@
 # Critic rubric (v0.3.0 draft)
 
+> **Superseded by [`docs/spec/06-validator-and-critic.md`](spec/06-validator-and-critic.md).** This is the decision asset that produced that spec section, kept for its reasoning — which is fuller than the spec's summary of it. Where the two disagree, **the spec wins**: it resolves several items this document filed as "carried to the spec" (the schema deltas, the lookback floor, the `unconfirmed` rule).
+
 Decision asset for tickets [#7](https://github.com/cmengu/Research-Swarm/issues/7) and [#23](https://github.com/cmengu/Research-Swarm/issues/23). The concrete checklist the cross-family critic (Codex) judges an `issue.json` against, and what the orchestrator does with the verdict.
 
 Binds to the `critic_report` block defined in [issue.json schema v0.1.0](schema/README.md) (#3). **This document is also the degradation registry** — see [the register](#the-register). The contract in [`state/thesis.json`](../state/thesis.json) (#5) is one entry in it, not a second home for the rule.

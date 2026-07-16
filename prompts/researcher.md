@@ -45,8 +45,8 @@ web search and read tools only.
 
 Every HIGH-priority entity below whose scope touches your beat must be
 explicitly checked this run, and recorded in coverage_notes either way.
-Use these id slugs in your findings' entity_ids; never invent a slug for a
-listed entity. Note that some entities are ASSETS (tier: frontier_asset),
+Use these entity_id slugs in your findings' entity_ids; never invent a slug
+for a listed entity. Note that some entities are ASSETS (tier: frontier_asset),
 not companies — tickers disappear on acquisition, assets don't.
 
 {{watchlist_roster}}
@@ -155,7 +155,7 @@ query surfaced", and it is what makes quiet:true auditable.
 | `{{run_id}} {{coverage_window_from}} {{coverage_window_to}}` | orchestrator | |
 | `{{surge_block}}` | `config/calendar.toml` | empty outside a surge window; inside one: `- surge: {{conference}} day {{day}} of {{of}}, conference window {{starts}} → {{ends}}` |
 | `{{window_carveout}}` | surge state | outside surge: `No carve-outs.` — inside: `Carve-out: during the current {{conference}} window, anything published within the conference window ({{starts}} → {{ends}}) is fair game even if outside this run's one-day coverage window.` |
-| `{{watchlist_roster}}` | `state/watchlist.json` → `entities[]` | compact roster only: `id · name · tier · priority · watch_for`, one line each — **`why_tracked` is deliberately excluded** (it is a summary, and summaries are the manager's job). `watch_for` is the closest thing the file has to categories and is what makes the coverage duty actionable. |
+| `{{watchlist_roster}}` | `state/watchlist.json` → `entities[]` | compact roster only: `entity_id · name · tier · priority · watch_for`, one line each — **`why_tracked` is deliberately excluded** (it is a summary, and summaries are the manager's job). `watch_for` is the closest thing the file has to categories and is what makes the coverage duty actionable. |
 | `{{thesis_version}} {{thesis_slots}}` | `state/thesis.json` → `version`, `beliefs[]` | per slot: `id · title · stance` read fresh; a slot with `stance: null` renders `(no stance seeded)`. Render `stance_provenance` too — 4 of 6 slots are `agent_draft_delegated` (provisional, not owner-endorsed), and a lens the reader knows is provisional is safer than one presented as settled. Stance text must **never** be baked into this template. |
 | `{{queue_snapshot_date}} {{catalyst_queue_active}}` | `state/catalyst-queue.json` → `last_recut_at`, `queue[]` | **active = `status` in (`pending`, `slipped`)**; `delivered` and `dead` are terminal and are not chased. One line each: `id · asset · entity_ids · catalyst · expected_window · status`. |
 

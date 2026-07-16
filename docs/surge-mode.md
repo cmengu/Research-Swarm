@@ -1,5 +1,7 @@
 # Conference surge mode + calendar config (v0.1.0)
 
+> **Superseded by [`docs/spec/02-cadence-and-surge.md`](spec/02-cadence-and-surge.md).** Kept for its reasoning. Where the two disagree, **the spec wins** — it fixes `N = 8` (this document left it open) and folds the schema deltas into issue.json v1.0.0.
+
 Decision asset for ticket [#18](https://github.com/cmengu/Research-Swarm/issues/18). Assets: [`config/cadence.toml`](../config/cadence.toml), [`config/calendar.toml`](../config/calendar.toml).
 
 ## The finding this answers

@@ -1,5 +1,7 @@
 # issue.json — schema notes (v0.1.0 draft)
 
+> **Superseded by [`docs/spec/07-issue-schema.md`](../spec/07-issue-schema.md), which defines v1.0.0.** Kept for its design rationale. Where the two disagree, **the spec wins** — v1.0.0 consolidates every deferred delta and rules this document's one open question (`headline.so_what` vs `research_angle`: two fields, distinct duties, both kept).
+
 Prototype asset for ticket [#3](https://github.com/cmengu/Research-Swarm/issues/3). Sample: [sample-issue-2026-07-16.json](sample-issue-2026-07-16.json) — **all content fabricated** for design purposes.
 
 ## Design choices to react to
