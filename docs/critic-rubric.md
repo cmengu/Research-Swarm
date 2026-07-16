@@ -1,10 +1,12 @@
-# Critic rubric (v0.2.0 draft)
+# Critic rubric (v0.3.0 draft)
 
-Decision asset for ticket [#7](https://github.com/cmengu/Research-Swarm/issues/7). The concrete checklist the cross-family critic (Codex) judges an `issue.json` against, and what the orchestrator does with the verdict.
+Decision asset for tickets [#7](https://github.com/cmengu/Research-Swarm/issues/7) and [#23](https://github.com/cmengu/Research-Swarm/issues/23). The concrete checklist the cross-family critic (Codex) judges an `issue.json` against, and what the orchestrator does with the verdict.
 
-Binds to the `critic_report` block defined in [issue.json schema v0.1.0](schema/README.md) (#3) and honours the degradation contract in [`state/thesis.json`](../state/thesis.json) (#5).
+Binds to the `critic_report` block defined in [issue.json schema v0.1.0](schema/README.md) (#3). **This document is also the degradation registry** — see [the register](#the-register). The contract in [`state/thesis.json`](../state/thesis.json) (#5) is one entry in it, not a second home for the rule.
 
-> **v0.2.0 supersedes v0.1.0's sorting principle.** v0.1.0 made blocking mean *mechanically checkable* and judgment *always advisory*. Two grilling decisions overturned that — see [What changed from v0.1.0](#what-changed-from-v010). Its receipt rule, `not_run` handling, degradation exemptions and edit-don't-regenerate loop survive intact.
+> **v0.3.0 adds the degradation contract** (#23): the register itself, the three-part admission test, the render-at-the-absence rule, and [continuity across stubs](#continuity-across-stubs). Nothing in v0.2.0 is overturned — the two degradations it declared are unchanged, and two more (stale calendar, failed beat) are lifted in from #18 and #6, which had been declaring them in their own docs.
+>
+> **v0.2.0 superseded v0.1.0's sorting principle.** v0.1.0 made blocking mean *mechanically checkable* and judgment *always advisory*. Two grilling decisions overturned that — see [What changed from v0.1.0](#what-changed-from-v010). Its receipt rule, `not_run` handling, degradation exemptions and edit-don't-regenerate loop survive intact.
 
 ## What the critic sees
 
@@ -62,16 +64,60 @@ Runs on every cycle before Codex is invoked. No judgment, no model call, no retr
 
 **On exhaustion** (still invalid after 2 retries): publish a **failed-run stub** — `run.status: "failed"`, `failure.stage: "validation"`, same schema, empty sections (CAPTURE #16). *Not* a banner: "flagged issue > missing issue" assumes there is a readable issue to flag, and a structurally invalid file is one the dashboard cannot render. An unrenderable file, flagged, is still unrenderable.
 
-### `empty_section` vs declared degradation
+### `empty_section` vs declared degradation — the registry
 
 An empty section blocks **unless** a declared degradation explains it. This reconciles CAPTURE #8 ("empty section = blocking") with the thesis contract from #5, and needs no special-casing — "is this slot's stance null?" is itself a mechanical check.
 
-Currently declared:
+**This section is the registry** (#23). It is the one file both gates read — the validator checks `empty_section` against it, the critic honours its exemptions — so the list and the thing enforcing the list cannot drift apart. Other docs **reference** this table; they never declare locally. A degradation declared anywhere else does not exist.
 
-- **Unseeded thesis.** `research_angle` / `why_we_care` rendering the marker `No thesis seeded — facts only` is **advisory** (`kind: thesis_unseeded`), never blocking, while the corresponding belief slot's `stance` is `null`. Once a human seeds that slot, the exemption lapses for it and an empty angle blocks again.
-- **Genuinely quiet cycle.** An empty `watchlist` section is not blocking if every tracked entity is present in `quiet_this_cycle`. Nothing happened is a valid outcome; failing to say so is not.
+#### What a degradation is
 
-New degradations must be declared here to earn an exemption. An undeclared empty section blocks.
+> **A degradation explains an absence inside a valid issue. A stub says there is no valid issue.**
+
+They sit on opposite sides of the validator: a degradation *prevents* a block, a stub is what remains *after* a block wins and cannot be resolved. Same word "failed", opposite sides of the line — a failed **beat** is a degradation (the other five still rendered a real issue); a failed **validator** is a stub (nothing renders). The rubric already assumed this in ruling exhaustion to a stub rather than a banner: a degradation is a rendering decision, and a stub is the admission that nothing renders.
+
+#### Admission test — all three must hold
+
+1. **A required section or field would be empty or absent.** If nothing is missing, there is nothing to exempt.
+2. **The system can detect the cause mechanically**, from facts the orchestrator holds itself. This keeps every degradation inside the free deterministic gate and off the critic's judgment budget.
+3. **The honest render is an explained absence, not a halt.** The reader is better served by a published issue saying why something is missing than by no issue.
+
+Test 2 is the load-bearing one, and it is what a **model's self-report cannot satisfy**. A degradation whose trigger is "did the agent remember to confess" fails silently on exactly the run where it matters — and it would grant an *exemption from blocking* on that basis, so the less reliably the failure is reported, the more easily an unexplained absence passes as declared. An absence the system cannot explain to itself is a bug, not a degradation.
+
+#### Where a degradation renders
+
+**At the point of the absence, in the reader's path — not only in a footer.**
+
+The reader's risk is never "not knowing something failed". It is **reading a thin section and concluding it is a fact about the world** — a quiet week for dealmaking rather than a dead M&A beat. An absence that doesn't look like an absence misleads the reader about a fact, which is the critic's own blocking bar. Machine fields (`beats_failed`, `source_tier_counts`) serve the audit trail and the critic; the inline marker serves the reader. A degradation that cannot name where it renders has not been thought through.
+
+#### The register
+
+| Degradation | Trigger (mechanical) | Renders (reader-facing, at the absence) | `kind` |
+|---|---|---|---|
+| **Unseeded thesis slot** | belief slot's `stance` is `null` | `No thesis seeded — facts only`, in place of `research_angle` / `why_we_care` | `thesis_unseeded` |
+| **Genuinely quiet cycle** | every tracked entity present in `quiet_this_cycle` | the entity listed under `quiet_this_cycle` | `quiet_cycle` |
+| **Stale calendar** | no window verified in N cycles / `verified_at` absent | `conference calendar stale — surge disabled`, marker in every issue | `calendar_stale` |
+| **Failed beat** | beat present in `sources_and_method.beats_failed` | inline marker in each section the beat would have fed, e.g. *"M&A coverage unavailable this cycle — beat failed"* — **not** only the `beats_failed` entry | `beat_failed` |
+
+Exemptions are **scoped to what the trigger explains**, not blanket: an unseeded slot exempts that slot's angle, not every empty angle; a failed beat exempts the sections that beat fed, not the whole issue.
+
+#### Ruled out (deliberately not degradations)
+
+- **Dead source tier** — fails test 2. The system cannot distinguish "FDA published nothing" from "FDA was unreachable"; both are an empty result set. The only witness is the researcher's own `errors[]`, a model self-report. So it surfaces as an **advisory** (`kind: source_unreachable`) that publishes visibly and grants **no exemption**. A required section that is empty with only a self-report to explain it **blocks** — "we don't know why this is empty" is exactly when blocking is right.
+- **Retry-exhausted validator** — not a degradation but a **stub**; see the definition above.
+- **First-ever run** — nothing is empty, so test 1 fails. The digest renders in full; the queue honestly shows no slip history because none exists; `stats.previous_issue: null` is true. See [continuity across stubs](#continuity-across-stubs) — run #1 is simply the empty case of the backwards search, needing no declaration, assertion or bootstrap flag.
+
+New degradations must be declared in the register above to earn an exemption, and must pass all three tests. An undeclared empty section blocks.
+
+### Continuity across stubs
+
+Three checks compare against a previous issue: `thread_dropped`, `continuity_break` (both advisory), and the catalyst queue's `first_expected_window`-vs-previous-snapshot check (**blocking** — the system's only tamper-evidence rule, #17).
+
+**They bind to the most recent issue that actually carries the thing being compared — never to the positionally-previous issue.** A stub is transparent to continuity: it published no snapshot and covered no window, so it cannot be a join point. `first_expected_window` compares against the latest snapshot found searching backwards; `cycles_quiet` and the coverage window join across stubs.
+
+This is not a nicety. If "previous issue" meant positionally previous, **a single failed run would launder the invariant**: the stub carries no snapshot, so the run after it has no baseline, and a `first_expected_window` contradicting the issue two back would sail through unchecked. Every failed run would be an amnesty for the one check that makes the prediction record tamper-evident. The backwards search closes that hole and makes run #1 fall out for free — the search returns nothing, the check skips, no special case. The only requirement is that an empty search result is tolerated rather than an error.
+
+Run #1 needs no protection from this check anyway: it *creates* every value the check guards. What protects those values is the separate rule that each requires a `window_source` citation. The check only ever protected the chain **between** issues.
 
 ## Stage 2 — the critic (judgment)
 
@@ -121,6 +167,8 @@ Published on the issue, never gate it, never enter the retry payload.
 | `paywalled_primary` | Fact rests on secondary coverage of a paywalled primary (CAPTURE #9). |
 | `unverifiable_claim` | Critic doubts a cited claim but cannot show it exceeds the source — doubt, not a demonstrated falsehood. |
 | `stale_open_thread` | A `developing` item unchanged for several cycles. |
+| `source_unreachable` | A researcher reported a source or tier unreachable in `errors[]` (#6). Publishes visibly; grants **no exemption** — see [Ruled out](#ruled-out-deliberately-not-degradations). |
+| `calendar_stale` | No conference window verified in N cycles — surge disabled (#18). |
 | `thread_dropped` | An `open_thread` in the previous issue silently absent from this one. |
 | `continuity_break` | `cycles_quiet` doesn't increment honestly, or the coverage window doesn't join the previous issue's. |
 
