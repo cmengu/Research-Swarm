@@ -283,3 +283,32 @@ def render_manager_prompt(
         "findings_corpus": _findings_corpus(findings_by_beat, beats_failed),
     }
     return _substitute(template, values)
+
+
+def _blocking_findings_block(findings) -> str:
+    """The validator's blocking findings as one `- kind at where: note` line each.
+
+    Only blocking findings reach here — advisories are the record, not a to-do
+    list, and including them would invite the manager to churn sections the gate
+    never faulted. An empty list should never be rendered (the loop only retries
+    on a block), so it surfaces as an explicit marker rather than a blank.
+    """
+    if not findings:
+        return "(no blocking findings — nothing to fix)"
+    return "\n".join(f"- {f.kind} at {f.where}: {f.note}" for f in findings)
+
+
+def render_manager_retry_prompt(template: str, *, prior_draft: dict, blocking_findings) -> str:
+    """Interpolate the validation-retry prompt. Raises if a placeholder is left.
+
+    The manager receives exactly two things — its own prior draft and the
+    blocking findings — because it EDITS that draft rather than regenerating it
+    ([05](docs/spec/05-manager.md#in-the-retry-loop)). The same
+    UnresolvedPlaceholder wall the other renderers use applies: a literal
+    {{prior_draft_json}} reaching the model is an instruction to invent a draft.
+    """
+    values = {
+        "prior_draft_json": json.dumps(prior_draft, indent=2, ensure_ascii=False),
+        "blocking_findings": _blocking_findings_block(blocking_findings),
+    }
+    return _substitute(template, values)

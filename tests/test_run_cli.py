@@ -310,6 +310,43 @@ class TestSynthesisStage:
         assert stub["sources_and_method"]["beats_failed"] == ["backstop"]
 
 
+class TestValidationStage:
+    def test_validation_exhaustion_stubs_the_run_with_stage_validation(self, fake_repo, monkeypatch):
+        """Two retries and still structurally invalid: a validation stub, not a
+        degradation. Driven through main() so the wiring — stub stage, exit code —
+        is what an operator observes. Research and synthesis are stubbed to
+        succeed so the run reaches stage 4."""
+        import run
+        from researchswarm.research import ResearchStage
+        from researchswarm.validation import ValidationExhausted
+
+        monkeypatch.setattr(
+            run, "run_research_stage",
+            lambda *a, **k: ResearchStage(beats_run=["ma_dealmaking"], beats_failed=[]),
+        )
+
+        draft_path = fake_repo / "runs" / SYNTH_RUN_ID / "issue-draft.json"
+
+        def fake_synthesis(root, **kwargs):
+            draft_path.parent.mkdir(parents=True, exist_ok=True)
+            draft_path.write_text(json.dumps(_valid_draft()))
+            return SimpleNamespace(draft=_valid_draft(), num_turns=1, cost_usd=0.0, attempts=1), draft_path
+
+        monkeypatch.setattr(run, "run_synthesis_stage", fake_synthesis)
+
+        def exhausted(*a, **k):
+            raise ValidationExhausted("validation still blocking after 2 retries: empty_section@tldr_bullets")
+
+        monkeypatch.setattr(run, "run_validation_stage", exhausted)
+
+        code = run.main(["--today", "2026-07-16", "--root", str(fake_repo)])
+        assert code == 1
+
+        stub = json.loads((fake_repo / "issues" / "2026-07-16.json").read_text())
+        assert stub["issue"]["run"]["status"] == "failed"
+        assert stub["issue"]["failure"]["stage"] == "validation"
+
+
 class TestFailureModes:
     def test_dangling_entity_ref_refuses_the_run(self, fake_repo):
         """The spine is what links every file. If it has forked, an issue built
