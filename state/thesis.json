@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "seeded_at": "2026-07-16",
+  "last_evolved_at": null,
+  "reader_visibility": {
+    "note": "Only `stance` reaches the reader, and only indirectly — as the argument behind a Research Angle or a 'why we care'. `confidence`, `falsifier`, `drift_log` and `candidate_evidence` are internal: machine tripwires plus a developer inspection surface. Never render them in a published issue."
+  },
+  "degradation_contract": {
+    "on_empty_stance": "Pipeline runs to completion. Thesis-dependent sections (Research Angle, 'why we care') render the marker below instead of an opinion. Researchers and manager MUST NOT improvise a stance to fill the gap.",
+    "marker": "No thesis seeded — facts only.",
+    "critic_severity": "advisory",
+    "rationale": "A missing thesis must bend the output, not break the run. An unowned opinion is worse than a visible gap."
+  },
+  "self_evolution": {
+    "mode": "per_slot",
+    "rule": "A slot with an empty stance is DORMANT: the loop must not author a stance for it. Each cycle, a dormant slot may only append to `candidate_evidence` — sourced items that would bear on the belief once a human writes it. A slot activates the moment its stance is non-empty; from then on the loop may revise stance/confidence and must append every revision to `drift_log`.",
+    "max_candidate_evidence_per_slot": 25,
+    "eviction": "oldest first"
+  },
+  "belief_slot_contract": {
+    "id": "stable kebab-case key; never reused after deletion",
+    "title": "human-readable belief area",
+    "stance": "string | null — the opinionated, falsifiable position. Human-authored at seeding. null = dormant.",
+    "confidence": "'low' | 'medium' | 'high' | null — internal only",
+    "falsifier": "string | null — what observation would force revision. Internal only; the loop checks it each cycle.",
+    "candidate_evidence": "array of {date, headline, url, slot_relevance} — accumulated while dormant",
+    "drift_log": "array of {date, from_stance, to_stance, trigger, cycle_id} — append-only, populated only after activation",
+    "origin": "'seed' | 'auto' — auto slots are added by the loop when a recurring theme has no home"
+  },
+  "beliefs": [
+    {
+      "id": "adcs",
+      "title": "Antibody-drug conjugates",
+      "stance": null,
+      "confidence": null,
+      "falsifier": null,
+      "candidate_evidence": [],
+      "drift_log": [],
+      "origin": "seed"
+    },
+    {
+      "id": "radiopharma",
+      "title": "Radiopharmaceuticals",
+      "stance": null,
+      "confidence": null,
+      "falsifier": null,
+      "candidate_evidence": [],
+      "drift_log": [],
+      "origin": "seed"
+    },
+    {
+      "id": "china-licensing-wave",
+      "title": "China licensing wave",
+      "stance": null,
+      "confidence": null,
+      "falsifier": null,
+      "candidate_evidence": [],
+      "drift_log": [],
+      "origin": "seed"
+    },
+    {
+      "id": "ira-pricing-pressure",
+      "title": "IRA pricing pressure",
+      "stance": null,
+      "confidence": null,
+      "falsifier": null,
+      "candidate_evidence": [],
+      "drift_log": [],
+      "origin": "seed"
+    },
+    {
+      "id": "platform-vs-asset",
+      "title": "Platform-vs-asset startups",
+      "stance": null,
+      "confidence": null,
+      "falsifier": null,
+      "candidate_evidence": [],
+      "drift_log": [],
+      "origin": "seed"
+    },
+    {
+      "id": "pharma-ma-appetite",
+      "title": "M&A appetite of cash-rich pharma",
+      "stance": "Cash-rich large pharma facing the 2028-2030 patent cliff will keep paying premiums for de-risked or near-de-risked oncology assets - especially ADCs and radiopharmaceuticals - rather than waiting for Phase 3 readouts. Pipeline urgency dominates capital discipline. Deals cluster in the $1-15B bolt-on range rather than mega-mergers.",
+      "confidence": "medium",
+      "falsifier": "Two consecutive quarters in which the largest oncology acquisitions are platform-only or pre-Phase-2 deals under $1B, or in which a major acquirer with unchanged LOE exposure publicly defers M&A citing valuation discipline.",
+      "candidate_evidence": [],
+      "drift_log": [],
+      "origin": "seed"
+    }
+  ]
+}
