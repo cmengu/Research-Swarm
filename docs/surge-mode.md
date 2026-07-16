@@ -35,7 +35,7 @@ So: **seeded once by a human, re-verified by the loop each cycle** against each 
 
 A stale calendar is **the only failure in this system that would otherwise be silent.** Every other missing piece announces itself — an unseeded thesis prints `No thesis seeded — facts only`, a dead critic publishes `published_uncritiqued` under a banner, an unaccounted watchlist entity blocks validation. A rotted calendar just… doesn't surge. A perfectly normal Monday digest ships while ASCO reprices two companies, and nothing says a word.
 
-That breaks the house rule from #5 — *a missing piece bends the output and marks the absence.* So staleness joins the **declared degradations** in [the critic rubric](critic-rubric.md#empty_section-vs-declared-degradation), the third after the dormant thesis slot and the genuinely quiet cycle:
+That breaks the house rule from #5 — *a missing piece bends the output and marks the absence.* So staleness is a **declared degradation**, registered in [the register](critic-rubric.md#the-register) in the critic rubric (v0.3.0, #23) — the rubric is the registry, and this document only explains the entry, it does not declare it. The behaviour the register binds:
 
 | Condition | Behaviour |
 |---|---|
@@ -97,7 +97,7 @@ Dashboard (#8): a badge reading **`ASCO 2026 · day 2 of 5`** on the issue, and 
 - `run.surge = {window, day, of}` — absent on baseline runs.
 - `critic_report.advisory_findings[].kind` gains `calendar_stale`.
 
-**Critic rubric (#7):** the `provenance_stale` surge amendment above; `calendar_stale` added to the advisory table; stale calendar added to declared degradations.
+**Critic rubric (#7):** the `provenance_stale` surge amendment above still rides with spec compilation. ~~`calendar_stale` added to the advisory table; stale calendar added to declared degradations~~ — **landed**: rubric v0.3.0 (#23) lifted both into [the register](critic-rubric.md#the-register).
 
 **Dashboard (#8):** surge badge; dropdown grouping. `issues/index.json` (already in the map's fog) should carry `surge.window` so the dropdown can group without opening every issue.
 
