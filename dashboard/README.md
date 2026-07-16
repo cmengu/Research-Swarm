@@ -36,6 +36,18 @@ Rendered headless in Chrome against the live server: zero page errors, both them
 - **H&E palette stays** — the subject's own material; eosin red is reserved for the things that must draw the eye (critic catches, the headline's so-what, the catches stat).
 - **Watchlist angles are collapsible** — `<details>` per entry, **open by default only for `priority: high`**, so a 16-entity issue scans in seconds while the high-priority arguments still read without a click. A rail button expands/collapses all; its label derives from live state.
 
+## v2 changes (16 Jul, from live reaction)
+
+- **Identity block**: original honeycomb-swarm mark (inline SVG, no external asset) + `ResearchSwarm` + `Competitive Intelligence Analysis` tagline. Omnigent's logo was *not* copied — it is their brand mark; this one is drawn for us and matches the name.
+- **Tabs**: `Latest Intel` · `Pipelines` · `Modality Map` — the biotech renames of the AI-domain "AI Labs"/"Positioning Map". Only Latest Intel is built; the other two are honest stubs saying what they will hold.
+- **Left rail deleted.** Section nav no longer squeezes the content sideways; the page is one centered column. `Expand all angles` moved to the top-right of the watchlist header, where it acts.
+- **Masthead follows the dictated structure**: title → rule → summary (+ so-what) → rule → stats on one line → rule → TLDR.
+- **"The cycle in bullets" renamed TLDR**; every section is partitioned by a 1px rule.
+- **Section subtitles added**: Radar = "Players newly on our radar this cycle"; Themes = "Cross-cutting patterns from this cycle"; and equivalents elsewhere.
+- **Issue picker restyled**: `appearance: none`, custom eosin chevron, themed background, hover/focus states — plus `color-scheme` set per theme so the *native popup* and scrollbars follow the theme instead of flashing light-on-dark.
+- **Sample data expanded** to 7 watchlist entries, 3 radar, 3 themes, 3 frontier moves, 2 critic catches, 2 thesis drifts — enough to judge density.
+- **`sample data` chip retained** (small, in the kicker) rather than the old dashed rail badge. **Deliberate**: the mock names real public companies doing invented things ("Merck acquires Verastem for $9B"). Unlabelled, a shared link reads as genuine M&A news. The eyesore went; the honesty stayed.
+
 ## Still open (for the spec)
 
 - Rail holds nav + stats; a horizontal stats bar atop the main column is the untested alternative.
