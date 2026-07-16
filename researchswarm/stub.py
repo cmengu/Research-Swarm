@@ -35,6 +35,34 @@ class PublishedIssueExists(RuntimeError):
     a failed rerun must not replace one with a stub."""
 
 
+def check_overwritable(path: Path) -> None:
+    """Guard the one immutability rule every writer of issues/<date>.json obeys.
+
+    A published issue is immutable: no later run edits an earlier one ([08]).
+    The single carve-out is that a same-day rerun MAY replace its own earlier
+    STUB — retrying a failure that then succeeds is the desired behaviour, and a
+    stub is not a published issue. So this raises PublishedIssueExists only when
+    the file already holds a NON-failed issue.
+
+    Shared by both writers of that path — the stub writer here and the publisher
+    ([publish.py]) — so the immutability seam lives in exactly one place and the
+    two cannot disagree about what "already published" means. An unreadable file
+    is treated as replaceable: it is not a published issue we can prove exists,
+    and refusing to touch it would strand the date on corrupt bytes.
+    """
+    if not path.exists():
+        return
+    try:
+        existing_status = json.loads(path.read_text())["issue"]["run"]["status"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return  # unreadable ≠ published; a fresh write may replace it
+    if existing_status != "failed":
+        raise PublishedIssueExists(
+            f"{path} already holds a published issue (status {existing_status!r}) — "
+            "refusing to overwrite it; published issues are immutable"
+        )
+
+
 def write_failed_stub(
     root: Path,
     *,
@@ -63,16 +91,7 @@ def write_failed_stub(
 
     issue_id = now.date().isoformat()
     path = root / "issues" / f"{issue_id}.json"
-    if path.exists():
-        try:
-            existing_status = json.loads(path.read_text())["issue"]["run"]["status"]
-        except (json.JSONDecodeError, KeyError, TypeError):
-            existing_status = None  # unreadable ≠ published; a stub may replace it
-        if existing_status is not None and existing_status != "failed":
-            raise PublishedIssueExists(
-                f"{path} already holds a published issue (status {existing_status!r}) — "
-                "refusing to overwrite it with a failed-run stub"
-            )
+    check_overwritable(path)
     stub = {
         "schema_version": SCHEMA_VERSION,
         "issue": {

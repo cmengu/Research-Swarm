@@ -497,6 +497,33 @@ def _check_degradation_validity(issue, state, beats_failed, problems):
                 )
 
 
+def derive_stats(issue) -> dict:
+    """The six array-derived stats counts, computed from the issue's arrays.
+
+    The single home for how a count is taken from the issue, shared by the two
+    components that must never disagree about it: the **publisher** stamps this
+    onto the issue (build 06), and the **validator** below recomputes it to
+    confirm the stamp still matches the arrays. If the derivation lived in two
+    places, a change to one counting rule (say, which objects carry sources[])
+    would let a published bar silently drift from the arrays it summarizes — the
+    exact lie `stats` is derived to prevent ([07]: "stats is derived, never
+    authored"). So it lives here once.
+
+    `previous_issue` is deliberately NOT here: it is not a count of this issue's
+    arrays but a walk back over the issues on disk, which is IO the pure
+    validator does not do. The publisher adds it after this ([07] stats shape).
+    """
+    quiet = issue.get("quiet_this_cycle", {})
+    return {
+        "tracked_updates": len(issue.get("watchlist") or []),
+        "tracked_quiet": len(quiet.get("no_news") or []),
+        "new_on_radar": len(issue.get("new_on_radar") or []),
+        "frontier_items": len(issue.get("elsewhere_on_frontier") or []),
+        "sources_cited": sum(1 for _ in _iter_sources(issue)),
+        "critic_catches": len(quiet.get("critic_catches") or []),
+    }
+
+
 def _check_derived_stats_mismatch(issue, problems):
     """`stats` agrees with the arrays it summarizes, or it is an empty draft.
 
@@ -504,6 +531,11 @@ def _check_derived_stats_mismatch(issue, problems):
     manager is forbidden to author it, so an empty stats is expected here and is
     skipped SILENTLY. Any other stats is recomputed from the arrays and must
     agree exactly; a disagreement is a bug in the derivation, not an edit.
+
+    The recompute goes through the shared `derive_stats` — the publisher stamps
+    with the same function, so the gate compares like with like and the two
+    cannot drift. `previous_issue` is a walk, not a count, so it is not checked
+    here; the derivation the manager could get wrong is the counting.
     """
     stats = issue.get("stats")
     if stats == {}:
@@ -512,15 +544,7 @@ def _check_derived_stats_mismatch(issue, problems):
         problems.append(Finding("derived_stats_mismatch", "stats", "stats must be an object"))
         return
 
-    expected = {
-        "tracked_updates": len(issue.get("watchlist") or []),
-        "tracked_quiet": len(issue.get("quiet_this_cycle", {}).get("no_news") or []),
-        "new_on_radar": len(issue.get("new_on_radar") or []),
-        "frontier_items": len(issue.get("elsewhere_on_frontier") or []),
-        "sources_cited": sum(1 for _ in _iter_sources(issue)),
-        "critic_catches": len(issue.get("quiet_this_cycle", {}).get("critic_catches") or []),
-    }
-    for key, want in expected.items():
+    for key, want in derive_stats(issue).items():
         if stats.get(key) != want:
             problems.append(
                 Finding("derived_stats_mismatch", f"stats.{key}", f"stats says {stats.get(key)!r}, arrays say {want}")
@@ -538,7 +562,7 @@ def _check_queue_tamper(issue, queue_baseline, problems):
       - first_expected_window changed — the value is immutable after creation;
       - expected_window changed with no NEW slip_log entry recording the exact
         from→to transition;
-      - status changed without NEW evidence — see _transition_brings_new_evidence.
+      - status changed without NEW evidence — see transition_brings_new_evidence.
 
     An item new to this issue has no baseline to compare, so it is checked only
     for internal coherence: first_expected_window == expected_window unless a
@@ -581,7 +605,7 @@ def _check_queue_tamper(issue, queue_baseline, problems):
                     )
                 )
 
-        if item.get("status") != prior.get("status") and not _transition_brings_new_evidence(item, prior):
+        if item.get("status") != prior.get("status") and not transition_brings_new_evidence(item, prior):
             problems.append(
                 Finding(
                     "queue_tamper",
@@ -615,16 +639,24 @@ def _slip_records(item, from_window, to_window):
     return False
 
 
-def _transition_brings_new_evidence(item, prior):
+def transition_brings_new_evidence(item, prior):
     """A status transition cites a source the baseline item did not already carry.
 
-    The non-vacuous reading. A well-formed item ALWAYS carries a window_source
-    (it is what dated the window), so "does the item have any source" is trivially
-    true and would let every unsourced status flip sail through. A real
-    transition brings NEW evidence: the item's citation set — every URL across
-    sources[], window_source, and slip_log[].source — must contain at least one
-    URL the baseline item's citation set did not. Coasting on the citation that
-    dated the window is exactly the tamper this check exists to catch.
+    The non-vacuous reading, and the ONE definition of the queue's "no source,
+    no transition" rule — shared by the two components that enforce it from
+    opposite ends: the **validator** blocks an issue whose snapshot flips a
+    status without new evidence, and the **publisher** refuses to apply that same
+    flip to `state/catalyst-queue.json`. If the rule lived in two places, a
+    generous publisher could write a transition the strict validator would have
+    rejected, and the tamper-evidence guarantee would have a hole.
+
+    A well-formed item ALWAYS carries a window_source (it is what dated the
+    window), so "does the item have any source" is trivially true and would let
+    every unsourced status flip sail through. A real transition brings NEW
+    evidence: the item's citation set — every URL across sources[], window_source,
+    and slip_log[].source — must contain at least one URL the baseline item's
+    citation set did not. Coasting on the citation that dated the window is
+    exactly the tamper this check exists to catch.
     """
     return bool(_citation_urls(item) - _citation_urls(prior))
 

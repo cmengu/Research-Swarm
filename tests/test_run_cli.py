@@ -347,6 +347,72 @@ class TestValidationStage:
         assert stub["issue"]["failure"]["stage"] == "validation"
 
 
+class TestPublishStage:
+    def test_pipeline_publishes_and_commits(self, fake_repo, monkeypatch):
+        """The whole point of the ticket: a run reaches disk as a published issue
+        with derived stats, published_uncritiqued, a regenerated manifest, applied
+        state edits, and one git commit. Research/synthesis/validation are stubbed
+        so the test isolates the stage-6 wiring; publish runs for real."""
+        import run
+        from researchswarm.research import ResearchStage
+        from researchswarm.validation import ValidationStageResult
+
+        subprocess.run(["git", "init", "-q", str(fake_repo)], check=True)
+        subprocess.run(["git", "-C", str(fake_repo), "config", "user.email", "t@t.com"], check=True)
+        subprocess.run(["git", "-C", str(fake_repo), "config", "user.name", "T"], check=True)
+
+        monkeypatch.setattr(
+            run, "run_research_stage",
+            lambda *a, **k: ResearchStage(beats_run=["ma_dealmaking"], beats_failed=[]),
+        )
+
+        draft = _valid_draft()
+        # A promotion so the state-edit path is exercised end to end.
+        draft["new_on_radar"] = [{
+            "entity_id": "callio_tx", "name": "Callio Therapeutics", "type": "startup",
+            "priority": "medium", "categories": ["funding"],
+            "sources": [{"url": "https://ex.com/c", "publisher": "Endpoints",
+                         "tier": "primary", "published_at": "2026-07-16"}],
+            "promotion_proposal": {"promote_to_watchlist": True, "reason": "Dual-payload financing."},
+        }]
+
+        draft_path = fake_repo / "runs" / SYNTH_RUN_ID / "issue-draft.json"
+
+        def fake_synthesis(root, **kwargs):
+            draft_path.parent.mkdir(parents=True, exist_ok=True)
+            draft_path.write_text(json.dumps(draft))
+            return SimpleNamespace(draft=draft, num_turns=1, cost_usd=0.0, attempts=1), draft_path
+
+        monkeypatch.setattr(run, "run_synthesis_stage", fake_synthesis)
+        monkeypatch.setattr(
+            run, "run_validation_stage",
+            lambda **k: ValidationStageResult(draft=draft, retries_used=0, advisory=()),
+        )
+
+        code = run.main(["--today", "2026-07-16", "--root", str(fake_repo)])
+        assert code == 0
+
+        issue = json.loads((fake_repo / "issues" / "2026-07-16.json").read_text())
+        assert issue["issue"]["run"]["status"] == "published_uncritiqued"
+        assert issue["issue"]["run"]["critic_verdict"] == "not_run"
+        assert issue["stats"]["new_on_radar"] == 1
+        assert issue["stats"]["previous_issue"] is None  # run #1
+
+        # The manifest was regenerated from disk, newest first, and includes it.
+        manifest = json.loads((fake_repo / "issues" / "index.json").read_text())
+        assert manifest["issues"][0]["id"] == "2026-07-16"
+
+        # The promotion landed in state.
+        watchlist = json.loads((fake_repo / "state" / "watchlist.json").read_text())
+        assert any(e["entity_id"] == "callio_tx" for e in watchlist["entities"])
+
+        # And the whole run is one commit citing the run_id.
+        log = subprocess.run(
+            ["git", "-C", str(fake_repo), "log", "--oneline"], capture_output=True, text=True
+        ).stdout
+        assert "publish 2026-07-16 (published_uncritiqued)" in log
+
+
 class TestFailureModes:
     def test_dangling_entity_ref_refuses_the_run(self, fake_repo):
         """The spine is what links every file. If it has forked, an issue built

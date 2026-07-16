@@ -35,6 +35,7 @@ from researchswarm.beats import load_beats
 from researchswarm.cadence import is_run_day, load_cadence
 from researchswarm.manager import ManagerFailed, load_models
 from researchswarm.prompts import RunContext, load_template
+from researchswarm.publish import run_publish_stage
 from researchswarm.research import render_all_prompts, run_research_stage
 from researchswarm.runs import (
     LOOKBACK_FLOOR,
@@ -331,8 +332,52 @@ def main(argv: list[str] | None = None) -> int:
         len(validation.advisory),
     )
 
-    # --- Stages 5-6 --------------------------------------------------------
-    log.info("critique → publish land in builds 06-08")
+    # --- Stage 5: critique -------------------------------------------------
+    # The critic (build 07) is not wired yet. A missing critic is NOT a failed
+    # run: the digest publishes with run.status published_uncritiqued, and the
+    # dashboard draws the uncritiqued banner from that status. The gap is
+    # banner-visible, not silent — which is why this ticket ships a working
+    # product on its own.
+    log.info("critic lands in build 07 — publishing uncritiqued")
+
+    # --- Stage 6: publish --------------------------------------------------
+    # Derived stats, the immutable issue, the regenerated manifest, the state
+    # edits, and one git commit. A publish-stage failure becomes a publish stub
+    # under the same immutability guard as every other stub path — but if the
+    # issue was already written before the failure, that guard fires first and
+    # the run simply reports the failure without laundering the published issue.
+    try:
+        publish = run_publish_stage(
+            root, draft=validation.draft, state=state, run_id=run_id, now=now
+        )
+    except PublishedIssueExists as exc:
+        log.error("%s", exc)
+        return EXIT_RUN_FAILED
+    except Exception as exc:  # noqa: BLE001 — any publish failure becomes a stub
+        log.error("publish failed: %s", exc)
+        try:
+            path = write_failed_stub(
+                root,
+                run_id=run_id,
+                now=now,
+                window=ctx.window,
+                stage="publish",
+                detail=str(exc),
+                thesis_version=state.thesis.get("version"),
+                beats_failed=stage.beats_failed,
+            )
+        except PublishedIssueExists as exists:
+            log.error("%s", exists)
+            return EXIT_RUN_FAILED
+        log.error("publish failed — published failed-run stub %s", path.relative_to(root))
+        return EXIT_RUN_FAILED
+
+    log.info(
+        "published %s (%s)%s",
+        publish.issue_path.relative_to(root),
+        publish.status,
+        "" if publish.committed else " — commit skipped (issue is on disk)",
+    )
     return EXIT_OK
 
 
