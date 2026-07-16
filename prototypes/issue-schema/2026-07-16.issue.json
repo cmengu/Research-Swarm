@@ -1,0 +1,285 @@
+{
+  "schema_version": "1.0.0",
+  "issue_id": "2026-07-16",
+  "status": "published",
+  "generated_at": "2026-07-16T07:41:23+08:00",
+  "coverage_window": {
+    "from": "2026-07-13",
+    "to": "2026-07-16",
+    "widened_from_failure": false
+  },
+  "run": {
+    "run_id": "2026-07-16T07-00-00-mon",
+    "trigger": "scheduled",
+    "models": {
+      "researchers": "claude-sonnet-5",
+      "manager": "claude-opus-4-8",
+      "critic": "codex-gpt-5"
+    },
+    "beats_run": ["ma-dealmaking", "onc-startup-frontier", "clinical-scientific", "policy-regulation", "incumbents-entrants", "catch-all"],
+    "critic_retries_used": 1,
+    "duration_seconds": 2874,
+    "stage_status": {
+      "research": "ok",
+      "synthesis": "ok",
+      "critique": "ok",
+      "publish": "ok"
+    }
+  },
+
+  "tldr_headline": {
+    "title": "Aventis Onco swallows Helix Therapeutics for $9.4B, betting the farm on antibody-drug conjugates",
+    "summary": "The all-cash deal is the largest oncology M&A of 2026 so far and signals big pharma's scramble to buy into next-generation ADC platforms before patents on first-generation payloads erode.",
+    "primary_source_ref": "src-01",
+    "beat": "ma-dealmaking"
+  },
+
+  "stats_bar": {
+    "tracked_updates": 7,
+    "new_entrants": 3,
+    "frontier_items": 5,
+    "source_count": 41,
+    "coverage_window_label": "2026-07-13 → 2026-07-16"
+  },
+
+  "tldr_bullets": [
+    { "text": "Aventis Onco acquires Helix Therapeutics for $9.4B, its biggest ADC bet to date.", "beat": "ma-dealmaking", "source_refs": ["src-01", "src-02"] },
+    { "text": "Meridian Bio's Phase 3 KRAS-G12D readout hits its primary endpoint; overall survival data still immature.", "beat": "clinical-scientific", "source_refs": ["src-07"] },
+    { "text": "FDA finalizes accelerated-approval confirmatory-trial guidance, tightening post-marketing timelines.", "beat": "policy-regulation", "source_refs": ["src-14"] },
+    { "text": "Two China-originated bispecifics get out-licensed to Western pharma in a single week, extending the licensing wave.", "beat": "incumbents-entrants", "source_refs": ["src-18", "src-19"] }
+  ],
+
+  "tracked_watchlist": [
+    {
+      "entity_id": "helix-therapeutics",
+      "name": "Helix Therapeutics",
+      "type": "company",
+      "priority": "high",
+      "category": "deal-ma",
+      "status": "concluded",
+      "summary": "Aventis Onco agreed to acquire Helix for $9.4B all-cash ($47/share, a 58% premium), gaining Helix's site-specific ADC conjugation platform and its lead HER3-targeting candidate HLX-201 (Phase 2).",
+      "valuation": { "amount_usd": 9400000000, "basis": "acquisition price, all-cash", "per_share_usd": 47.0, "premium_pct": 58 },
+      "source_refs": ["src-01", "src-02", "src-03"],
+      "source_breakdown": { "primary": 1, "trade": 2, "aggregator": 0 },
+      "research_angle": {
+        "take": "This validates our Q2 thesis that ADC conjugation chemistry — not the antibody — is the scarce asset. Aventis paid a platform premium, not a pipeline premium; HLX-201 alone doesn't justify $9.4B. Expect Roche and AstraZeneca to chase the two remaining independent conjugation platforms within two quarters.",
+        "conviction": "high",
+        "thesis_refs": ["adc-platform-scarcity"],
+        "disagrees_with_consensus": true
+      }
+    },
+    {
+      "entity_id": "meridian-bio",
+      "name": "Meridian Bio",
+      "type": "company",
+      "priority": "high",
+      "category": "trial-readout",
+      "status": "developing",
+      "summary": "Topline Phase 3 (MERIDIAN-301) in KRAS-G12D-mutant pancreatic cancer met its primary PFS endpoint (HR 0.61). Overall survival data immature; full results promised at ESMO 2026.",
+      "valuation": null,
+      "source_refs": ["src-07", "src-08"],
+      "source_breakdown": { "primary": 1, "trade": 1, "aggregator": 0 },
+      "research_angle": {
+        "take": "PFS win is real but the Street is over-reading it — pancreatic PFS has a weak history of translating to OS, and the HR confidence interval (0.44–0.85) is wide. We stay neutral until ESMO OS data. A licensing deal is more likely than an outright buyout at current $2.1B market cap.",
+        "conviction": "medium",
+        "thesis_refs": ["kras-franchise-race"],
+        "disagrees_with_consensus": true
+      }
+    },
+    {
+      "entity_id": "northwind-oncology",
+      "name": "Northwind Oncology",
+      "type": "company",
+      "priority": "medium",
+      "category": "funding",
+      "status": "concluded",
+      "summary": "Closed a $180M Series C led by Sequoia Bio to advance its allogeneic CAR-T platform into Phase 1. Post-money valuation reported at ~$720M.",
+      "valuation": { "amount_usd": 180000000, "basis": "Series C raise", "per_share_usd": null, "premium_pct": null },
+      "source_refs": ["src-10"],
+      "source_breakdown": { "primary": 0, "trade": 1, "aggregator": 0 },
+      "research_angle": {
+        "take": "Allogeneic CAR-T funding is thawing after two winters, but Northwind's differentiation is thin versus at least four better-capitalized rivals. We watch, don't chase.",
+        "conviction": "low",
+        "thesis_refs": ["cell-therapy-durability"],
+        "disagrees_with_consensus": false
+      }
+    }
+  ],
+
+  "quiet_this_cycle": {
+    "no_news": [
+      { "entity_id": "cerulean-labs", "name": "Cerulean Labs", "priority": "medium", "note": "No material news since 2026-06-29." },
+      { "entity_id": "atlas-immuno", "name": "Atlas Immuno", "priority": "low", "note": "Quiet since IND clearance in May." }
+    ],
+    "critic_catches": [
+      {
+        "claim": "Reported that Vantage Bio raised a $300M Series D this cycle.",
+        "rejection_reason": "Provenance failure: the only source traces to a June 2025 Endpoints article recycled by an aggregator; no 2026 filing or PR corroborates a new raise.",
+        "flagged_by": "critic",
+        "severity": "blocking",
+        "source_refs": ["src-31"]
+      }
+    ],
+    "open_threads": [
+      {
+        "entity_id": "meridian-bio",
+        "name": "Meridian Bio",
+        "thread": "MERIDIAN-301 overall-survival readout",
+        "expected": "ESMO 2026 (Oct)",
+        "opened_on": "2026-07-16"
+      },
+      {
+        "entity_id": "helix-therapeutics",
+        "name": "Helix Therapeutics",
+        "thread": "Aventis deal antitrust review (FTC second request possible)",
+        "expected": "Q4 2026",
+        "opened_on": "2026-07-16"
+      }
+    ]
+  },
+
+  "new_on_radar": [
+    {
+      "entity_id": "kestrel-tx",
+      "name": "Kestrel Tx",
+      "type": "company",
+      "priority": "high",
+      "topic": "platform-tech",
+      "what_they_do": "Emerging-from-stealth startup with an in-vivo CAR-T platform (lipid-nanoparticle delivery of CAR mRNA), skipping ex-vivo manufacturing entirely.",
+      "why_we_care": "In-vivo CAR-T would collapse the cost and logistics moat that protects incumbent cell-therapy players — directly on-thesis for our cell-therapy-durability worldview.",
+      "thesis_refs": ["cell-therapy-durability"],
+      "source_refs": ["src-22"],
+      "auto_promoted_to_watchlist": true
+    },
+    {
+      "entity_id": "helios-dx",
+      "name": "Helios Diagnostics",
+      "type": "company",
+      "priority": "medium",
+      "topic": "funding",
+      "what_they_do": "MRD (minimal residual disease) liquid-biopsy company; raised a $95M Series B.",
+      "why_we_care": "MRD testing is becoming the gatekeeper for adjuvant-therapy decisions; a proxy for where oncology trial design is heading.",
+      "thesis_refs": ["mrd-trial-design"],
+      "source_refs": ["src-24"],
+      "auto_promoted_to_watchlist": false
+    },
+    {
+      "entity_id": "biocatalyst-partners",
+      "name": "BioCatalyst Partners",
+      "type": "investor",
+      "priority": "low",
+      "topic": "people",
+      "what_they_do": "New $1.2B oncology-focused crossover fund launched by two ex-Aventis dealmakers.",
+      "why_we_care": "Signals institutional capital rotating back into oncology; the founders' network predicts which private assets get pulled forward.",
+      "thesis_refs": [],
+      "source_refs": ["src-27"],
+      "auto_promoted_to_watchlist": false
+    }
+  ],
+
+  "themes_and_signals": [
+    {
+      "theme": "ADC platform consolidation",
+      "signal": "Two ADC-platform acquisitions in six weeks (Helix now, plus Conjugate Bio in June) suggest the independent-conjugation-platform window is closing.",
+      "evidence_refs": ["src-01", "src-05"],
+      "thesis_refs": ["adc-platform-scarcity"],
+      "direction": "consolidating"
+    },
+    {
+      "theme": "China licensing wave broadens beyond antibodies",
+      "signal": "Out-licensing this cycle includes bispecifics and an ADC, not just naked antibodies — Western pharma is now sourcing whole modalities from Chinese biotechs.",
+      "evidence_refs": ["src-18", "src-19"],
+      "thesis_refs": ["china-licensing-arbitrage"],
+      "direction": "accelerating"
+    }
+  ],
+
+  "elsewhere_on_frontier": [
+    {
+      "entity": "Roche",
+      "move": "Announced a $500M milestone-laden option deal with a European TIL-therapy startup, its first move into tumor-infiltrating lymphocytes.",
+      "why_it_matters": "Confirms big-pharma appetite for solid-tumor cell therapy is broadening past CAR-T.",
+      "source_refs": ["src-33"]
+    },
+    {
+      "entity": "AstraZeneca",
+      "move": "Reported positive Phase 2 data for its oral SERD in HR+ breast cancer, pressuring the injectable-SERD incumbents.",
+      "why_it_matters": "Oral convenience could reshape the endocrine-therapy standard of care.",
+      "source_refs": ["src-36"]
+    }
+  ],
+
+  "sources": [
+    { "ref": "src-01", "title": "Aventis Onco to Acquire Helix Therapeutics", "publisher": "Aventis Onco (press release)", "url": "https://example.com/aventis-helix-pr", "tier": "primary", "accessed_at": "2026-07-16T06:12:00+08:00", "paywalled": false },
+    { "ref": "src-02", "title": "Aventis' $9.4B Helix deal reshapes ADC race", "publisher": "Endpoints News", "url": "https://example.com/endpoints-helix", "tier": "trade", "accessed_at": "2026-07-16T06:20:00+08:00", "paywalled": false },
+    { "ref": "src-03", "title": "Helix Therapeutics Form 8-K — merger agreement", "publisher": "SEC EDGAR", "url": "https://example.com/helix-8k", "tier": "primary", "accessed_at": "2026-07-16T06:31:00+08:00", "paywalled": false },
+    { "ref": "src-05", "title": "Conjugate Bio acquisition closes, June 2026", "publisher": "Fierce Biotech", "url": "https://example.com/conjugate-close", "tier": "trade", "accessed_at": "2026-07-16T06:44:00+08:00", "paywalled": false },
+    { "ref": "src-07", "title": "Meridian Bio announces positive MERIDIAN-301 topline", "publisher": "Meridian Bio (press release)", "url": "https://example.com/meridian-301", "tier": "primary", "accessed_at": "2026-07-15T21:03:00+08:00", "paywalled": false },
+    { "ref": "src-08", "title": "Meridian's pancreatic win leaves the OS question open", "publisher": "BioPharma Dive", "url": "https://example.com/meridian-analysis", "tier": "trade", "accessed_at": "2026-07-15T22:10:00+08:00", "paywalled": false },
+    { "ref": "src-10", "title": "Northwind Oncology raises $180M Series C", "publisher": "Endpoints News", "url": "https://example.com/northwind-c", "tier": "trade", "accessed_at": "2026-07-15T18:22:00+08:00", "paywalled": false },
+    { "ref": "src-14", "title": "Final Guidance: Confirmatory Trials for Accelerated Approval", "publisher": "FDA", "url": "https://example.com/fda-aa-guidance", "tier": "primary", "accessed_at": "2026-07-14T23:05:00+08:00", "paywalled": false },
+    { "ref": "src-18", "title": "Western pharma licenses China-origin bispecific in $1.1B deal", "publisher": "Reuters", "url": "https://example.com/bispecific-license-1", "tier": "trade", "accessed_at": "2026-07-15T11:47:00+08:00", "paywalled": false },
+    { "ref": "src-19", "title": "Second China out-licensing deal lands the same week", "publisher": "Endpoints News", "url": "https://example.com/bispecific-license-2", "tier": "trade", "accessed_at": "2026-07-15T12:02:00+08:00", "paywalled": false },
+    { "ref": "src-22", "title": "Kestrel Tx emerges from stealth with in-vivo CAR-T platform", "publisher": "Kestrel Tx (press release)", "url": "https://example.com/kestrel-stealth", "tier": "primary", "accessed_at": "2026-07-14T15:30:00+08:00", "paywalled": false },
+    { "ref": "src-24", "title": "Helios Diagnostics closes $95M Series B for MRD platform", "publisher": "Fierce Biotech", "url": "https://example.com/helios-b", "tier": "trade", "accessed_at": "2026-07-14T16:08:00+08:00", "paywalled": false },
+    { "ref": "src-27", "title": "Ex-Aventis dealmakers launch $1.2B oncology crossover fund", "publisher": "STAT (free tier)", "url": "https://example.com/biocatalyst-fund", "tier": "trade", "accessed_at": "2026-07-14T09:19:00+08:00", "paywalled": true, "note": "Fund terms detail sits behind STAT+; headline facts corroborated by the free article — primary paywalled, assess manually." },
+    { "ref": "src-31", "title": "Vantage Bio's Series D (REJECTED)", "publisher": "BioAggregator Weekly", "url": "https://example.com/vantage-aggregator", "tier": "aggregator", "accessed_at": "2026-07-16T05:40:00+08:00", "paywalled": false, "note": "Cited only in a critic-rejected claim; retained for provenance audit." },
+    { "ref": "src-33", "title": "Roche options European TIL-therapy startup in $500M deal", "publisher": "Roche (press release)", "url": "https://example.com/roche-til", "tier": "primary", "accessed_at": "2026-07-15T14:55:00+08:00", "paywalled": false },
+    { "ref": "src-36", "title": "AstraZeneca oral SERD Phase 2 data pressure injectables", "publisher": "Endpoints News", "url": "https://example.com/az-serd", "tier": "trade", "accessed_at": "2026-07-15T19:41:00+08:00", "paywalled": false }
+  ],
+
+  "method": {
+    "source_universe": ["FDA", "EMA", "ClinicalTrials.gov", "SEC EDGAR", "company PRs", "Endpoints News", "Fierce Biotech", "STAT (free tier)", "BioPharma Dive", "Reuters", "PubMed", "bioRxiv", "medRxiv"],
+    "trust_tiers": { "primary": "regulators, filings, company PRs, preprints", "trade": "named trade press + wires", "aggregator": "roundup/aggregator sites — corroboration required" },
+    "paywall_policy": "Paywalled facts cited via secondary coverage + link, flagged 'primary paywalled — assess manually'; ~1-week latency accepted.",
+    "notes": "All researchers ran read-only (permission-enforced). Coverage window 2026-07-13 → 2026-07-16."
+  },
+
+  "critic_report": {
+    "verdict": "pass_with_advisories",
+    "retries_used": 1,
+    "blocking_findings": [
+      {
+        "id": "cf-01",
+        "finding": "Uncorroborated Vantage Bio Series D claim (stale provenance).",
+        "resolution": "Removed from watchlist; published as a critic catch in Quiet This Cycle.",
+        "resolved": true
+      }
+    ],
+    "advisory_findings": [
+      {
+        "id": "cf-02",
+        "finding": "Meridian OS confidence interval not stated in first synthesis draft.",
+        "resolution": "Manager added CI (0.44–0.85) in retry.",
+        "resolved": true
+      },
+      {
+        "id": "cf-03",
+        "finding": "Elsewhere-on-Frontier could have covered a Merck ADC readout also reported this cycle.",
+        "resolution": "Noted; below inclusion threshold this cycle.",
+        "resolved": false
+      }
+    ],
+    "unresolved_banner": false
+  },
+
+  "thesis_changelog": [
+    {
+      "thesis_id": "adc-platform-scarcity",
+      "change": "Raised conviction from medium to high after second platform acquisition in six weeks.",
+      "direction": "strengthened",
+      "triggered_by_refs": ["src-01", "src-05"]
+    },
+    {
+      "thesis_id": "cell-therapy-durability",
+      "change": "Added in-vivo CAR-T (Kestrel Tx) as a named disruption risk to the incumbent-moat sub-thesis.",
+      "direction": "amended",
+      "triggered_by_refs": ["src-22"]
+    }
+  ],
+
+  "watchlist_changelog": [
+    { "entity_id": "kestrel-tx", "action": "added", "reason": "Auto-promoted from radar: on-thesis in-vivo CAR-T platform." },
+    { "entity_id": "vantage-bio", "action": "flagged", "reason": "Series D claim failed provenance; kept on watchlist but flagged unreliable-source-cluster." }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0.0",
+  "issue_id": "2026-07-13",
+  "status": "failed",
+  "generated_at": "2026-07-13T07:52:11+08:00",
+  "coverage_window": {
+    "from": "2026-07-09",
+    "to": "2026-07-13",
+    "widened_from_failure": false
+  },
+  "run": {
+    "run_id": "2026-07-13T07-00-00-mon",
+    "trigger": "scheduled",
+    "models": {
+      "researchers": "claude-sonnet-5",
+      "manager": "claude-opus-4-8",
+      "critic": "codex-gpt-5"
+    },
+    "beats_run": ["ma-dealmaking", "onc-startup-frontier", "clinical-scientific", "policy-regulation", "incumbents-entrants", "catch-all"],
+    "critic_retries_used": 0,
+    "duration_seconds": 3120,
+    "stage_status": {
+      "research": "ok",
+      "synthesis": "failed",
+      "critique": "skipped",
+      "publish": "ok"
+    }
+  },
+
+  "failure": {
+    "stage": "synthesis",
+    "message": "Manager call exhausted subscription rate limit after 3 attempts; no digest produced.",
+    "log_path": "logs/2026-07-13T07-00-00-mon/synthesis.log",
+    "researchers_completed": 6,
+    "recovery_note": "Next successful run widens its coverage window to 2026-07-09."
+  },
+
+  "tldr_headline": null,
+  "stats_bar": null,
+  "tldr_bullets": [],
+  "tracked_watchlist": [],
+  "quiet_this_cycle": null,
+  "new_on_radar": [],
+  "themes_and_signals": [],
+  "elsewhere_on_frontier": [],
+  "sources": [],
+  "method": null,
+  "critic_report": null,
+  "thesis_changelog": [],
+  "watchlist_changelog": []
+}
