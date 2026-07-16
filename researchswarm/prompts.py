@@ -43,6 +43,11 @@ class RunContext:
     coverage_window_from: str
     coverage_window_to: str
 
+    @property
+    def window(self) -> dict:
+        """The window in the {from, to} shape the findings contract echoes."""
+        return {"from": self.coverage_window_from, "to": self.coverage_window_to}
+
 
 def load_template(path: Path) -> str:
     """Extract the fenced template from the prompt document."""
