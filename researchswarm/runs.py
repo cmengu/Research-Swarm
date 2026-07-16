@@ -73,8 +73,8 @@ def _covering_issues_newest_first(issues_dir: Path) -> list[Path]:
     )
 
 
-def find_latest_issue_with(issues_dir, field, *, floor: int = LOOKBACK_FLOOR) -> ContinuityMatch:
-    """Walk COVERING issues newest-first, return the first carrying `field`.
+def find_latest_issue_with(issues_dir, predicate, *, floor: int = LOOKBACK_FLOOR) -> ContinuityMatch:
+    """Walk COVERING issues newest-first, return the first `predicate` accepts.
 
     The one continuity primitive: the coverage window, the prior quiet counts,
     and the validator's queue-tamper baseline all bind to *the most recent issue
@@ -83,17 +83,16 @@ def find_latest_issue_with(issues_dir, field, *, floor: int = LOOKBACK_FLOOR) ->
     point. Binding positionally instead would let a single failed run launder
     every cross-issue invariant.
 
-    `field` is either a top-level issue-payload key (matched when its value is
-    present and non-empty) or a callable predicate(payload) -> bool.
+    `predicate(payload) -> bool` is the "carries the thing being compared" test,
+    evaluated against the whole issue file of each COVERING issue.
 
     The scan is bounded at `floor` issues (stubs counted, exactly as the older
-    walkers counted them): twelve issues without the field means a louder
-    problem than a broken join, and an unbounded scan would hide it behind a slow
-    check. An empty result on run #1 is tolerated — no special case, no bootstrap
-    flag; `expired` is False (there was nothing to expire), True only when the
-    floor was actually reached without a match.
+    walkers counted them): twelve issues without a match means a louder problem
+    than a broken join, and an unbounded scan would hide it behind a slow check.
+    An empty result on run #1 is tolerated — no special case, no bootstrap flag;
+    `expired` is False (there was nothing to expire), True only when the floor
+    was actually reached without a match.
     """
-    matches = field if callable(field) else (lambda p: p.get(field) not in (None, {}, [], ""))
     scanned = 0
 
     for path in _covering_issues_newest_first(Path(issues_dir)):
@@ -108,10 +107,21 @@ def find_latest_issue_with(issues_dir, field, *, floor: int = LOOKBACK_FLOOR) ->
 
         if payload.get("issue", {}).get("run", {}).get("status") not in COVERING_STATUSES:
             continue
-        if matches(payload):
+        if predicate(payload):
             return ContinuityMatch(payload=payload, expired=False)
 
     return ContinuityMatch(payload=None, expired=scanned >= floor)
+
+
+def latest_covering_issue(issues_dir, *, floor: int = LOOKBACK_FLOOR) -> ContinuityMatch:
+    """The most recent issue that published and covered days, walking past stubs.
+
+    A thin, honestly-named wrapper for the callers that want the latest join
+    point itself rather than one carrying a particular field — the predicate is
+    "any covering issue", and naming it here keeps that intent legible at the
+    call site instead of an inscrutable `lambda p: True`.
+    """
+    return find_latest_issue_with(issues_dir, lambda payload: True, floor=floor)
 
 
 def resolve_coverage_window(
@@ -157,7 +167,7 @@ def resolve_prior_quiet(issues_dir: Path) -> dict[str, int]:
     map is the honest value on run #1: nothing to increment from, so every quiet
     entity this cycle starts at 1.
     """
-    match = find_latest_issue_with(issues_dir, lambda p: True)
+    match = latest_covering_issue(issues_dir)
     if match.payload is None:
         return {}
 

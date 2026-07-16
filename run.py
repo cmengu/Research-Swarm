@@ -292,7 +292,6 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         validation = run_validation_stage(
-            root,
             draft=result.draft,
             draft_path=draft_path,
             state=state,

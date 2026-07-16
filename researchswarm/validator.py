@@ -95,13 +95,14 @@ def _trigger_thesis_unseeded(degradation, *, issue, state, beats_failed) -> bool
 
 
 def _trigger_beat_failed(degradation, *, issue, state, beats_failed) -> bool:
-    """The beat(s) the degradation names are actually in beats_failed.
+    """A beat actually failed this cycle (it is in sources_and_method.beats_failed).
 
-    A degradation may name the beats it covers via a `beats` list; each named
-    beat must be in beats_failed for the exemption to hold — a declaration
-    naming a beat that ran is not evidence of an absence. A declaration that
-    names none is honoured only when SOME beat failed this cycle; an exemption
-    that points at nothing is not mechanical.
+    The schema's entry-level degradation object is {kind, marker} — it names no
+    beat, so the mechanical fact this certifies is that SOME beat failed. A
+    beat_failed marker on a cycle where every beat ran is a claimed absence the
+    orchestrator can prove false, and it blocks. (A degradation that DOES name
+    beats via an optional `beats` list is held to the stronger bar — each named
+    beat must be in beats_failed — so the field is honoured if it ever appears.)
     """
     failed = set(beats_failed or ())
     if not failed:
@@ -190,22 +191,39 @@ QUIET_THIS_CYCLE_KEYS = ("no_news", "critic_catches", "open_threads")
 # contract's extra ([07] "all four core fields").
 
 
-def _iter_sources(issue):
-    """Yield (source, where) for every source object anywhere in the issue."""
+def _iter_sourced_objects(issue):
+    """Yield (obj, where) for every content object obliged to carry sources[].
+
+    The five content sections uncited_claim guards, and where malformed_source
+    finds most of its sources. The catalyst queue's items and the singleton
+    source objects (window_source, slip_log entries, dropped_story receipts) are
+    walked separately in _iter_sources — they are not content objects a reader
+    acts on, so uncited_claim does not touch them.
+    """
     headline = issue.get("headline")
-    if isinstance(headline, dict):
-        yield from _sources_of(headline, "headline")
+    if isinstance(headline, dict) and headline:
+        yield headline, "headline"
 
     for section in ("watchlist", "new_on_radar", "elsewhere_on_frontier"):
         for i, entry in enumerate(issue.get(section) or []):
             if isinstance(entry, dict):
-                yield from _sources_of(entry, f"{section}[{_ref(entry, i)}]")
+                yield entry, f"{section}[{_ref(entry, i)}]"
 
     for i, catch in enumerate(
         issue.get("quiet_this_cycle", {}).get("critic_catches") or []
     ):
         if isinstance(catch, dict):
-            yield from _sources_of(catch, f"quiet_this_cycle.critic_catches[{i}]")
+            yield catch, f"quiet_this_cycle.critic_catches[{i}]"
+
+
+def _iter_sources(issue):
+    """Yield (source, where) for every source object anywhere in the issue.
+
+    Reuses the one content-object walk, then adds the queue's own sources and the
+    three singleton source objects the content walk deliberately excludes.
+    """
+    for obj, where in _iter_sourced_objects(issue):
+        yield from _sources_of(obj, where)
 
     for i, item in enumerate(issue.get("catalyst_queue", {}).get("items") or []):
         if not isinstance(item, dict):
@@ -251,28 +269,9 @@ def _check_uncited_claim(issue, problems):
     checks only that every object obliged to carry sources[] carries a non-empty
     one — headline, and each entry in the sourced sections.
     """
-    headline = issue.get("headline")
-    if isinstance(headline, dict) and headline and not _has_source(headline):
-        problems.append(Finding("uncited_claim", "headline", "no sources[]"))
-
-    for section in ("watchlist", "new_on_radar", "elsewhere_on_frontier"):
-        for i, entry in enumerate(issue.get(section) or []):
-            if isinstance(entry, dict) and entry and not _has_source(entry):
-                problems.append(
-                    Finding("uncited_claim", f"{section}[{_ref(entry, i)}]", "no sources[]")
-                )
-
-    for i, catch in enumerate(
-        issue.get("quiet_this_cycle", {}).get("critic_catches") or []
-    ):
-        if isinstance(catch, dict) and catch and not _has_source(catch):
-            problems.append(
-                Finding(
-                    "uncited_claim",
-                    f"quiet_this_cycle.critic_catches[{i}]",
-                    "no sources[]",
-                )
-            )
+    for obj, where in _iter_sourced_objects(issue):
+        if obj and not _has_source(obj):
+            problems.append(Finding("uncited_claim", where, "no sources[]"))
 
 
 def _has_source(obj):
@@ -286,6 +285,13 @@ def _check_malformed_source(issue, problems):
     Reuses findings.py's SOURCE_FIELDS / SOURCE_TIERS so the definition of a
     well-formed source lives in one place. The issue side does not require the
     `paywalled` boolean — that is findings.json's extra.
+
+    Twin of findings.py's `_check_source`, deliberately kept separate: that one
+    layers the `paywalled` boolean check on top (findings.json always sets it;
+    the issue side never carries it), and sharing the loop would force one caller
+    to thread a "require paywalled?" flag through the other's contract. The
+    shared part — the four core fields and the tier enum — lives in the two
+    constants both import, which is the drift that actually mattered.
     """
     for source, where in _iter_sources(issue):
         if not isinstance(source, dict):
@@ -403,22 +409,48 @@ def _check_unaccounted_watchlist_entity(issue, state, problems):
             )
 
 
-def _check_empty_section(issue, state, beats_failed, problems):
-    """A required section is populated, or a scoped degradation explains it.
+# The section arrays that may carry entry-level `degradation` objects ([07]:
+# the marker renders at the point of the absence, on the affected entry). An
+# entry keeps its section non-empty AND carries its own explanation, so there is
+# no separate section-level declaration — and no 15th top-level key.
+DEGRADABLE_SECTIONS = (
+    "watchlist", "new_on_radar", "themes_and_signals", "elsewhere_on_frontier",
+    "tldr_bullets",
+)
 
-    The exemption is SCOPED: a degradation explains only the section it sits in.
-    An undeclared empty section blocks; so does one whose only explanation is a
-    degradation that is not registered, or whose trigger is not mechanically
-    true, or a researcher's self-report (which is not a trigger at all).
+
+def _check_empty_section(issue, state, beats_failed, problems):
+    """A required section is populated, and every degradation it carries is real.
+
+    Two duties, both filed under `empty_section` because both are the degradation
+    register doing its job:
+
+    1. A truly-empty required section (its array is `[]`, or its object is null /
+       malformed) blocks — UNLESS the one implicit mechanical route applies:
+       `watchlist` may be empty when every tracked entity sits in
+       quiet_this_cycle.no_news (quiet_cycle, decidable from the issue alone). An
+       entry carrying a degradation keeps its section NON-empty, so a dead beat
+       is never an empty section — it is a marked one.
+
+    2. Every entry-level `degradation` object found in the section arrays must be
+       REAL: its `kind` registered, its trigger mechanically true. This is where
+       "a degradation declared anywhere else does not exist" bites — a marker
+       claiming a failure the orchestrator cannot confirm (an unregistered kind,
+       or beat_failed when no beat failed) is the exact self-report the register
+       exists to reject, so it blocks.
     """
     for section in REQUIRED_SECTIONS:
         if not _section_empty(issue, section):
             continue
-        if _empty_section_exempt(section, issue, state, beats_failed):
-            continue
+        if section == "watchlist" and _trigger_quiet_cycle(
+            {}, issue=issue, state=state, beats_failed=beats_failed
+        ):
+            continue  # the whole roster is quiet — an empty watchlist is honest
         problems.append(
             Finding("empty_section", section, "required section is empty and no registered degradation explains it")
         )
+
+    _check_degradation_validity(issue, state, beats_failed, problems)
 
 
 def _section_empty(issue, section):
@@ -434,51 +466,35 @@ def _section_empty(issue, section):
     return not value  # tldr_bullets, watchlist — a non-empty list is required
 
 
-def _empty_section_exempt(section, issue, state, beats_failed):
-    """True if a registered, mechanically-true degradation explains this absence.
+def _check_degradation_validity(issue, state, beats_failed, problems):
+    """Every entry-level degradation object earns its exemption, or blocks.
 
-    Two routes, both scoped to the section:
-
-    1. A fully-mechanical trigger that needs no declaration. `watchlist` may be
-       empty when every tracked entity is quiet — quiet_cycle is decidable from
-       the issue alone, so requiring the manager to also declare an object for
-       the ordinary quiet week would be ceremony. This is the ONLY implicit
-       route; it exists because the fact is global and self-evident.
-    2. A declared degradation object sitting AT the absence — read from
-       issue["degradations"][section], the home for a marker on a section that
-       has no entry to carry one — whose kind is registered and whose trigger is
-       true. (Entry-level degradation markers, on populated sections, are the
-       manager/critic's concern; this validator's empty-section duty is the
-       absence of a whole section.)
+    A degradation object explains an absence its entry makes non-empty. That
+    explanation is only worth anything if the system can confirm it mechanically
+    — the register's third admission test. So each marker is checked against the
+    register: an unregistered kind grants nothing, and a registered kind whose
+    trigger is false (beat_failed with no failed beat, thesis_unseeded with no
+    dormant slot) is a claimed absence the orchestrator cannot confirm, which is
+    exactly a model self-report and blocks.
     """
-    if section == "watchlist" and _trigger_quiet_cycle(
-        {}, issue=issue, state=state, beats_failed=beats_failed
-    ):
-        return True
-
-    for degradation in _section_degradations(issue, section):
-        trigger = DEGRADATION_REGISTER.get(degradation.get("kind"))
-        if trigger and trigger(
-            degradation, issue=issue, state=state, beats_failed=beats_failed
-        ):
-            return True
-    return False
-
-
-def _section_degradations(issue, section):
-    """Degradation objects declared for a whole-section absence.
-
-    An empty array section has no entry to hang a `degradation` on, so a
-    section-level absence is declared in an optional `degradations` map,
-    section-name → [degradation objects]. The map is the validator's reading
-    convention for the case the schema's entry-level `degradation` cannot cover;
-    manager-side emission of it is a later wire-up, and the common empty-watchlist
-    case (a quiet week) is already handled mechanically above without it.
-    """
-    declared = issue.get("degradations")
-    if not isinstance(declared, dict):
-        return []
-    return [d for d in (declared.get(section) or []) if isinstance(d, dict)]
+    for section in DEGRADABLE_SECTIONS:
+        for i, entry in enumerate(issue.get(section) or []):
+            if not isinstance(entry, dict):
+                continue
+            degradation = entry.get("degradation")
+            if not isinstance(degradation, dict):
+                continue  # null / absent is the normal case — no claim to check
+            where = f"{section}[{_ref(entry, i)}].degradation"
+            kind = degradation.get("kind")
+            trigger = DEGRADATION_REGISTER.get(kind)
+            if trigger is None:
+                problems.append(
+                    Finding("empty_section", where, f"degradation kind {kind!r} is not in the register")
+                )
+            elif not trigger(degradation, issue=issue, state=state, beats_failed=beats_failed):
+                problems.append(
+                    Finding("empty_section", where, f"degradation claims {kind!r} but its trigger is not mechanically true")
+                )
 
 
 def _check_derived_stats_mismatch(issue, problems):
@@ -522,7 +538,7 @@ def _check_queue_tamper(issue, queue_baseline, problems):
       - first_expected_window changed — the value is immutable after creation;
       - expected_window changed with no NEW slip_log entry recording the exact
         from→to transition;
-      - status changed with no source on the item or its newest slip_log entry.
+      - status changed without NEW evidence — see _transition_brings_new_evidence.
 
     An item new to this issue has no baseline to compare, so it is checked only
     for internal coherence: first_expected_window == expected_window unless a
@@ -565,13 +581,13 @@ def _check_queue_tamper(issue, queue_baseline, problems):
                     )
                 )
 
-        if item.get("status") != prior.get("status") and not _transition_sourced(item):
+        if item.get("status") != prior.get("status") and not _transition_brings_new_evidence(item, prior):
             problems.append(
                 Finding(
                     "queue_tamper",
                     where,
                     f"status changed {prior.get('status')!r} → {item.get('status')!r} "
-                    "with no source on the item or its newest slip_log entry",
+                    "with no new source citing the transition",
                 )
             )
 
@@ -599,14 +615,33 @@ def _slip_records(item, from_window, to_window):
     return False
 
 
-def _transition_sourced(item):
-    """The item, or its newest slip_log entry, carries a source for a status move."""
-    if item.get("sources") or item.get("window_source"):
-        return True
-    slip_log = item.get("slip_log") or []
-    if slip_log and isinstance(slip_log[-1], dict):
-        return bool(slip_log[-1].get("source"))
-    return False
+def _transition_brings_new_evidence(item, prior):
+    """A status transition cites a source the baseline item did not already carry.
+
+    The non-vacuous reading. A well-formed item ALWAYS carries a window_source
+    (it is what dated the window), so "does the item have any source" is trivially
+    true and would let every unsourced status flip sail through. A real
+    transition brings NEW evidence: the item's citation set — every URL across
+    sources[], window_source, and slip_log[].source — must contain at least one
+    URL the baseline item's citation set did not. Coasting on the citation that
+    dated the window is exactly the tamper this check exists to catch.
+    """
+    return bool(_citation_urls(item) - _citation_urls(prior))
+
+
+def _citation_urls(item):
+    """Every source URL an item carries — across sources[], window_source, slips."""
+    urls = set()
+    for source in item.get("sources") or []:
+        if isinstance(source, dict) and source.get("url"):
+            urls.add(source["url"])
+    window_source = item.get("window_source")
+    if isinstance(window_source, dict) and window_source.get("url"):
+        urls.add(window_source["url"])
+    for slip in item.get("slip_log") or []:
+        if isinstance(slip, dict) and isinstance(slip.get("source"), dict) and slip["source"].get("url"):
+            urls.add(slip["source"]["url"])
+    return urls
 
 
 # ---------------------------------------------------------------------------

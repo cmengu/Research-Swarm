@@ -175,33 +175,56 @@ class TestEmptySection:
         result = validate_issue(issue, state=_state("merck", "pfizer"))
         assert "empty_section" not in _kinds(result)
 
-    def test_a_beat_failed_declaration_exempts_the_section_it_sits_in(self):
-        # merck is NOT quiet (only pfizer is), so the implicit quiet_cycle route
-        # does NOT fire — the empty watchlist passes ONLY via the beat_failed
-        # declaration, which is what is under test.
-        issue = _issue(watchlist=[])
-        issue["degradations"] = {"watchlist": [
-            {"kind": "beat_failed", "beats": ["ma_dealmaking"], "marker": "M&A unavailable"}
-        ]}
+    def test_a_dead_beat_marks_an_entry_it_does_not_empty_the_section(self):
+        """An entry carrying a beat_failed degradation keeps its section non-empty
+        AND explains itself — the honest render of a dead beat, not an absence."""
+        issue = _issue()
+        issue["watchlist"][0]["degradation"] = {
+            "kind": "beat_failed", "marker": "M&A coverage unavailable this cycle — beat failed"
+        }
         result = validate_issue(
             issue, state=_state("merck", "pfizer"), beats_failed=["ma_dealmaking"]
         )
         assert "empty_section" not in _kinds(result)
 
-    def test_a_beat_failed_declaration_whose_beat_did_not_fail_still_blocks(self):
-        issue = _issue(watchlist=[])
-        issue["degradations"] = {"watchlist": [
-            {"kind": "beat_failed", "beats": ["ma_dealmaking"], "marker": "M&A unavailable"}
-        ]}
-        # ma_dealmaking is NOT in beats_failed → the trigger is not mechanically
-        # true; merck is not quiet so the implicit route is off too.
+    def test_a_beat_failed_marker_when_no_beat_failed_blocks(self):
+        """A marker claiming a failure the orchestrator can prove false is the
+        self-report the register rejects — it blocks."""
+        issue = _issue()
+        issue["watchlist"][0]["degradation"] = {"kind": "beat_failed", "marker": "x"}
         result = validate_issue(issue, state=_state("merck", "pfizer"), beats_failed=[])
-        assert "watchlist" in _wheres(result, "empty_section")
+        assert any(
+            f.kind == "empty_section" and "watchlist[merck].degradation" in f.where
+            for f in result.blocking
+        )
 
-    def test_an_unregistered_degradation_kind_grants_no_exemption(self):
-        issue = _issue(tldr_bullets=[])
-        issue["degradations"] = {"tldr_bullets": [{"kind": "source_unreachable", "marker": "x"}]}
+    def test_an_unregistered_degradation_kind_blocks(self):
+        issue = _issue()
+        issue["watchlist"][0]["degradation"] = {"kind": "source_unreachable", "marker": "x"}
         result = validate_issue(issue, state=_state("merck", "pfizer"))
+        assert any(
+            f.kind == "empty_section" and "not in the register" in f.note
+            for f in result.blocking
+        )
+
+    def test_a_thesis_unseeded_marker_needs_a_genuinely_dormant_slot(self):
+        issue = _issue()
+        issue["watchlist"][0]["degradation"] = {"kind": "thesis_unseeded", "marker": "x"}
+        # No slot is dormant → the trigger is false → blocks.
+        seeded = _state("merck", "pfizer", beliefs=[{"id": "s", "stance": "x"}])
+        assert "empty_section" in _kinds(validate_issue(issue, state=seeded))
+        # A dormant slot exists → the trigger is true → passes.
+        dormant = _state("merck", "pfizer", beliefs=[{"id": "s", "stance": None}])
+        assert "empty_section" not in _kinds(validate_issue(issue, state=dormant))
+
+    def test_thesis_unseeded_never_exempts_an_empty_section(self):
+        """Spec: an unseeded slot exempts that slot's ANGLE, not a whole section.
+        An empty required section blocks even with a valid thesis_unseeded marker
+        sitting on some entry."""
+        issue = _issue(tldr_bullets=[])
+        issue["watchlist"][0]["degradation"] = {"kind": "thesis_unseeded", "marker": "x"}
+        dormant = _state("merck", "pfizer", beliefs=[{"id": "s", "stance": None}])
+        result = validate_issue(issue, state=dormant)
         assert "tldr_bullets" in _wheres(result, "empty_section")
 
     def test_a_researcher_self_report_is_not_a_trigger_and_blocks(self):
@@ -213,18 +236,15 @@ class TestEmptySection:
         result = validate_issue(issue, state=_state("merck", "pfizer"))
         assert "tldr_bullets" in _wheres(result, "empty_section")
 
-    def test_an_exemption_is_scoped_to_the_section_it_sits_in(self):
-        """A declaration on tldr_bullets does not exempt an empty headline."""
-        issue = _issue(tldr_bullets=[], headline=None)
-        issue["degradations"] = {"tldr_bullets": [
-            {"kind": "beat_failed", "beats": ["ma_dealmaking"]}
-        ]}
+    def test_no_fifteenth_top_level_degradations_key_is_consulted(self):
+        """The invented section-map is gone: a top-level `degradations` key
+        exempts nothing — only entry-level markers and the quiet_cycle route do."""
+        issue = _issue(tldr_bullets=[])
+        issue["degradations"] = {"tldr_bullets": [{"kind": "beat_failed", "marker": "x"}]}
         result = validate_issue(
             issue, state=_state("merck", "pfizer"), beats_failed=["ma_dealmaking"]
         )
-        wheres = _wheres(result, "empty_section")
-        assert "headline" in wheres  # not exempted
-        assert "tldr_bullets" not in wheres  # exempted
+        assert "tldr_bullets" in _wheres(result, "empty_section")
 
 
 class TestDerivedStatsMismatch:
@@ -287,14 +307,31 @@ class TestQueueTamper:
         result = validate_issue(issue, state=_state("merck", "pfizer"), queue_baseline=baseline)
         assert "queue_tamper" not in _kinds(result)
 
-    def test_a_status_transition_with_no_source_blocks(self):
-        baseline = {"items": [_queue_item()]}
+    def test_a_status_flip_that_coasts_on_the_old_citation_blocks(self):
+        """Non-vacuous: a well-formed item always has a window_source, so 'has any
+        source' is trivially true. A real transition must bring a URL the baseline
+        did not already carry — flipping status while keeping only the old
+        window_source (url=W) blocks."""
+        old = _source(url="https://W")
+        baseline = {"items": [_queue_item(window_source=old, sources=[old], slip_log=[])]}
         issue = _issue()
         issue["catalyst_queue"]["items"] = [_queue_item(
-            status="delivered", sources=[], window_source=None, slip_log=[]
+            status="delivered", window_source=old, sources=[old], slip_log=[]
         )]
         result = validate_issue(issue, state=_state("merck", "pfizer"), queue_baseline=baseline)
         assert any("status changed" in f.note for f in result.blocking)
+
+    def test_a_status_flip_with_a_new_source_passes(self):
+        old = _source(url="https://W")
+        baseline = {"items": [_queue_item(window_source=old, sources=[old], slip_log=[])]}
+        issue = _issue()
+        issue["catalyst_queue"]["items"] = [_queue_item(
+            status="delivered", window_source=old, sources=[old],
+            slip_log=[{"from": "2026-Q2", "to": "2026-Q2", "date": "2026-07-01",
+                       "source": _source(url="https://readout")}],
+        )]
+        result = validate_issue(issue, state=_state("merck", "pfizer"), queue_baseline=baseline)
+        assert "queue_tamper" not in _kinds(result)
 
     def test_a_new_item_is_only_checked_for_internal_coherence(self):
         # No baseline entry for q2; first==expected so it is coherent.

@@ -59,6 +59,11 @@ class ValidationExhausted(RuntimeError):
 
 @dataclass(frozen=True)
 class ValidationStageResult:
+    """What stage 4 hands back on a pass: the draft with its validator_report
+    stamped, how many retries the gate spent (0 on a clean first pass), and the
+    advisory findings that still stand (rendered in the report, never blocking).
+    """
+
     draft: dict
     retries_used: int
     advisory: tuple[Finding, ...]
@@ -84,7 +89,6 @@ def _validator_report(passed: bool, retries_used: int, findings) -> dict:
 
 
 def run_validation_stage(
-    root: Path,
     *,
     draft: dict,
     draft_path: Path,
@@ -108,12 +112,13 @@ def run_validation_stage(
     # snapshot, walked back past stubs. None on run #1 (tolerated — nothing to
     # compare); `expired` when the 12-issue floor was hit (an advisory, never a
     # block).
-    baseline = find_latest_issue_with(issues_dir, "catalyst_queue")
+    baseline = find_latest_issue_with(
+        issues_dir, lambda payload: bool(payload.get("catalyst_queue"))
+    )
     queue_baseline = (baseline.payload or {}).get("catalyst_queue")
 
     earlier_rounds: list[Finding] = []
     retries_used = 0
-    prompt = None  # set on the first block
 
     while True:
         result = validate_issue(

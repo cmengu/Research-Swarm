@@ -83,7 +83,6 @@ def _stage(tmp_path, draft, *, runner, retry_template, beats_failed=None):
     draft_path = tmp_path / "issue-draft.json"
     draft_path.write_text(json.dumps(draft))
     return run_validation_stage(
-        tmp_path,
         draft=draft,
         draft_path=draft_path,
         state=_state("merck", "pfizer"),
