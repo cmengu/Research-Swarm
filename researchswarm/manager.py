@@ -76,9 +76,12 @@ class ManagerResult:
 def load_models(path: Path) -> dict:
     """Load config/models.toml → the [models] table (per-role model ids).
 
-    Strict like the other loaders: a missing manager id must fail loudly here,
-    not surface as an empty --model flag that the CLI rejects three stages later
-    with a message pointing nowhere near the cause.
+    Strict like the other loaders: a missing per-role id must fail loudly here,
+    not surface as an empty --model / -m flag that the CLI rejects stages later
+    with a message pointing nowhere near the cause. Both single-agent roles are
+    required — the manager (build 04) and the critic (build 07, Codex). The
+    researchers' model is deliberately NOT here: it is a per-beat override in
+    config/beats.toml.
     """
     path = Path(path)
     if not path.exists():
@@ -90,6 +93,8 @@ def load_models(path: Path) -> dict:
     models = raw.get("models")
     if not isinstance(models, dict) or not models.get("manager"):
         raise ValueError(f"{path}: [models].manager is required")
+    if not models.get("critic"):
+        raise ValueError(f"{path}: [models].critic is required")
 
     return models
 

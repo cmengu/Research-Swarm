@@ -285,6 +285,60 @@ def render_manager_prompt(
     return _substitute(template, values)
 
 
+def _critic_findings_corpus(findings_by_beat: dict[str, dict]) -> str:
+    """Every researcher's raw findings.json as a labelled JSON block, in order.
+
+    This is the critic's ONLY source of receipts: a dropped_story is only
+    provable against the raw facts the manager was handed and then cut. So the
+    corpus is the findings verbatim, labelled by beat — not the manager's shaped
+    digest, which is the artifact under judgment, not the evidence.
+    """
+    if not findings_by_beat:
+        return "(no findings on disk this run)"
+    return "\n\n".join(
+        f"=== findings from beat: {beat_id} ===\n"
+        f"{json.dumps(findings, indent=2, ensure_ascii=False)}"
+        for beat_id, findings in findings_by_beat.items()
+    )
+
+
+def render_critic_prompt(
+    template: str,
+    *,
+    issue: dict,
+    findings_by_beat: dict[str, dict],
+    previous_issue: dict | None,
+    watchlist: dict,
+    thesis: dict,
+) -> str:
+    """Interpolate the critic rubric with its five inputs. Raises on a leftover.
+
+    The load-bearing decision of the whole rubric (spec/06): the critic sees FIVE
+    things, not just the finished issue. A critic holding only the digest cannot
+    audit an ABSENCE, because the absence was removed from the artifact it is
+    reading — so it also gets the raw findings (the receipt source), the previous
+    issue (continuity), the watchlist (entity accounting), and the thesis
+    (thesis_impact honesty and dormant-slot exemptions). Widening the input set is
+    what turns "you missed a story" from unanswerable into a diff.
+
+    The same UnresolvedPlaceholder wall the other renderers use applies: a literal
+    {{issue_json}} reaching Codex is an instruction to invent the thing it should
+    be judging.
+    """
+    values = {
+        "issue_json": json.dumps(issue, indent=2, ensure_ascii=False),
+        "findings_corpus": _critic_findings_corpus(findings_by_beat),
+        "previous_issue_json": (
+            json.dumps(previous_issue, indent=2, ensure_ascii=False)
+            if previous_issue is not None
+            else "(no previous issue)"
+        ),
+        "watchlist_json": json.dumps(watchlist, indent=2, ensure_ascii=False),
+        "thesis_json": json.dumps(thesis, indent=2, ensure_ascii=False),
+    }
+    return _substitute(template, values)
+
+
 def _blocking_findings_block(findings) -> str:
     """The validator's blocking findings as one `- kind at where: note` line each.
 

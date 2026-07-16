@@ -86,9 +86,10 @@ def _run(runner):
 
 
 class TestLoadModels:
-    def test_reads_the_manager_id_from_the_repo(self, repo_root):
+    def test_reads_the_role_ids_from_the_repo(self, repo_root):
         models = load_models(repo_root / "config" / "models.toml")
         assert models["manager"] == "claude-opus-4-8"
+        assert models["critic"] == "gpt-5.6-codex"
 
     def test_missing_file_fails_loudly(self, tmp_path):
         with pytest.raises(FileNotFoundError, match="models config not found"):
@@ -100,6 +101,14 @@ class TestLoadModels:
         path = tmp_path / "models.toml"
         path.write_text("[models]\ncritic = \"gpt-5.6-codex\"\n")
         with pytest.raises(ValueError, match="manager is required"):
+            load_models(path)
+
+    def test_missing_critic_id_fails_loudly(self, tmp_path):
+        """The critic is a required per-role id now that Codex is wired — a
+        missing one must fail loudly here, not as a cryptic `-m` codex error."""
+        path = tmp_path / "models.toml"
+        path.write_text("[models]\nmanager = \"claude-opus-4-8\"\n")
+        with pytest.raises(ValueError, match="critic is required"):
             load_models(path)
 
 

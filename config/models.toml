@@ -10,8 +10,10 @@
 # the right home. Keeping the two apart is the whole reason this file exists
 # rather than a manager = "..." line bolted onto beats.toml.
 #
-# The critic id lands when build 07 wires Codex in; until then it is absent,
-# and run.py stamps issue.run.models.critic as null.
+# The critic is a DIFFERENT model family from the workers on purpose (spec/06):
+# Codex, on a ChatGPT subscription, judges what Claude wrote. A cross-family gate
+# catches what a same-family critic would share the blind spot on.
 
 [models]
 manager = "claude-opus-4-8"
+critic = "gpt-5.6-codex"

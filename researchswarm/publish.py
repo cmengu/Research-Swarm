@@ -101,20 +101,46 @@ def derive_full_stats(issue, issues_dir: Path) -> dict:
     return stats
 
 
-def stamp_run_fields(issue, stats: dict) -> None:
+def stamp_run_fields(issue, stats: dict, critic=None) -> None:
     """Stamp the fields the ORCHESTRATOR owns, overwriting the manager's guesses.
 
     `stats` is derived, never authored, so it replaces whatever the seam forced
-    to {}. `run.status` and `run.critic_verdict` are the orchestrator's to set:
-    with no critic wired they are published_uncritiqued / not_run regardless of
-    what the manager wrote, because a missing critic is a property of the run, not
-    of the draft. `critic_report.validator_report` is left untouched — stage 4
-    already stamped it, and it is the validator's record, not ours to rewrite.
+    to {}. `run.status`, `run.critic_verdict`, and the critic_report's own
+    verdict/findings are the orchestrator's to set — a critic outcome is a
+    property of the RUN, not of the draft.
+
+    `critic` is the stage-5 outcome (any object carrying `status`, `verdict`,
+    `blocking_findings`, `advisory_findings`, `retries_used`, `reason`) or None.
+    None keeps the pre-critic default — published_uncritiqued / not_run — which is
+    still correct for a run where stage 5 never produced an outcome. Either way
+    `critic_report.validator_report` is PRESERVED: stage 4 stamped it, it is the
+    validator's record, and the critic outcome must not clobber it.
     """
     issue["stats"] = stats
     run = issue.setdefault("issue", {}).setdefault("run", {})
-    run["status"] = UNCRITIQUED_STATUS
-    run["critic_verdict"] = UNCRITIQUED_VERDICT
+    report = issue.setdefault("critic_report", {})
+    validator_report = report.get("validator_report")  # stage 4's — preserve it
+
+    if critic is None:
+        run["status"] = UNCRITIQUED_STATUS
+        run["critic_verdict"] = UNCRITIQUED_VERDICT
+        report["verdict"] = UNCRITIQUED_VERDICT
+        report["retries_used"] = 0
+        report["blocking_findings"] = []
+        report["advisory_findings"] = []
+    else:
+        run["status"] = critic.status
+        run["critic_verdict"] = critic.verdict
+        report["verdict"] = critic.verdict
+        report["retries_used"] = critic.retries_used
+        report["blocking_findings"] = list(critic.blocking_findings)
+        report["advisory_findings"] = list(critic.advisory_findings)
+        # A not_run reason is the banner's explanation of why the run went
+        # uncritiqued — record it so the dashboard can show WHY, not just that.
+        if getattr(critic, "reason", None):
+            report["reason"] = critic.reason
+
+    report["validator_report"] = validator_report
 
 
 # ---------------------------------------------------------------------------
@@ -316,15 +342,18 @@ def run_publish_stage(
     state: State,
     run_id: str,
     now: datetime,
+    critic=None,
     runner=subprocess.run,
 ) -> PublishResult:
     """Run stage 6's five ordered steps and return where the issue landed.
 
     `draft` is the validated issue from stage 4 — validator_report already
-    stamped, stats still {}. This derives stats, stamps the orchestrator-owned run
-    fields, writes the immutable issue, regenerates the manifest, applies the
-    state edits, and commits once. May raise PublishedIssueExists if the date
-    already holds a published issue (immutability).
+    stamped, stats still {}. `critic` is the stage-5 outcome that decides the
+    published run.status and critic_report (None → the pre-critic
+    published_uncritiqued default). This derives stats, stamps the
+    orchestrator-owned run fields, writes the immutable issue, regenerates the
+    manifest, applies the state edits, and commits once. May raise
+    PublishedIssueExists if the date already holds a published issue (immutability).
 
     Once the issue is ON DISK, a downstream failure (state edits, say) must not
     leave the artifact trail behind the artifact: the manifest is regenerated and
@@ -336,7 +365,7 @@ def run_publish_stage(
     issues_dir = root / "issues"
 
     stats = derive_full_stats(draft, issues_dir)
-    stamp_run_fields(draft, stats)
+    stamp_run_fields(draft, stats, critic)
 
     # write_issue may raise BEFORE anything lands (immutability) — a clean fail.
     issue_file = write_issue(root, draft)

@@ -61,7 +61,8 @@ def run_synthesis_stage(
     Raises ManagerFailed on synthesis failure; the stub decision belongs to
     run.py. The models block records what argued this issue: researchers by
     their beats.toml default (a per-beat override), the manager by its
-    models.toml id (a per-role id), and the critic null until build 07.
+    models.toml id (a per-role id), and the critic by its models.toml id (build
+    07 wired Codex in — no longer null).
     """
     run_id = identity.ctx.run_id
     findings_by_beat = {
@@ -73,7 +74,7 @@ def run_synthesis_stage(
     models = {
         "researchers": beats[0].model if beats else None,
         "manager": models_config["manager"],
-        "critic": None,
+        "critic": models_config.get("critic"),
     }
     prompt = render_manager_prompt(
         manager_template,

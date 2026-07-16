@@ -253,7 +253,7 @@ slugs exactly and never invent one for a listed entity.
 | Placeholder | Source | Notes |
 |---|---|---|
 | `{{run_id}} {{thesis_version}} {{issue_id}} {{published_at}} {{coverage_window_from}} {{coverage_window_to}}` | orchestrator | identifiers stamped into the run block and `issue` object |
-| `{{models_json}}` | `config/models.toml` + `config/beats.toml` | `{"researchers", "manager", "critic"}` as indented JSON; `critic` is `null` until build 07 |
+| `{{models_json}}` | `config/models.toml` + `config/beats.toml` | `{"researchers", "manager", "critic"}` as indented JSON; `critic` is the Codex id (build 07 wired it in — no longer null) |
 | `{{watchlist_roster}}` | `state/watchlist.json` → `entities[]` | full roster: `entity_id · name · tier · priority`, one line each. Unlike the researcher roster this KEEPS every entity (the accounting duty needs the whole set) and the manager needs `name` + `tier` to author each entry's `name`/`type` |
 | `{{thesis_slots}}` | `state/thesis.json` → `beliefs[]` | reuses the researcher renderer: per slot `id · title [provenance]` then the stance on its own line, `(no stance seeded)` when dormant. Stance text is NEVER baked into this file |
 | `{{catalyst_queue_snapshot}}` | `state/catalyst-queue.json` | the snapshot as indented JSON, not a table — the manager must reproduce factual fields verbatim, so it is handed JSON to copy. `what_it_would_prove` is omitted from the snapshot (the manager authors it, thesis-gated) |
