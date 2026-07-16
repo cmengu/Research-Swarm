@@ -26,17 +26,15 @@ Spec: SPEC.md, docs/spec/09-orchestrator.md
 from __future__ import annotations
 
 import argparse
-import json
 import logging
-import subprocess
 import sys
 from datetime import date, datetime
 from pathlib import Path
 
-from researchswarm.beats import Beat, load_beats
+from researchswarm.beats import load_beats
 from researchswarm.cadence import is_run_day, load_cadence
-from researchswarm.manager import ManagerFailed, ManagerResult, load_models, run_manager
-from researchswarm.prompts import RunContext, load_template, render_manager_prompt
+from researchswarm.manager import ManagerFailed, load_models
+from researchswarm.prompts import RunContext, load_template
 from researchswarm.research import render_all_prompts, run_research_stage
 from researchswarm.runs import (
     LOOKBACK_FLOOR,
@@ -44,8 +42,9 @@ from researchswarm.runs import (
     resolve_prior_quiet,
     resolve_run_id,
 )
-from researchswarm.state import State, check_entity_refs, load_state
+from researchswarm.state import check_entity_refs, load_state
 from researchswarm.stub import PublishedIssueExists, write_failed_stub
+from researchswarm.synthesis import IssueIdentity, run_synthesis_stage
 
 REPO_ROOT = Path(__file__).resolve().parent
 
@@ -92,70 +91,6 @@ def _config_error(exc: Exception) -> int:
     """Config and state problems all die the same way: say what broke, exit 2."""
     log.error("%s", exc)
     return EXIT_CONFIG_ERROR
-
-
-def run_synthesis_stage(
-    root: Path,
-    *,
-    run_id: str,
-    ctx: RunContext,
-    state: State,
-    beats: list[Beat],
-    beats_run: list[str],
-    beats_failed: list[str],
-    models_config: dict,
-    manager_template: str,
-    prior_quiet: dict[str, int],
-    published_at: str,
-    issue_id: str,
-    runner=subprocess.run,
-) -> tuple[ManagerResult, Path]:
-    """Stage 3: load the persisted findings, render, call the manager, write the draft.
-
-    Raises ManagerFailed on synthesis failure — the stub decision belongs to
-    main(), which owns stub-writing for every stage so the immutability guard
-    lives in one place. run.py is the sole writer: it reads the findings the
-    researchers could not persist themselves and writes the issue-draft the
-    manager cannot.
-
-    The models block records what argued this issue: researchers by their
-    beats.toml default (a per-beat override), the manager by its models.toml id
-    (a per-role id), and the critic null until build 07 wires it in.
-    """
-    findings_by_beat = {
-        beat_id: json.loads(
-            (root / "runs" / run_id / "findings" / f"{beat_id}.json").read_text()
-        )
-        for beat_id in beats_run
-    }
-    models = {
-        "researchers": beats[0].model if beats else None,
-        "manager": models_config["manager"],
-        "critic": None,
-    }
-    prompt = render_manager_prompt(
-        manager_template,
-        ctx,
-        state,
-        findings_by_beat=findings_by_beat,
-        beats_failed=beats_failed,
-        prior_quiet=prior_quiet,
-        models=models,
-        issue_id=issue_id,
-        published_at=published_at,
-    )
-    result = run_manager(
-        prompt,
-        model=models_config["manager"],
-        thesis_version=state.thesis.get("version"),
-        run_id=run_id,
-        runner=runner,
-    )
-
-    draft_path = root / "runs" / run_id / "issue-draft.json"
-    draft_path.parent.mkdir(parents=True, exist_ok=True)
-    draft_path.write_text(json.dumps(result.draft, indent=2) + "\n")
-    return result, draft_path
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -301,20 +236,18 @@ def main(argv: list[str] | None = None) -> int:
 
     prior_quiet = resolve_prior_quiet(root / "issues")
 
+    identity = IssueIdentity(ctx=ctx, issue_id=today.isoformat(), published_at=now.isoformat())
+
     try:
         result, draft_path = run_synthesis_stage(
             root,
-            run_id=run_id,
-            ctx=ctx,
+            identity=identity,
             state=state,
             beats=beats,
-            beats_run=stage.beats_run,
-            beats_failed=stage.beats_failed,
+            stage=stage,
             models_config=models_config,
             manager_template=manager_template,
             prior_quiet=prior_quiet,
-            published_at=now.isoformat(),
-            issue_id=today.isoformat(),
         )
     except ManagerFailed as exc:
         # Facts to synthesize, but no issue to publish: a synthesis stub, not a

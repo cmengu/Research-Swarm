@@ -11,9 +11,9 @@ in the prompt.
 
 Transport mirrors the researcher: --output-format json wraps the final message
 in an envelope, the final message must be one JSON object, and the seam is
-validated immediately with one retry. So the envelope/result parsing is imported
-from researcher.py rather than copied — same package, same wire format, one
-place to fix if the CLI's envelope ever changes.
+validated immediately with one retry. The envelope/result parsing lives in
+researchswarm.transport — one wire format, one parser — so both agents consume
+it rather than one reaching into the other's internals.
 
 Spec: docs/spec/05-manager.md, docs/spec/07-issue-schema.md
 """
@@ -27,13 +27,8 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
-from researchswarm.findings import FindingsInvalid
-from researchswarm.researcher import (
-    OFFLINE_ENV,
-    RETRY_PREAMBLE,
-    _parse_envelope,
-    _parse_findings,
-)
+from researchswarm.researcher import OFFLINE_ENV, RETRY_PREAMBLE
+from researchswarm.transport import TransportInvalid, parse_envelope, parse_result_json
 
 log = logging.getLogger("researchswarm.manager")
 
@@ -41,9 +36,8 @@ log = logging.getLogger("researchswarm.manager")
 # delegation escape hatch (Task — a subagent inherits its own tools and would
 # route around the wall), AND the web tools: the manager adds no new facts, so
 # WebSearch/WebFetch are denied here where they were granted to the researcher.
-# --allowedTools is passed EMPTY so nothing at all is granted by default; the
-# manager is pure text in, text out.
-ALLOWED_TOOLS: tuple[str, ...] = ()
+# build_manager_command passes an EMPTY --allowedTools so nothing at all is
+# granted by default; the manager is pure text in, text out.
 DISALLOWED_TOOLS = (
     "Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "Task", "WebSearch", "WebFetch",
 )
@@ -211,10 +205,10 @@ def run_manager(
             )
 
         try:
-            envelope = _parse_envelope(completed.stdout)
-            draft = _parse_findings(envelope.get("result", ""))
+            envelope = parse_envelope(completed.stdout)
+            draft = parse_result_json(envelope.get("result", ""))
             validate_issue_draft(draft, thesis_version=thesis_version, run_id=run_id)
-        except (FindingsInvalid, IssueDraftInvalid) as exc:
+        except (TransportInvalid, IssueDraftInvalid) as exc:
             last_error = str(exc)
             log.warning("manager: attempt %d failed validation: %s", attempt, last_error)
             if attempt == 2:

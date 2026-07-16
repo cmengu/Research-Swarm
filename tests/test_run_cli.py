@@ -223,11 +223,12 @@ def _manager_runner(prompts=None, draft=None):
 def _synthesis_args(fake_repo, *, beats_run, beats_failed):
     """Everything run_synthesis_stage needs, loaded from the fake repo, with the
     beats_run's findings pre-seeded on disk (run.py is the sole reader here)."""
-    import run
     from researchswarm.beats import load_beats
     from researchswarm.manager import load_models
     from researchswarm.prompts import RunContext, load_template
+    from researchswarm.research import ResearchStage
     from researchswarm.state import load_state
+    from researchswarm.synthesis import IssueIdentity
 
     findings_dir = fake_repo / "runs" / SYNTH_RUN_ID / "findings"
     findings_dir.mkdir(parents=True)
@@ -236,19 +237,17 @@ def _synthesis_args(fake_repo, *, beats_run, beats_failed):
             json.dumps({"beat": beat_id, "findings": [], "quiet": True})
         )
 
+    ctx = RunContext(run_id=SYNTH_RUN_ID, coverage_window_from="2026-07-13",
+                     coverage_window_to="2026-07-16")
     return {
-        "run_id": SYNTH_RUN_ID,
-        "ctx": RunContext(run_id=SYNTH_RUN_ID, coverage_window_from="2026-07-13",
-                          coverage_window_to="2026-07-16"),
+        "identity": IssueIdentity(ctx=ctx, issue_id="2026-07-16",
+                                  published_at="2026-07-16T07:00:00+08:00"),
         "state": load_state(fake_repo / "state"),
         "beats": load_beats(fake_repo / "config" / "beats.toml"),
-        "beats_run": beats_run,
-        "beats_failed": beats_failed,
+        "stage": ResearchStage(beats_run=beats_run, beats_failed=beats_failed),
         "models_config": load_models(fake_repo / "config" / "models.toml"),
         "manager_template": load_template(fake_repo / "prompts" / "manager.md"),
         "prior_quiet": {},
-        "published_at": "2026-07-16T07:00:00+08:00",
-        "issue_id": "2026-07-16",
     }
 
 
@@ -256,10 +255,10 @@ class TestSynthesisStage:
     def test_manager_success_writes_the_draft(self, fake_repo):
         """run.py is the sole writer: the manager's draft lands at
         runs/<run_id>/issue-draft.json, no earlier and nowhere else."""
-        import run
+        from researchswarm.synthesis import run_synthesis_stage
 
         args = _synthesis_args(fake_repo, beats_run=["ma_dealmaking"], beats_failed=[])
-        result, path = run.run_synthesis_stage(fake_repo, runner=_manager_runner(), **args)
+        result, path = run_synthesis_stage(fake_repo, runner=_manager_runner(), **args)
 
         assert path == fake_repo / "runs" / SYNTH_RUN_ID / "issue-draft.json"
         written = json.loads(path.read_text())
@@ -270,13 +269,13 @@ class TestSynthesisStage:
     def test_beats_failed_subset_flows_into_the_manager_prompt(self, fake_repo):
         """The manager must be told which beats died so it can mark their
         sections inline — a thin section read as a fact is the misled-reader bar."""
-        import run
+        from researchswarm.synthesis import run_synthesis_stage
 
         prompts = []
         args = _synthesis_args(
             fake_repo, beats_run=["ma_dealmaking", "backstop"], beats_failed=["policy_regulation"]
         )
-        run.run_synthesis_stage(fake_repo, runner=_manager_runner(prompts), **args)
+        run_synthesis_stage(fake_repo, runner=_manager_runner(prompts), **args)
 
         assert len(prompts) == 1
         assert "policy_regulation" in prompts[0]

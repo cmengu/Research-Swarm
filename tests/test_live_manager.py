@@ -95,12 +95,24 @@ def test_a_real_manager_returns_a_valid_v1_0_0_issue(repo_root, newest_findings)
     assert issue["stats"] == {}, "stats must be derived, never authored"
     assert issue["headline"]["so_what"], "so_what is always present and thesis-independent"
 
-    # --- entity accounting: every tracked entity in EXACTLY ONE of watchlist / no_news ---
+    # --- entity accounting: an EXACT partition of the tracked set ---
+    # Disjoint AND union == tracked exactly: an entity in both, an unaccounted
+    # entity, OR an invented entity_id in watchlist all fail here.
     tracked = state.entity_ids
     in_watchlist = {e["entity_id"] for e in issue["watchlist"]}
     in_quiet = {e["entity_id"] for e in issue["quiet_this_cycle"]["no_news"]}
-    assert not (in_watchlist & in_quiet), "an entity appears in both watchlist and quiet"
-    assert tracked <= (in_watchlist | in_quiet), f"unaccounted: {tracked - in_watchlist - in_quiet}"
+    assert not (in_watchlist & in_quiet), f"in both: {in_watchlist & in_quiet}"
+    assert in_watchlist | in_quiet == tracked, (
+        f"not an exact partition; extra={(in_watchlist | in_quiet) - tracked} "
+        f"missing={tracked - (in_watchlist | in_quiet)}"
+    )
+
+    # --- merge criterion: each entity_id appears at most ONCE across watchlist.
+    # Two beats finding the same story must have been merged, not repeated. ---
+    watchlist_ids = [e["entity_id"] for e in issue["watchlist"]]
+    assert len(watchlist_ids) == len(set(watchlist_ids)), (
+        f"duplicate watchlist entity_ids — findings were not merged: {watchlist_ids}"
+    )
 
     # --- priority is the 3-value tag, everywhere it appears ---
     for entry in issue["watchlist"] + issue["new_on_radar"] + issue["tldr_bullets"]:
@@ -117,18 +129,41 @@ def test_a_real_manager_returns_a_valid_v1_0_0_issue(repo_root, newest_findings)
     for entry in issue["elsewhere_on_frontier"]:
         assert "confidence" not in entry, "confidence does not belong on frontier moves"
 
-    # --- dormant slots: watchlist items argued against a dormant slot carry the
-    #     marker and OMIT thesis_impact (there is no stance to bear on) ---
-    dormant_slots = {b["id"] for b in state.thesis["beliefs"] if not b["stance"]}
-    if dormant_slots:
-        for entry in issue["watchlist"]:
-            if entry.get("research_angle") == DORMANT_MARKER:
-                assert "thesis_impact" not in entry, "dormant angle must omit thesis_impact"
+    # --- dormant gating as a PAIRING INVARIANT over every watchlist entry.
+    # thesis_impact is present iff research_angle is a real angle (not the exact
+    # marker). With no dormant slot, no marker may appear; with every slot
+    # dormant, every entry must carry it. ---
+    beliefs = state.thesis["beliefs"]
+    dormant_slots = {b["id"] for b in beliefs if not b["stance"]}
+    all_dormant = bool(beliefs) and len(dormant_slots) == len(beliefs)
+    for entry in issue["watchlist"]:
+        is_marker = entry.get("research_angle") == DORMANT_MARKER
+        has_impact = bool(entry.get("thesis_impact"))
+        assert has_impact == (not is_marker), (
+            f"{entry['entity_id']}: thesis_impact must be present iff research_angle is real"
+        )
+        if not dormant_slots:
+            assert not is_marker, f"{entry['entity_id']}: no dormant slot, yet the marker appears"
+        if all_dormant:
+            assert is_marker, f"{entry['entity_id']}: every slot dormant, yet no marker"
 
-    # --- failed beats leave an inline degradation marker somewhere ---
-    if beats_failed:
-        blob = json.dumps(issue)
-        assert "beat_failed" in blob or "beat failed" in blob, "no inline degradation for a dead beat"
+    # --- failed beats leave a WELL-FORMED inline degradation, structurally.
+    # Walk the section arrays; a dead beat must surface a beat_failed degradation
+    # object with a non-empty marker, not merely the substring somewhere. ---
+    section_keys = ("watchlist", "new_on_radar", "themes_and_signals",
+                    "elsewhere_on_frontier", "tldr_bullets")
+    beat_failed_degradations = [
+        entry["degradation"]
+        for key in section_keys
+        for entry in issue.get(key, [])
+        if isinstance(entry, dict) and isinstance(entry.get("degradation"), dict)
+        and entry["degradation"].get("kind") == "beat_failed"
+    ]
+    for degradation in beat_failed_degradations:
+        marker = degradation.get("marker")
+        assert isinstance(marker, str) and marker.strip(), f"malformed degradation: {degradation}"
+    for beat in beats_failed:
+        assert beat_failed_degradations, f"no inline beat_failed degradation for dead beat {beat}"
 
     # --- no unconfirmed finding published as established fact ---
     unconfirmed_entities = {
