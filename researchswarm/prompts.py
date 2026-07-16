@@ -218,21 +218,31 @@ def _catalyst_queue_snapshot(state: State) -> str:
     return json.dumps(snapshot, indent=2, ensure_ascii=False)
 
 
-def _findings_corpus(findings_by_beat: dict[str, dict], beats_failed: list[str]) -> str:
-    """Each surviving beat's findings.json as a labelled JSON block.
+def _findings_corpus(
+    findings_by_beat: dict[str, dict], beats_failed: list[str] | None = None
+) -> str:
+    """Each beat's findings.json as a labelled JSON block, in caller order.
 
-    Beat order is whatever the caller passes (run.py keeps roster order). The
-    failed beats get an explicit line rather than a block, because they have no
-    findings — and naming them here, next to the facts, is what lets the manager
-    see the hole it must mark inline rather than reading a thin section as truth.
+    One corpus renderer, shared by the manager prompt and the critic prompt, so
+    the two never drift on how a finding is presented. `beats_failed` is the sole
+    difference: the manager passes it (a list, possibly empty) and gets an explicit
+    dead-beats line next to the facts — what lets it mark the hole inline rather
+    than read a thin section as truth. The critic passes None and gets only the
+    surviving findings; on an empty run that leaves nothing, so it renders an
+    explicit marker rather than a blank.
+
+    Beat order is whatever the caller passes (run.py keeps roster order).
     """
     blocks = [
         f"=== findings from beat: {beat_id} ===\n"
         f"{json.dumps(findings, indent=2, ensure_ascii=False)}"
         for beat_id, findings in findings_by_beat.items()
     ]
-    failed = ", ".join(beats_failed) if beats_failed else "(none)"
-    blocks.append(f"=== beats that failed (no findings this cycle): {failed} ===")
+    if beats_failed is not None:
+        failed = ", ".join(beats_failed) if beats_failed else "(none)"
+        blocks.append(f"=== beats that failed (no findings this cycle): {failed} ===")
+    if not blocks:
+        return "(no findings on disk this run)"
     return "\n\n".join(blocks)
 
 
@@ -285,23 +295,6 @@ def render_manager_prompt(
     return _substitute(template, values)
 
 
-def _critic_findings_corpus(findings_by_beat: dict[str, dict]) -> str:
-    """Every researcher's raw findings.json as a labelled JSON block, in order.
-
-    This is the critic's ONLY source of receipts: a dropped_story is only
-    provable against the raw facts the manager was handed and then cut. So the
-    corpus is the findings verbatim, labelled by beat — not the manager's shaped
-    digest, which is the artifact under judgment, not the evidence.
-    """
-    if not findings_by_beat:
-        return "(no findings on disk this run)"
-    return "\n\n".join(
-        f"=== findings from beat: {beat_id} ===\n"
-        f"{json.dumps(findings, indent=2, ensure_ascii=False)}"
-        for beat_id, findings in findings_by_beat.items()
-    )
-
-
 def render_critic_prompt(
     template: str,
     *,
@@ -327,7 +320,7 @@ def render_critic_prompt(
     """
     values = {
         "issue_json": json.dumps(issue, indent=2, ensure_ascii=False),
-        "findings_corpus": _critic_findings_corpus(findings_by_beat),
+        "findings_corpus": _findings_corpus(findings_by_beat),
         "previous_issue_json": (
             json.dumps(previous_issue, indent=2, ensure_ascii=False)
             if previous_issue is not None

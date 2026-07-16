@@ -35,25 +35,26 @@ def allow_live(request, monkeypatch):
     monkeypatch.delenv("RESEARCHSWARM_OFFLINE", raising=False)
 
 
-def _newest_judgeable_run(repo_root):
-    """The newest run_id whose findings/ exist AND whose issue actually published,
-    or None. The critic needs the raw corpus (receipts) and a real issue to judge."""
-    runs = repo_root / "runs"
-    for findings_dir in sorted(
-        (d for d in runs.glob("*/findings") if any(d.glob("*.json"))), reverse=True
-    ):
-        run_id = findings_dir.parent.name
-        by_beat = {p.stem: json.loads(p.read_text()) for p in sorted(findings_dir.glob("*.json"))}
-        return run_id, by_beat
-    return None
+def _newest_findings_corpus(repo_root):
+    """The newest runs/<run_id>/findings/ that has any findings, as {beat: payload},
+    or None. Single-shot: the dirs are dated ids, so the reverse-sorted first is the
+    newest. The critic needs the raw corpus — the receipts live only there. Whether
+    a published issue ALSO exists is a separate artifact, checked by the caller."""
+    findings_dirs = sorted(
+        (d for d in (repo_root / "runs").glob("*/findings") if any(d.glob("*.json"))),
+        reverse=True,
+    )
+    if not findings_dirs:
+        return None
+    newest = findings_dirs[0]
+    return {p.stem: json.loads(p.read_text()) for p in sorted(newest.glob("*.json"))}
 
 
 @pytest.mark.live
 def test_a_real_critic_returns_a_contract_shaped_verdict(repo_root):
-    judgeable = _newest_judgeable_run(repo_root)
-    if judgeable is None:
+    findings_by_beat = _newest_findings_corpus(repo_root)
+    if findings_by_beat is None:
         pytest.skip("no runs/<run_id>/findings/ on disk — run a research fan-out first")
-    _, findings_by_beat = judgeable
 
     published = latest_covering_issue(repo_root / "issues").payload
     if published is None:

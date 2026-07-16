@@ -8,11 +8,13 @@ pass is a separate, opt-in test — see tests/test_live_critic.py.
 
 import json
 import subprocess
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from researchswarm.critic import (
+    ADVISORY_KINDS,
     BLOCKING_KINDS,
     CriticOfflineViolation,
     build_codex_command,
@@ -21,6 +23,12 @@ from researchswarm.critic import (
 )
 
 MODEL = "gpt-5.6-codex"
+
+
+def _run_prompt():
+    """The stand-in critic prompt these tests inject — the wire is under test, not
+    the rubric, so any non-empty prompt does."""
+    return "CRITIC PROMPT: judge this issue."
 
 # A realistic stdout event stream (the shape probed live). The verdict does NOT
 # come from here — it comes from the -o file — so this is telemetry only.
@@ -211,7 +219,7 @@ class TestCommandConstruction:
     def _command(self):
         runner = _fake_runner(_verdict("pass"))
         run_critic(_run_prompt(), model=MODEL, runner=runner,
-                   schema_file="/tmp/schema.json")
+                   schema_file=Path("/tmp/schema.json"))
         return runner.calls[0]
 
     def test_argv_is_a_portable_list_no_shell(self):
@@ -231,7 +239,7 @@ class TestCommandConstruction:
         command = self._command().command
         assert command[command.index("-m") + 1] == MODEL
         assert command[command.index("-o") + 1].endswith("last-message.txt")
-        assert command[command.index("--output-schema") + 1] == "/tmp/schema.json"
+        assert command[command.index("--output-schema") + 1] == str(Path("/tmp/schema.json"))
 
     def test_read_only_sandbox_and_no_web_flags(self):
         command = self._command().command
@@ -330,6 +338,20 @@ class TestReceiptRule:
         assert kept == ()
         assert "already cited in the issue" in downgraded[0]["note"]
 
+    def test_receipt_url_that_is_a_prefix_of_a_cited_url_still_blocks(self):
+        """The cited-nowhere check matches urls EXACTLY, not by substring. A
+        receipt for '…/merck' must not be swallowed by a cited '…/merck-verastem'
+        — that is a different story, and the drop is real, so it blocks through."""
+        receipt_url = "https://endpoints.com/merck"
+        cited_superstring = "https://endpoints.com/merck-verastem"
+        corpus = json.dumps({"ma": {"findings": [{"sources": [{"url": receipt_url}]}]}})
+        issue = _issue(extra_urls=[("verastem", cited_superstring)])
+        kept, downgraded = enforce_receipt_rule(
+            [_dropped(url=receipt_url)], findings_corpus=corpus, issue=issue
+        )
+        assert len(kept) == 1  # the prefix is NOT the cited url
+        assert downgraded == ()
+
     def test_non_dropped_story_kinds_pass_through_untouched(self):
         overclaim = {"kind": "overclaim", "where": "headline", "note": "too strong"}
         kept, downgraded = enforce_receipt_rule([overclaim], findings_corpus=CORPUS, issue=_issue())
@@ -356,5 +378,13 @@ def test_the_six_blocking_kinds_are_registered():
     }
 
 
-def _run_prompt():
-    return "CRITIC PROMPT: judge this issue."
+def test_the_twelve_advisory_kinds_are_registered():
+    """The advisory twin: all twelve spec/06 advisory kinds exist, and none is a
+    blocking kind (advisories never gate)."""
+    assert ADVISORY_KINDS == {
+        "thin_sourcing", "coverage_gap", "weak_angle", "thesis_unseeded",
+        "paywalled_primary", "unverifiable_claim", "stale_open_thread",
+        "source_unreachable", "calendar_stale", "thread_dropped",
+        "continuity_break", "continuity_baseline_expired",
+    }
+    assert not (ADVISORY_KINDS & BLOCKING_KINDS)

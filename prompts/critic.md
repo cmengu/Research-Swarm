@@ -61,7 +61,10 @@ NEVER gate the line. When in doubt, advisory.
 - provenance_stale — a claim presented as NEW rests on a source whose published_at
   predates the coverage window: recycled old news wearing a fresh date. Compare
   each such claim's source published_at against issue.coverage_window; if it falls
-  before the window's `from`, it is stale.
+  before the window's `from`, it is stale. Exception: when run.surge is present,
+  compare against the conference window instead of the coverage window (surge
+  lands in a later build; run.surge is currently always absent, so today this is
+  always the coverage-window comparison).
 - overclaim — the summary or headline asserts MORE than its cited sources support:
   a hedged "reportedly exploring" rendered as "will acquire".
 - aggregator_only — a material claim's ONLY support is tier: aggregator, with no

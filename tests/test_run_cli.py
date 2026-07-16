@@ -481,6 +481,9 @@ class TestCritiqueStage:
         assert code == 0
         assert issue["issue"]["run"]["status"] == status
         assert issue["issue"]["run"]["critic_verdict"] == verdict
+        # critic_retries is orchestrator-owned too — 0 for now (#35's loop), never
+        # a manager-authored value.
+        assert issue["issue"]["run"]["critic_retries"] == 0
         assert manifest["issues"][0]["status"] == status
 
     def test_blocking_findings_publish_in_the_report(self, fake_repo, monkeypatch):
@@ -509,6 +512,29 @@ class TestCritiqueStage:
         _, issue, _ = self._drive(fake_repo, monkeypatch, result)
         assert issue["critic_report"]["verdict"] == "not_run"
         assert issue["critic_report"]["reason"] == "codex binary not found on PATH"
+
+    def test_manager_authored_critic_catches_survive_to_publish_and_stats(self, fake_repo, monkeypatch):
+        """A critic_catch is a manager-authored record of a rejected claim (its
+        population is #35's job, but the plumbing must already carry it through).
+        Drive a nonempty quiet_this_cycle.critic_catches through critique→publish
+        and assert it survives the issue AND is counted in the derived stats."""
+        from researchswarm.critique import CritiqueStageResult
+
+        draft = _valid_draft()
+        draft["quiet_this_cycle"]["critic_catches"] = [
+            {"claim": "Zentalis raising $400M at a $2.1B valuation",
+             "rejected_because": "provenance_stale",
+             "detail": "Every repeat traces to a single 12 Mar Bloomberg piece.",
+             "caught_by": "critic", "sources": []}
+        ]
+        result = CritiqueStageResult(status="published", verdict="pass")
+        _, issue, _ = self._drive(fake_repo, monkeypatch, result, draft=draft)
+
+        catches = issue["quiet_this_cycle"]["critic_catches"]
+        assert len(catches) == 1
+        assert catches[0]["rejected_because"] == "provenance_stale"
+        # Derived, never authored: the stat is recomputed from the array.
+        assert issue["stats"]["critic_catches"] == 1
 
 
 class TestFailureModes:

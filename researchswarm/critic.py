@@ -51,12 +51,29 @@ from researchswarm.researcher import OFFLINE_ENV
 
 log = logging.getLogger("researchswarm.critic")
 
-# The critic emits exactly one of the first three; `not_run` is the
-# orchestrator's, never the critic's — a critic that emitted it would be claiming
-# its own unavailability, which is a contradiction. So an emitted verdict outside
-# these three is malformed and resolves to not_run (below).
-CRITIC_VERDICTS = ("pass", "pass_with_advisories", "blocked")
+# The verdict and run-status vocabulary lives here, ONE home, so the stage and
+# the publisher compare against named constants rather than re-typing literals
+# (an "unpublished_uncritiqued" typo in one copy would silently mis-route a run).
+# The critic emits exactly one of PASS / PASS_WITH_ADVISORIES / BLOCKED; NOT_RUN
+# is the orchestrator's, never the critic's — a critic emitting it would be
+# claiming its own unavailability, a contradiction. An emitted verdict outside the
+# first three is malformed and resolves to NOT_RUN (below).
+PASS = "pass"
+PASS_WITH_ADVISORIES = "pass_with_advisories"
+BLOCKED = "blocked"
 NOT_RUN = "not_run"
+CRITIC_VERDICTS = (PASS, PASS_WITH_ADVISORIES, BLOCKED)
+
+# The run.status each critic outcome publishes under (spec/06 run-status table).
+# They live beside the verdict vocabulary because the map from a verdict to the
+# status it publishes under is the one thing the stage and the publisher must
+# agree on exactly.
+PUBLISHED = "published"
+PUBLISHED_UNCRITIQUED = "published_uncritiqued"
+PUBLISHED_WITH_UNRESOLVED = "published_with_unresolved_findings"
+
+# The one blocking kind the orchestrator checks mechanically (the receipt rule).
+DROPPED_STORY = "dropped_story"
 
 # The six blocking kinds (spec/06). A blocking finding whose kind is not one of
 # these is an INVENTED kind — it is demoted to advisory rather than allowed to
@@ -68,7 +85,7 @@ BLOCKING_KINDS = frozenset(
         "overclaim",
         "aggregator_only",
         "unconfirmed_as_fact",
-        "dropped_story",
+        DROPPED_STORY,
         "thesis_impact_false",
     }
 )
@@ -348,6 +365,12 @@ def enforce_receipt_rule(
       - `published_at` inside `issue.coverage_window` — not recycled old news;
       - and `url` cited NOWHERE in the issue — the manager really did drop it.
 
+    The corpus side uses substring containment (a url in *some* finding is the
+    question). The issue side does NOT: it collects the url value of every source
+    object in the issue and matches EXACTLY, because a receipt url that is a strict
+    prefix of a genuinely-cited url ("…/merck" under "…/merck-verastem") would read
+    as "already cited" under substring and wrongly downgrade a real drop.
+
     A finding that fails ANY of these is auto-downgraded into the advisory list
     with a note naming what failed, consuming no retry. Non-`dropped_story`
     blocking kinds pass through untouched — the orchestrator never judges THEIR
@@ -355,15 +378,15 @@ def enforce_receipt_rule(
     downgraded_to_advisory).
     """
     window = issue.get("issue", {}).get("coverage_window", {}) or {}
-    issue_json = json.dumps(issue, ensure_ascii=False)
+    cited_urls = _collect_source_urls(issue)
 
     kept: list[dict] = []
     downgraded: list[dict] = []
     for finding in blocking_findings:
-        if finding.get("kind") != "dropped_story":
+        if finding.get("kind") != DROPPED_STORY:
             kept.append(finding)  # a different blocking kind — not ours to judge
             continue
-        failure = _receipt_failure(finding, findings_corpus, issue_json, window)
+        failure = _receipt_failure(finding, findings_corpus, cited_urls, window)
         if failure is None:
             kept.append(finding)
         else:
@@ -372,8 +395,29 @@ def enforce_receipt_rule(
     return tuple(kept), tuple(downgraded)
 
 
+def _collect_source_urls(node) -> set[str]:
+    """Every url cited anywhere in the issue, as an exact-match set.
+
+    Walks the whole issue tree collecting the `url` of any object that carries one
+    — every source object, and the paywalled_flagged entries, which are citations
+    too. Exact membership — not substring — is what keeps a receipt url that is a
+    prefix of a genuinely-cited url from falsely counting as already cited.
+    """
+    urls: set[str] = set()
+    if isinstance(node, dict):
+        url = node.get("url")
+        if isinstance(url, str):
+            urls.add(url)
+        for value in node.values():
+            urls |= _collect_source_urls(value)
+    elif isinstance(node, list):
+        for item in node:
+            urls |= _collect_source_urls(item)
+    return urls
+
+
 def _receipt_failure(
-    finding: dict, findings_corpus: str, issue_json: str, window: dict
+    finding: dict, findings_corpus: str, cited_urls: set[str], window: dict
 ) -> str | None:
     """Return the first reason a dropped_story receipt is not well-formed, or None.
 
@@ -399,7 +443,7 @@ def _receipt_failure(
     if not within:
         return "published_at is outside the coverage window"
 
-    if source["url"] in issue_json:
+    if source["url"] in cited_urls:
         return "url is already cited in the issue"
 
     return None

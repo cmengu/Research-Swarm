@@ -36,17 +36,26 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from researchswarm.critic import CriticResult, enforce_receipt_rule, run_critic
+from researchswarm.critic import (
+    BLOCKED,
+    NOT_RUN,
+    PASS_WITH_ADVISORIES,
+    PUBLISHED,
+    PUBLISHED_UNCRITIQUED,
+    PUBLISHED_WITH_UNRESOLVED,
+    CriticResult,
+    enforce_receipt_rule,
+    run_critic,
+)
 from researchswarm.prompts import render_critic_prompt
+from researchswarm.research import load_findings
 from researchswarm.runs import latest_covering_issue
 from researchswarm.state import State
 
 log = logging.getLogger("researchswarm.critique")
 
-# The run.status each critic outcome publishes under (spec/06 run-status table).
-PUBLISHED = "published"
-PUBLISHED_UNCRITIQUED = "published_uncritiqued"
-PUBLISHED_WITH_UNRESOLVED = "published_with_unresolved_findings"
+# Verdict and run-status vocabulary is imported from critic — one home, so this
+# stage and the publisher can never disagree on a literal.
 
 
 @dataclass(frozen=True)
@@ -64,17 +73,6 @@ class CritiqueStageResult:
     advisory_findings: tuple[dict, ...] = ()
     retries_used: int = 0
     reason: str | None = None
-
-
-def _load_findings(root: Path, run_id: str, beats_run) -> dict[str, dict]:
-    """The raw findings corpus from disk — run.py is the sole reader, exactly as
-    synthesis reads it. The critic needs the unshaped facts, not the digest: they
-    are the only source of dropped-story receipts."""
-    findings_dir = root / "runs" / run_id / "findings"
-    return {
-        beat_id: json.loads((findings_dir / f"{beat_id}.json").read_text())
-        for beat_id in beats_run
-    }
 
 
 def run_critique_stage(
@@ -101,7 +99,7 @@ def run_critique_stage(
     to propagate (spec: a critic being unreachable is not a failure, but an
     orchestrator bug should escape loudly rather than be laundered into a stub).
     """
-    findings_by_beat = _load_findings(root, run_id, beats_run)
+    findings_by_beat = load_findings(root, run_id, beats_run)
     previous_issue = latest_covering_issue(issues_dir).payload
 
     prompt = render_critic_prompt(
@@ -132,14 +130,14 @@ def _resolve(
     evaporates and the run publishes clean. What survives publishes under
     published_with_unresolved_findings — the honest interim until #35's loop.
     """
-    if result.verdict == "not_run":
+    if result.verdict == NOT_RUN:
         return CritiqueStageResult(
             status=PUBLISHED_UNCRITIQUED,
-            verdict="not_run",
+            verdict=NOT_RUN,
             reason=result.reason,
         )
 
-    if result.verdict == "blocked":
+    if result.verdict == BLOCKED:
         kept, downgraded = enforce_receipt_rule(
             result.blocking_findings, findings_corpus=findings_corpus, issue=issue
         )
@@ -150,7 +148,7 @@ def _resolve(
             )
             return CritiqueStageResult(
                 status=PUBLISHED_WITH_UNRESOLVED,
-                verdict="blocked",
+                verdict=BLOCKED,
                 blocking_findings=kept,
                 advisory_findings=advisory,
             )
@@ -159,7 +157,7 @@ def _resolve(
         log.info("critic blocked, but the receipt rule downgraded every finding")
         return CritiqueStageResult(
             status=PUBLISHED,
-            verdict="pass_with_advisories",
+            verdict=PASS_WITH_ADVISORIES,
             advisory_findings=advisory,
         )
 

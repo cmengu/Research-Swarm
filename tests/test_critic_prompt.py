@@ -94,6 +94,21 @@ class TestLoadBearingRubric:
                      "unconfirmed_as_fact", "dropped_story", "thesis_impact_false"):
             assert kind in template
 
+    def test_all_twelve_advisory_kinds_named(self, template):
+        from researchswarm.critic import ADVISORY_KINDS
+        for kind in ADVISORY_KINDS:
+            assert kind in template
+
+    def test_provenance_stale_states_the_surge_exception(self, template):
+        """spec/06: the comparison window is coverage normally, the conference
+        window during a surge. Surge doesn't exist until a later build, so the
+        rubric must state the rule CONDITIONALLY rather than hardcode one half."""
+        # Fragments, because the template wraps the sentence across lines.
+        assert "issue.coverage_window" in template
+        assert "when run.surge is present" in template
+        assert "compare against the conference window" in template
+        assert "run.surge is currently always absent" in template
+
     def test_output_is_one_json_object_no_fences(self, template):
         assert "EXACTLY ONE JSON object" in template
         assert "no markdown fences" in template

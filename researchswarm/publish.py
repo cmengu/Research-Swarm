@@ -41,6 +41,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from researchswarm.critic import NOT_RUN, PUBLISHED_UNCRITIQUED
+from researchswarm.critique import CritiqueStageResult
 from researchswarm.runs import latest_covering_issue
 from researchswarm.state import State
 from researchswarm.state_edits import apply_state_edits, write_json
@@ -49,12 +51,13 @@ from researchswarm.validator import derive_stats
 
 log = logging.getLogger("researchswarm.publish")
 
-# While no critic exists (build 07 wires the real one), every published run is
-# uncritiqued by construction — a legitimate status, not a stopgap. The digest is
-# good, unvetted, and honest about it; the uncritiqued banner the dashboard draws
-# is PRECISELY run.status, so no separate banner artifact is written.
-UNCRITIQUED_STATUS = "published_uncritiqued"
-UNCRITIQUED_VERDICT = "not_run"
+# The pre-critic default outcome: when stage 5 produced no CritiqueStageResult, a
+# run publishes uncritiqued by construction — a legitimate status, not a stopgap.
+# The digest is good, unvetted, and honest about it; the uncritiqued banner the
+# dashboard draws is PRECISELY run.status, so no separate banner artifact is
+# written. The literals come from critic — one home for the vocabulary.
+UNCRITIQUED_STATUS = PUBLISHED_UNCRITIQUED
+UNCRITIQUED_VERDICT = NOT_RUN
 
 # Advisory kinds a reader should see in the dropdown BEFORE opening the issue —
 # the markers that change how much to trust it. They ride in the manifest's
@@ -101,20 +104,20 @@ def derive_full_stats(issue, issues_dir: Path) -> dict:
     return stats
 
 
-def stamp_run_fields(issue, stats: dict, critic=None) -> None:
+def stamp_run_fields(issue, stats: dict, critic: CritiqueStageResult | None = None) -> None:
     """Stamp the fields the ORCHESTRATOR owns, overwriting the manager's guesses.
 
     `stats` is derived, never authored, so it replaces whatever the seam forced
-    to {}. `run.status`, `run.critic_verdict`, and the critic_report's own
-    verdict/findings are the orchestrator's to set — a critic outcome is a
-    property of the RUN, not of the draft.
+    to {}. `run.status`, `run.critic_verdict`, `run.critic_retries`, and the
+    critic_report's own verdict/findings are ALL the orchestrator's to set — a
+    critic outcome is a property of the RUN, not of the draft, so the manager's
+    authored guesses (including its zero critic_retries) are overwritten rather
+    than trusted, and #35's real retry counts cannot diverge from a stale zero.
 
-    `critic` is the stage-5 outcome (any object carrying `status`, `verdict`,
-    `blocking_findings`, `advisory_findings`, `retries_used`, `reason`) or None.
-    None keeps the pre-critic default — published_uncritiqued / not_run — which is
-    still correct for a run where stage 5 never produced an outcome. Either way
-    `critic_report.validator_report` is PRESERVED: stage 4 stamped it, it is the
-    validator's record, and the critic outcome must not clobber it.
+    `critic` is the stage-5 CritiqueStageResult or None. None keeps the pre-critic
+    default — published_uncritiqued / not_run — still correct for a run where stage
+    5 produced no outcome. Either way `critic_report.validator_report` is PRESERVED:
+    stage 4 stamped it, it is the validator's record, not the critic's to clobber.
     """
     issue["stats"] = stats
     run = issue.setdefault("issue", {}).setdefault("run", {})
@@ -124,6 +127,7 @@ def stamp_run_fields(issue, stats: dict, critic=None) -> None:
     if critic is None:
         run["status"] = UNCRITIQUED_STATUS
         run["critic_verdict"] = UNCRITIQUED_VERDICT
+        run["critic_retries"] = 0
         report["verdict"] = UNCRITIQUED_VERDICT
         report["retries_used"] = 0
         report["blocking_findings"] = []
@@ -131,13 +135,16 @@ def stamp_run_fields(issue, stats: dict, critic=None) -> None:
     else:
         run["status"] = critic.status
         run["critic_verdict"] = critic.verdict
+        run["critic_retries"] = critic.retries_used
         report["verdict"] = critic.verdict
         report["retries_used"] = critic.retries_used
         report["blocking_findings"] = list(critic.blocking_findings)
         report["advisory_findings"] = list(critic.advisory_findings)
-        # A not_run reason is the banner's explanation of why the run went
-        # uncritiqued — record it so the dashboard can show WHY, not just that.
-        if getattr(critic, "reason", None):
+        # critic_report.reason is a DELIBERATE extension beyond spec/07's shape:
+        # on not_run it carries the banner's explanation of WHY the run went
+        # uncritiqued (missing binary, timeout, unparseable output), not just that
+        # it did. Omitted when there is no reason to record.
+        if critic.reason:
             report["reason"] = critic.reason
 
     report["validator_report"] = validator_report
@@ -342,7 +349,7 @@ def run_publish_stage(
     state: State,
     run_id: str,
     now: datetime,
-    critic=None,
+    critic: CritiqueStageResult | None = None,
     runner=subprocess.run,
 ) -> PublishResult:
     """Run stage 6's five ordered steps and return where the issue landed.

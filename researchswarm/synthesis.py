@@ -24,7 +24,7 @@ from pathlib import Path
 from researchswarm.beats import Beat
 from researchswarm.manager import ManagerResult, run_manager
 from researchswarm.prompts import RunContext, render_manager_prompt
-from researchswarm.research import ResearchStage
+from researchswarm.research import ResearchStage, load_findings
 from researchswarm.state import State
 
 
@@ -65,12 +65,7 @@ def run_synthesis_stage(
     07 wired Codex in — no longer null).
     """
     run_id = identity.ctx.run_id
-    findings_by_beat = {
-        beat_id: json.loads(
-            (root / "runs" / run_id / "findings" / f"{beat_id}.json").read_text()
-        )
-        for beat_id in stage.beats_run
-    }
+    findings_by_beat = load_findings(root, run_id, stage.beats_run)
     models = {
         "researchers": beats[0].model if beats else None,
         "manager": models_config["manager"],
