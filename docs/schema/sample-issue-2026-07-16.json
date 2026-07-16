@@ -1,0 +1,277 @@
+{
+  "_comment": "PROTOTYPE — ALL CONTENT IS FABRICATED for schema design. Not real intelligence. Ticket #3.",
+  "schema_version": "0.1.0",
+  "issue": {
+    "id": "2026-07-16",
+    "published_at": "2026-07-16T07:42:11+08:00",
+    "coverage_window": {
+      "from": "2026-07-13",
+      "to": "2026-07-16"
+    },
+    "run": {
+      "run_id": "run_20260716_0700",
+      "status": "published",
+      "critic_verdict": "pass_with_advisories",
+      "critic_retries": 1,
+      "models": {
+        "researchers": "claude-sonnet-5",
+        "manager": "claude-opus-4-8",
+        "critic": "gpt-5.6-codex"
+      }
+    }
+  },
+  "headline": {
+    "title": "Merck's $9B Verastem buy resets ADC pricing — and every mid-cap oncology board knows it",
+    "summary": "Merck paid a 71% premium for a company whose lead asset is still in Phase 2, signalling that post-Keytruda-LOE desperation now outweighs clinical de-risking. Two other cash-rich acquirers are reportedly circling the same ADC cohort.",
+    "so_what": "The buyer's-market assumption in our thesis is now falsifiable: premiums are re-inflating before readouts, not after.",
+    "entity_refs": [
+      "merck",
+      "verastem"
+    ],
+    "confidence": "high"
+  },
+  "stats": {
+    "tracked_updates": 9,
+    "tracked_quiet": 7,
+    "new_on_radar": 3,
+    "frontier_items": 5,
+    "sources_cited": 34,
+    "critic_catches": 2,
+    "previous_issue": "2026-07-13"
+  },
+  "tldr_bullets": [
+    {
+      "text": "Merck acquires Verastem for $9B — biggest ADC deal since 2025",
+      "entity_refs": [
+        "merck",
+        "verastem"
+      ],
+      "priority": "high"
+    },
+    {
+      "text": "FDA's new accelerated-approval confirmatory-trial rule lands; 3 oncology sponsors affected",
+      "entity_refs": [],
+      "priority": "high"
+    },
+    {
+      "text": "Hengrui out-licenses PD-1/VEGF bispecific to Bristol Myers for $1.4B upfront",
+      "entity_refs": [
+        "hengrui",
+        "bms"
+      ],
+      "priority": "high"
+    },
+    {
+      "text": "Isomorphic Labs posts first oncology target validation data",
+      "entity_refs": [
+        "isomorphic"
+      ],
+      "priority": "medium"
+    }
+  ],
+  "watchlist": [
+    {
+      "entity_id": "merck",
+      "name": "Merck & Co.",
+      "type": "big_pharma",
+      "status": "developing",
+      "priority": "high",
+      "categories": [
+        "deal_ma"
+      ],
+      "summary": "Announced acquisition of Verastem Oncology for $9B ($64/share, 71% premium), targeting its Phase 2 KRAS-G12D ADC. Management framed it as 'pipeline urgency ahead of 2028'.",
+      "research_angle": "This is the clearest evidence yet that the Keytruda LOE cliff is forcing Merck to buy clinical risk it would have refused in 2024. Our thesis said acquirers would wait for Phase 3 readouts to compress premiums; Merck just paid pre-readout money, which means scarcity of late-stage ADC assets is now the binding constraint, not capital discipline.",
+      "thesis_impact": "challenges",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://example.com/merck-pr",
+          "publisher": "Merck investor relations",
+          "tier": "primary",
+          "published_at": "2026-07-15"
+        },
+        {
+          "url": "https://example.com/endpoints-merck",
+          "publisher": "Endpoints News",
+          "tier": "trade",
+          "published_at": "2026-07-15"
+        }
+      ]
+    },
+    {
+      "entity_id": "hengrui",
+      "name": "Jiangsu Hengrui Pharma",
+      "type": "china_pharma",
+      "status": "concluded",
+      "priority": "high",
+      "categories": [
+        "deal_ma",
+        "platform_tech"
+      ],
+      "summary": "Out-licensed its PD-1/VEGF bispecific to Bristol Myers Squibb: $1.4B upfront, $6.1B biobucks, ex-China rights.",
+      "research_angle": "The China licensing wave is no longer discount-priced. A $1.4B upfront from a Western acquirer for a Chinese-originated bispecific is a re-rating of the whole cohort — and it validates the wedge argument: Chinese biotechs are converting speed-to-clinic into Western capital without giving up China rights.",
+      "thesis_impact": "confirms",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://example.com/bms-pr",
+          "publisher": "BMS press release",
+          "tier": "primary",
+          "published_at": "2026-07-14"
+        }
+      ]
+    }
+  ],
+  "quiet_this_cycle": {
+    "no_news": [
+      {
+        "entity_id": "pfizer",
+        "name": "Pfizer",
+        "cycles_quiet": 2
+      },
+      {
+        "entity_id": "arcus",
+        "name": "Arcus Biosciences",
+        "cycles_quiet": 1
+      }
+    ],
+    "critic_catches": [
+      {
+        "claim": "Zentalis raising $400M at a $2.1B valuation",
+        "rejected_because": "provenance_stale",
+        "detail": "Every July 14–15 aggregator repeat traces to a single 12 Mar 2026 Bloomberg piece. No new primary source; the round may have closed months ago or died.",
+        "caught_by": "critic",
+        "sources": [
+          {
+            "url": "https://example.com/bloomberg-mar",
+            "publisher": "Bloomberg",
+            "tier": "trade",
+            "published_at": "2026-03-12"
+          }
+        ]
+      }
+    ],
+    "open_threads": [
+      {
+        "entity_id": "verastem",
+        "thread": "Antitrust review timeline for the Merck deal",
+        "since": "2026-07-15",
+        "next_expected": "FTC second-request window closes ~Aug 2026"
+      }
+    ]
+  },
+  "new_on_radar": [
+    {
+      "entity_id": "callio_tx",
+      "name": "Callio Therapeutics",
+      "type": "startup",
+      "priority": "medium",
+      "categories": [
+        "funding"
+      ],
+      "what_they_do": "Dual-payload ADC platform out of Basel; lead program in HER2-low breast cancer.",
+      "development": "Raised $187M Series B at ~$900M post led by Forbion.",
+      "why_we_care": "Dual-payload is the direct answer to ADC resistance, which our thesis names as the field's next bottleneck. A $900M post pre-clinic is exactly the pre-readout premium inflation the Merck deal just rationalized.",
+      "promotion_proposal": {
+        "promote_to_watchlist": true,
+        "reason": "Second dual-payload financing above $150M this quarter — the sub-sector now clears our tracking bar."
+      },
+      "sources": [
+        {
+          "url": "https://example.com/callio",
+          "publisher": "Fierce Biotech",
+          "tier": "trade",
+          "published_at": "2026-07-15"
+        }
+      ]
+    }
+  ],
+  "themes_and_signals": [
+    {
+      "theme": "Pre-readout premiums are back",
+      "evidence_refs": [
+        "merck",
+        "callio_tx"
+      ],
+      "argument": "Two data points this cycle price clinical risk higher than 2025 comps. If this holds for one more cycle, the 'patient acquirer' assumption in our thesis is dead and we should re-model target selection around scarcity, not de-risking.",
+      "thesis_impact": "challenges"
+    },
+    {
+      "theme": "China is licensing up the value chain",
+      "evidence_refs": [
+        "hengrui"
+      ],
+      "argument": "Upfronts are moving from ~$100–300M to >$1B, and the assets are bispecifics rather than me-too small molecules. The wedge is holding.",
+      "thesis_impact": "confirms"
+    }
+  ],
+  "elsewhere_on_frontier": [
+    {
+      "actor": "FDA",
+      "move": "Final rule on accelerated-approval confirmatory trials takes effect; sponsors must have trials underway at approval.",
+      "detail": "Three tracked oncology sponsors have pending AA applications that now need enrolled confirmatory trials, compressing timelines by an estimated 6–9 months.",
+      "why_it_matters": "Raises the capital intensity of the AA shortcut — which historically was the main reason small oncology biotechs could stay independent. Expect more early sales.",
+      "sources": [
+        {
+          "url": "https://example.com/fda-rule",
+          "publisher": "FDA",
+          "tier": "primary",
+          "published_at": "2026-07-14"
+        }
+      ]
+    }
+  ],
+  "thesis_updates": [
+    {
+      "change": "amended",
+      "field": "acquirer_behaviour",
+      "before": "Cash-rich acquirers will wait for Phase 3 readouts, compressing target premiums through 2026.",
+      "after": "Acquirers are paying pre-readout premiums for scarce ADC/bispecific assets; capital discipline is subordinate to pipeline urgency ahead of 2028 LOEs.",
+      "triggered_by": [
+        "merck",
+        "callio_tx"
+      ]
+    }
+  ],
+  "critic_report": {
+    "verdict": "pass_with_advisories",
+    "retries_used": 1,
+    "blocking_findings": [],
+    "advisory_findings": [
+      {
+        "kind": "thin_sourcing",
+        "where": "watchlist.hengrui",
+        "note": "Single primary source; no independent trade confirmation of the biobucks structure."
+      },
+      {
+        "kind": "coverage_gap",
+        "where": "elsewhere_on_frontier",
+        "note": "EU HTA regulation developments not covered this cycle despite being in scope."
+      }
+    ]
+  },
+  "sources_and_method": {
+    "beats_run": [
+      "pharma_ma",
+      "oncology_startups",
+      "clinical_science",
+      "policy_regulation",
+      "incumbents_entrants",
+      "backstop"
+    ],
+    "beats_failed": [],
+    "source_tier_counts": {
+      "primary": 14,
+      "trade": 17,
+      "aggregator": 3
+    },
+    "paywalled_flagged": [
+      {
+        "claim": "Verastem board rejected an earlier $7.2B approach",
+        "publisher": "STAT+",
+        "url": "https://example.com/stat-plus",
+        "note": "Primary paywalled — assess manually."
+      }
+    ]
+  }
+}
