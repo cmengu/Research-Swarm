@@ -26,12 +26,16 @@ Spec: SPEC.md, docs/spec/09-orchestrator.md
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 from datetime import date, datetime
 from pathlib import Path
 
+from researchswarm.beats import load_beats
 from researchswarm.cadence import is_run_day, load_cadence
+from researchswarm.prompts import RunContext, load_template, render_researcher_prompt
+from researchswarm.researcher import ResearcherFailed, run_researcher
 from researchswarm.runs import LOOKBACK_FLOOR, resolve_coverage_window, resolve_run_id
 from researchswarm.state import check_entity_refs, load_state
 
@@ -60,8 +64,88 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--root", type=Path, default=REPO_ROOT, help="Repo root (defaults to this file's dir)."
     )
+    parser.add_argument(
+        "--beats",
+        default=None,
+        help="Comma-separated beat ids to run (default: all). The fan-out to all "
+        "six lands in build 03; until then this is how you drive one.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Render prompts and stop. Calls no models, writes nothing.",
+    )
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args(argv)
+
+
+def _config_error(exc: Exception) -> int:
+    """Config and state problems all die the same way: say what broke, exit 2."""
+    log.error("%s", exc)
+    return EXIT_CONFIG_ERROR
+
+
+def _persist_findings(root: Path, run_id: str, beat_id: str, findings: dict) -> Path:
+    """run.py is the SOLE writer of the findings corpus.
+
+    The researcher physically cannot do this — it has no write tool — which is
+    the point: persistence can't be forgotten by an agent, and the corpus is
+    evidence rather than scratch. The critic reads it to catch what the manager
+    found and then dropped.
+    """
+    findings_dir = root / "runs" / run_id / "findings"
+    findings_dir.mkdir(parents=True, exist_ok=True)
+    path = findings_dir / f"{beat_id}.json"
+    path.write_text(json.dumps(findings, indent=2) + "\n")
+    return path
+
+
+def _run_research(
+    beats, template: str, ctx: RunContext, state, root: Path, run_id: str, dry_run: bool
+) -> tuple[list[str], list[str]]:
+    """Stage 2. Returns (beats_run, beats_failed).
+
+    Sequential for now — the parallel fan-out to all six lands in build 03,
+    which is also where an all-six failure becomes a stub.
+    """
+    window = {"from": ctx.coverage_window_from, "to": ctx.coverage_window_to}
+    beats_run: list[str] = []
+    beats_failed: list[str] = []
+
+    for beat in beats:
+        prompt = render_researcher_prompt(template, beat, ctx, state)
+
+        if dry_run:
+            log.info("[dry-run] %s: rendered %d chars, no placeholders left", beat.id, len(prompt))
+            continue
+
+        log.info("%s: researching (%s)…", beat.id, beat.model)
+        try:
+            result = run_researcher(
+                beat, prompt, run_id=run_id, window=window,
+                known_entity_ids=state.entity_ids,
+            )
+        except ResearcherFailed as exc:
+            # One dead researcher must not kill the Monday issue. The beat lands
+            # in beats_failed; the manager marks the sections it fed inline.
+            log.warning("%s: BEAT FAILED — %s", beat.id, exc)
+            beats_failed.append(beat.id)
+            continue
+
+        path = _persist_findings(root, run_id, beat.id, result.findings)
+        beats_run.append(beat.id)
+        log.info(
+            "%s: %d finding(s), quiet=%s, %d turn(s), $%.4f, attempt %d → %s",
+            beat.id,
+            len(result.findings.get("findings", [])),
+            result.findings.get("quiet"),
+            result.num_turns,
+            result.cost_usd,
+            result.attempts,
+            path.relative_to(root),
+        )
+
+    return beats_run, beats_failed
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -87,8 +171,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         cadence = load_cadence(root / "config" / "cadence.toml")
     except (FileNotFoundError, ValueError) as exc:
-        log.error("%s", exc)
-        return EXIT_CONFIG_ERROR
+        return _config_error(exc)
 
     if not is_run_day(cadence, today) and not args.force:
         log.info("%s is not a run day (cadence: %s) — no-op", today, ", ".join(cadence.days))
@@ -101,8 +184,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         state = load_state(root / "state")
     except (FileNotFoundError, ValueError) as exc:
-        log.error("%s", exc)
-        return EXIT_CONFIG_ERROR
+        return _config_error(exc)
 
     dangling = check_entity_refs(state)
     if dangling:
@@ -138,8 +220,38 @@ def main(argv: list[str] | None = None) -> int:
     else:
         log.info("no previous issue — run #1, cold-start window %s → %s", window.from_, window.to)
 
-    # --- Stages 2-6 --------------------------------------------------------
-    log.info("prepare complete; research → publish land in builds 02-06")
+    # --- Stage 2: research -------------------------------------------------
+    try:
+        beats = load_beats(root / "config" / "beats.toml")
+        template = load_template(root / "prompts" / "researcher.md")
+    except (FileNotFoundError, ValueError) as exc:
+        return _config_error(exc)
+
+    if args.beats:
+        wanted = [b.strip() for b in args.beats.split(",")]
+        unknown = set(wanted) - {b.id for b in beats}
+        if unknown:
+            return _config_error(ValueError(f"unknown beat(s): {', '.join(sorted(unknown))}"))
+        beats = [b for b in beats if b.id in wanted]
+
+    ctx = RunContext(
+        run_id=run_id,
+        coverage_window_from=window.from_.isoformat(),
+        coverage_window_to=window.to.isoformat(),
+    )
+
+    beats_run, beats_failed = _run_research(
+        beats, template, ctx, state, root, run_id, args.dry_run
+    )
+
+    if args.dry_run:
+        log.info("[dry-run] complete — nothing called, nothing written")
+        return EXIT_OK
+
+    log.info("research complete: %d ran, %d failed", len(beats_run), len(beats_failed))
+
+    # --- Stages 3-6 --------------------------------------------------------
+    log.info("synthesize → publish land in builds 04-06")
     return EXIT_OK
 
 

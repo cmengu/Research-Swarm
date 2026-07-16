@@ -5,6 +5,7 @@ operator (or the OS scheduler) actually observes.
 """
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -15,12 +16,19 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-def run_cli(*args, cwd=None):
+def run_cli(*args, cwd=None, research=False):
+    """Drive run.py as a real process.
+
+    --dry-run by default: these tests are about the gate and prepare, and a run
+    day now reaches stage 2, where a researcher would cost real money and real
+    minutes. Pass research=True only with a stubbed model.
+    """
+    argv = [sys.executable, str(REPO_ROOT / "run.py"), *args]
+    if not research and "--dry-run" not in args:
+        argv.append("--dry-run")
+    env = {**os.environ, "RESEARCHSWARM_OFFLINE": "1"}
     return subprocess.run(
-        [sys.executable, str(REPO_ROOT / "run.py"), *args],
-        capture_output=True,
-        text=True,
-        cwd=cwd or REPO_ROOT,
+        argv, capture_output=True, text=True, cwd=cwd or REPO_ROOT, env=env, timeout=60
     )
 
 
