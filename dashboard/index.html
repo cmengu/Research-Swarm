@@ -253,7 +253,7 @@ const ISSUE = {
     id: "2026-07-16",
     published_at: "2026-07-16T07:42:11+08:00",
     coverage_window: { from: "2026-07-13", to: "2026-07-16" },
-    run: { run_id: "run_20260716_0700", status: "published", critic_verdict: "pass_with_advisories", critic_retries: 1,
+    run: { run_id: "run_20260716_0700", status: "published", critic_verdict: "pass_with_advisories", critic_retries: 1, thesis_version: 2,
       models: { researchers: "claude-sonnet-5", manager: "claude-opus-4-8", critic: "gpt-5.6-codex" } }
   },
   headline: {
@@ -470,7 +470,7 @@ const ISSUE = {
     '<br>' + m.paywalled_flagged.map(p => '<span style="color:var(--eosin)">paywalled &mdash; assess manually:</span> ' + esc(p.claim) +
       ' (' + esc(p.publisher) + ')').join('<br>') +
     '<br>models: researchers ' + esc(d.issue.run.models.researchers) + ' &middot; manager ' + esc(d.issue.run.models.manager) +
-    ' &middot; critic ' + esc(d.issue.run.models.critic) + '<br>run ' + esc(d.issue.run.run_id) + ' &middot; published ' + esc(d.issue.published_at);
+    ' &middot; critic ' + esc(d.issue.run.models.critic) + '<br>run ' + esc(d.issue.run.run_id) + ' &middot; thesis v' + esc(d.issue.run.thesis_version) + ' &middot; published ' + esc(d.issue.published_at);
 
   // tabs
   const tabs = [...document.querySelectorAll('.tabs button')];

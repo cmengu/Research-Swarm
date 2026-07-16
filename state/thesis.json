@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "seeded_at": "2026-07-16",
   "last_evolved_at": null,
   "reader_visibility": {
@@ -31,62 +31,82 @@
     {
       "id": "adcs",
       "title": "Antibody-drug conjugates",
-      "stance": null,
-      "confidence": null,
-      "falsifier": null,
+      "stance": "ADC value accrues to the linker-payload platform owner, not to whoever picks the target. Daiichi's DXd is the closest thing oncology has to a picks-and-shovels monopoly, and AstraZeneca bought the commercial half of it rather than trying to clone it. Target selection is commoditising; chemistry is not.",
+      "confidence": "medium",
+      "falsifier": "A non-Daiichi linker platform producing a first-in-class approval on its own chemistry; or an ADC winning a head-to-head primarily on target selection with a commodity payload.",
       "candidate_evidence": [],
       "drift_log": [],
-      "origin": "seed"
+      "origin": "seed",
+      "stance_provenance": "agent_draft_delegated"
     },
     {
       "id": "radiopharma",
       "title": "Radiopharmaceuticals",
-      "stance": null,
-      "confidence": null,
-      "falsifier": null,
+      "stance": "Radioligand is the next modality to be validated by capital before it is validated by data — Lilly anchoring ~$100M of the Aktis IPO is a strategic option, not a clinical verdict. The binding constraint is isotope supply and radiochemistry logistics, not biology, which means the field is over-bought relative to evidence and the winners will be decided by manufacturing, not mechanism.",
+      "confidence": "low",
+      "falsifier": "A radioligand asset delivering an OS win in a solid tumour outside prostate/NET; or isotope supply ceasing to be cited as a limiter in sponsor guidance for two consecutive quarters.",
       "candidate_evidence": [],
       "drift_log": [],
-      "origin": "seed"
+      "origin": "seed",
+      "stance_provenance": "agent_draft_delegated"
     },
     {
       "id": "china-licensing-wave",
       "title": "China licensing wave",
-      "stance": null,
-      "confidence": null,
-      "falsifier": null,
+      "stance": "The China discount is closing from the top down. Above ~$1B upfront, Chinese-originated assets now price at Western parity — Pfizer/3SBio at $1.25B upfront reset the ceiling. But mid-size in-licensing still clears cheap, so the re-rating is UNEVEN, and that gap is the tradeable part of the wave.",
+      "confidence": "medium",
+      "falsifier": "Two consecutive quarters in which sub-$500M China in-licensing upfronts converge on Western comparables; or a major acquirer publicly walking away from a China asset citing price.",
       "candidate_evidence": [],
       "drift_log": [],
-      "origin": "seed"
+      "origin": "seed",
+      "stance_provenance": "owner"
     },
     {
       "id": "ira-pricing-pressure",
       "title": "IRA pricing pressure",
-      "stance": null,
-      "confidence": null,
-      "falsifier": null,
+      "stance": "The 9-vs-13-year small-molecule 'pill penalty' is now a portfolio-design input rather than a policy talking point. It quietly subsidises ADCs and bispecifics over oral small molecules, which means IRA is an invisible hand behind the same modality shift everyone attributes to science.",
+      "confidence": "low",
+      "falsifier": "The EPIC Act (or equivalent) passing and equalising small molecules to 13 years; or a major publicly reprioritising INTO oral oncology small molecules citing improved economics.",
       "candidate_evidence": [],
       "drift_log": [],
-      "origin": "seed"
+      "origin": "seed",
+      "stance_provenance": "agent_draft_delegated"
     },
     {
       "id": "platform-vs-asset",
       "title": "Platform-vs-asset startups",
-      "stance": null,
-      "confidence": null,
-      "falsifier": null,
+      "stance": "In oncology, capital without a readout moves nobody. Isomorphic raised $2.1B and changed no competitor's behaviour; Akeso, a mid-cap, moved four Big Pharmas with one Phase 3 curve. Platforms are worth nothing until they have emitted a human dataset, at which point the ASSET carries the value and the platform is retro-priced. This is the sharpest divergence from AI, where funding itself is signal.",
+      "confidence": "medium",
+      "falsifier": "A >$1B acquisition of a platform with no clinical asset; or an AI-native discovery company triggering a capital pile-on before any human data.",
       "candidate_evidence": [],
       "drift_log": [],
-      "origin": "seed"
+      "origin": "seed",
+      "stance_provenance": "agent_draft_delegated"
     },
     {
       "id": "pharma-ma-appetite",
       "title": "M&A appetite of cash-rich pharma",
-      "stance": "Cash-rich large pharma facing the 2028-2030 patent cliff will keep paying premiums for de-risked or near-de-risked oncology assets - especially ADCs and radiopharmaceuticals - rather than waiting for Phase 3 readouts. Pipeline urgency dominates capital discipline. Deals cluster in the $1-15B bolt-on range rather than mega-mergers.",
+      "stance": "Acquirers facing 2028-30 LOE cliffs will overpay, but they still wait for the de-risking readout before buying a single asset — Merck bid for Revolution Medicines only after RASolute 302 delivered HR 0.40. Pre-proof money moves only for a MECHANISM the field has collectively decided is real (the >$10B PD-1xVEGF pile-on landed before any OS win), never for one company's promise. The clock beats capital discipline; it does not beat evidence.",
       "confidence": "medium",
-      "falsifier": "Two consecutive quarters in which the largest oncology acquisitions are platform-only or pre-Phase-2 deals under $1B, or in which a major acquirer with unchanged LOE exposure publicly defers M&A citing valuation discipline.",
+      "falsifier": "A >$10B single-asset acquisition struck pre-Phase-3 with no class-level proof behind it; or two consecutive quarters in which a major acquirer with unchanged LOE exposure publicly defers M&A citing valuation.",
       "candidate_evidence": [],
       "drift_log": [],
-      "origin": "seed"
+      "origin": "seed",
+      "stance_provenance": "owner"
     }
-  ]
+  ],
+  "stance_provenance_contract": {
+    "owner": "Chosen by the owner in a live grilling session. Authoritative.",
+    "agent_draft_delegated": "Drafted by the agent under the owner's explicit instruction ('auto accept the slots you think are good, we can change them afterwards', 16 Jul 2026). The owner has NOT endorsed the content — it exists so the machine has something to argue against. Treat as provisional and expect revision.",
+    "never": "An agent may not author a stance without one of the above. A prior session did (committed as 'human-approved'); it was reset."
+  },
+  "propagation_contract": {
+    "invariant": "If the owner changes a stance and the next published issue still argues the old one, the pipeline is BROKEN. This is the contract the thesis exists to honour.",
+    "single_source_of_truth": "state/thesis.json is the only place a stance exists. Stance text is never copied into a prompt template, an issue, or the dashboard at build time.",
+    "read_fresh": "Researchers and the manager receive stances by reading this file at run time. A prompt template that inlines stance text is a bug, not an optimisation.",
+    "version_stamping": "Every published issue records `thesis_version` in its run block. An issue's Research Angles are valid only against the version they argued.",
+    "on_owner_edit": "Bump `version`. The next cycle argues the new stance with NO carry-over: prior Research Angles are not re-validated, and accumulated thesis_impact tallies do not transfer to the new stance. `candidate_evidence` IS retained — it is sourced fact, not opinion.",
+    "on_loop_evolution": "Same version bump, but `drift_log` records from/to and the trigger. Owner edits and loop edits are distinguishable by `last_edited_by`."
+  },
+  "last_edited_by": "owner_delegated"
 }
