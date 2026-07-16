@@ -13,8 +13,12 @@ Prototype asset for ticket [#3](https://github.com/cmengu/Research-Swarm/issues/
 7. **`stats` is derived, not authored** — the orchestrator computes counts from the arrays so the bar can't lie.
 8. **`run` block** carries run_id, status, models used, retry count — makes a failed-run stub the same schema with `status: "failed"` and empty sections.
 
-## Open questions for the human
+## Resolved in grilling (16 Jul 2026)
 
-- Is `priority` (high/medium/low) enough, or do you want a numeric score for ranking?
-- Should `headline.so_what` and `research_angle` stay separate, or is the headline just another angle?
-- Do you want `confidence` on every claim, or only on the headline (as sampled)?
+- **`thesis_impact` stays and is the self-improvement engine.** Every `research_angle` declares confirms | challenges | neutral; enough `challenges` accumulating on one belief mechanically triggers a logged `thesis_updates` revision. Drift is measurable, not vibes-based.
+- **`priority` stays a three-value tag** (high | medium | low). No numeric score — 82-vs-79 is false precision. Ranking within a tier = document order, i.e. the manager's judgment.
+- **`confidence` lives on the headline and on each watchlist entry** — the two places a reader acts on. Not on radar items, themes, or frontier moves: scoring everything makes the manager stamp 'high' everywhere and kills the signal.
+
+## Still open (for the spec)
+
+- Whether `headline.so_what` and `research_angle` are the same field wearing two hats.
