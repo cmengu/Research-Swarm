@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "seeded_at": null,
+  "seeded_at": "2026-07-16",
   "last_evolved_at": null,
   "reader_visibility": {
     "note": "Only `stance` reaches the reader, and only indirectly — as the argument behind a Research Angle or a 'why we care'. `confidence`, `falsifier`, `drift_log` and `candidate_evidence` are internal: machine tripwires plus a developer inspection surface. Never render them in a published issue."
@@ -81,9 +81,9 @@
     {
       "id": "pharma-ma-appetite",
       "title": "M&A appetite of cash-rich pharma",
-      "stance": null,
-      "confidence": null,
-      "falsifier": null,
+      "stance": "Cash-rich large pharma facing the 2028-2030 patent cliff will keep paying premiums for de-risked or near-de-risked oncology assets - especially ADCs and radiopharmaceuticals - rather than waiting for Phase 3 readouts. Pipeline urgency dominates capital discipline. Deals cluster in the $1-15B bolt-on range rather than mega-mergers.",
+      "confidence": "medium",
+      "falsifier": "Two consecutive quarters in which the largest oncology acquisitions are platform-only or pre-Phase-2 deals under $1B, or in which a major acquirer with unchanged LOE exposure publicly defers M&A citing valuation discipline.",
       "candidate_evidence": [],
       "drift_log": [],
       "origin": "seed"
