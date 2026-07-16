@@ -37,6 +37,7 @@ def fake_repo(tmp_path):
     """A copy of the real config and state, so tests can write without touching the repo."""
     shutil.copytree(REPO_ROOT / "config", tmp_path / "config")
     shutil.copytree(REPO_ROOT / "state", tmp_path / "state")
+    shutil.copytree(REPO_ROOT / "prompts", tmp_path / "prompts")
     return tmp_path
 
 
@@ -136,6 +137,32 @@ class TestPrepare:
         result = run_cli("--today", "2026-07-13", "--root", str(fake_repo))
         # The stub is transparent: coverage reclaims the days it never covered.
         assert "coverage 2026-07-06 → 2026-07-13 (joins 2026-07-06)" in result.stderr
+
+
+class TestResearchStage:
+    def test_dry_run_renders_all_six_beats(self, fake_repo):
+        result = run_cli("--today", "2026-07-16", "--root", str(fake_repo))
+        assert result.returncode == 0
+        for beat_id in (
+            "ma_dealmaking", "startup_frontier", "clinical_scientific",
+            "policy_regulation", "incumbent_moves", "backstop",
+        ):
+            assert f"[dry-run] {beat_id}: rendered" in result.stderr
+
+    def test_all_beats_dead_publishes_a_stub_and_fails(self, fake_repo):
+        """End to end through the real process: with the offline guard set and
+        no fake runner, every researcher dies — which IS the all-six-failed
+        path. The run publishes a stub, not nothing."""
+        result = run_cli("--today", "2026-07-16", "--root", str(fake_repo), research=True)
+        assert result.returncode == 1
+        assert "failed-run stub" in result.stderr
+
+        stub = json.loads((fake_repo / "issues" / "2026-07-16.json").read_text())
+        assert stub["issue"]["run"]["status"] == "failed"
+        assert stub["issue"]["failure"]["stage"] == "research"
+        assert len(stub["sources_and_method"]["beats_failed"]) == 6
+        # No beat produced findings, so nothing was persisted.
+        assert not list((fake_repo / "runs").rglob("findings/*.json"))
 
 
 class TestFailureModes:

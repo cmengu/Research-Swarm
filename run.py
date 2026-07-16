@@ -26,7 +26,6 @@ Spec: SPEC.md, docs/spec/09-orchestrator.md
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from datetime import date, datetime
@@ -34,14 +33,16 @@ from pathlib import Path
 
 from researchswarm.beats import load_beats
 from researchswarm.cadence import is_run_day, load_cadence
-from researchswarm.prompts import RunContext, load_template, render_researcher_prompt
-from researchswarm.researcher import ResearcherFailed, run_researcher
+from researchswarm.prompts import RunContext, load_template
+from researchswarm.research import render_all_prompts, run_research_stage
 from researchswarm.runs import LOOKBACK_FLOOR, resolve_coverage_window, resolve_run_id
 from researchswarm.state import check_entity_refs, load_state
+from researchswarm.stub import write_failed_stub
 
 REPO_ROOT = Path(__file__).resolve().parent
 
 EXIT_OK = 0
+EXIT_RUN_FAILED = 1
 EXIT_CONFIG_ERROR = 2
 
 log = logging.getLogger("researchswarm")
@@ -67,8 +68,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--beats",
         default=None,
-        help="Comma-separated beat ids to run (default: all). The fan-out to all "
-        "six lands in build 03; until then this is how you drive one.",
+        help="Comma-separated beat ids to run (default: all). An operator's "
+        "scalpel — rerun one dead beat without paying for the other five.",
     )
     parser.add_argument(
         "--dry-run",
@@ -83,69 +84,6 @@ def _config_error(exc: Exception) -> int:
     """Config and state problems all die the same way: say what broke, exit 2."""
     log.error("%s", exc)
     return EXIT_CONFIG_ERROR
-
-
-def _persist_findings(root: Path, run_id: str, beat_id: str, findings: dict) -> Path:
-    """run.py is the SOLE writer of the findings corpus.
-
-    The researcher physically cannot do this — it has no write tool — which is
-    the point: persistence can't be forgotten by an agent, and the corpus is
-    evidence rather than scratch. The critic reads it to catch what the manager
-    found and then dropped.
-    """
-    findings_dir = root / "runs" / run_id / "findings"
-    findings_dir.mkdir(parents=True, exist_ok=True)
-    path = findings_dir / f"{beat_id}.json"
-    path.write_text(json.dumps(findings, indent=2) + "\n")
-    return path
-
-
-def _run_research(
-    beats, template: str, ctx: RunContext, state, root: Path, run_id: str, dry_run: bool
-) -> tuple[list[str], list[str]]:
-    """Stage 2. Returns (beats_run, beats_failed).
-
-    Sequential for now — the parallel fan-out to all six lands in build 03,
-    which is also where an all-six failure becomes a stub.
-    """
-    window = {"from": ctx.coverage_window_from, "to": ctx.coverage_window_to}
-    beats_run: list[str] = []
-    beats_failed: list[str] = []
-
-    for beat in beats:
-        prompt = render_researcher_prompt(template, beat, ctx, state)
-
-        if dry_run:
-            log.info("[dry-run] %s: rendered %d chars, no placeholders left", beat.id, len(prompt))
-            continue
-
-        log.info("%s: researching (%s)…", beat.id, beat.model)
-        try:
-            result = run_researcher(
-                beat, prompt, run_id=run_id, window=window,
-                known_entity_ids=state.entity_ids,
-            )
-        except ResearcherFailed as exc:
-            # One dead researcher must not kill the Monday issue. The beat lands
-            # in beats_failed; the manager marks the sections it fed inline.
-            log.warning("%s: BEAT FAILED — %s", beat.id, exc)
-            beats_failed.append(beat.id)
-            continue
-
-        path = _persist_findings(root, run_id, beat.id, result.findings)
-        beats_run.append(beat.id)
-        log.info(
-            "%s: %d finding(s), quiet=%s, %d turn(s), $%.4f, attempt %d → %s",
-            beat.id,
-            len(result.findings.get("findings", [])),
-            result.findings.get("quiet"),
-            result.num_turns,
-            result.cost_usd,
-            result.attempts,
-            path.relative_to(root),
-        )
-
-    return beats_run, beats_failed
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -240,15 +178,41 @@ def main(argv: list[str] | None = None) -> int:
         coverage_window_to=window.to.isoformat(),
     )
 
-    beats_run, beats_failed = _run_research(
-        beats, template, ctx, state, root, run_id, args.dry_run
-    )
-
     if args.dry_run:
+        for beat_id, prompt in render_all_prompts(beats, template, ctx, state).items():
+            log.info("[dry-run] %s: rendered %d chars, no placeholders left", beat_id, len(prompt))
         log.info("[dry-run] complete — nothing called, nothing written")
         return EXIT_OK
 
-    log.info("research complete: %d ran, %d failed", len(beats_run), len(beats_failed))
+    log.info("fanning out %d researcher(s): %s", len(beats), ", ".join(b.id for b in beats))
+    stage = run_research_stage(beats, template, ctx, state, root)
+
+    if stage.all_failed:
+        # Every beat died: there are no facts to synthesize from, so this is a
+        # stub, not a degradation. The dashboard shows the miss; the next
+        # successful run widens its window over the days this one dropped.
+        detail = f"all {len(stage.beats_failed)} beat(s) failed validation — see the run log"
+        path = write_failed_stub(
+            root,
+            run_id=run_id,
+            now=now,
+            window={"from": ctx.coverage_window_from, "to": ctx.coverage_window_to},
+            stage="research",
+            detail=detail,
+            thesis_version=state.thesis.get("version"),
+            beats_failed=stage.beats_failed,
+        )
+        log.error("all beats failed — published failed-run stub %s", path.relative_to(root))
+        return EXIT_RUN_FAILED
+
+    log.info(
+        "research complete: %d ran, %d failed", len(stage.beats_run), len(stage.beats_failed)
+    )
+    if stage.beats_failed:
+        # Declared degradation: the run continues, and the ids land in the
+        # issue's sources_and_method.beats_failed once the manager (build 04)
+        # authors it — with inline markers on the sections each beat fed.
+        log.warning("beats_failed: %s", ", ".join(stage.beats_failed))
 
     # --- Stages 3-6 --------------------------------------------------------
     log.info("synthesize → publish land in builds 04-06")
