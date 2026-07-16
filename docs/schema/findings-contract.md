@@ -6,7 +6,7 @@ Template that produces it: [`prompts/researcher.md`](../../prompts/researcher.md
 
 ## What this is
 
-One `findings.json` per beat per run, persisted by `run.py` at `runs/<run_id>/raw/<beat_id>.json`.
+One `findings.json` per beat per run, persisted by `run.py` at `runs/<run_id>/findings/<beat_id>.json`.
 
 It is **not** throwaway scratch. The critic rubric ([#7](https://github.com/cmengu/Research-Swarm/issues/7)) reads raw researcher findings as one of its five inputs and enforces the `dropped_story` receipt rule against them: a blocking `dropped_story` requires an in-window primary/trade URL present *in these files* and cited nowhere in the issue. That makes this corpus the evidentiary record of what the pipeline found and then lost — a first-class artifact with a retention duty.
 
@@ -67,10 +67,14 @@ So these fields are deliberately **absent** from findings: `thesis_impact`, `res
 Read-only is a hard wall (CAPTURE #14): researchers get web search and read tools, **zero writes**. A researcher therefore cannot persist its own file.
 
 1. **Transport = stdout.** `claude -p` returns the final message; the prompt requires it to be exactly one JSON object, no fences, no preamble.
-2. **`run.py` is the sole writer** of `runs/<run_id>/raw/<beat_id>.json`. Persistence can't be forgotten by an agent.
+2. **`run.py` is the sole writer** of `runs/<run_id>/findings/<beat_id>.json`. Persistence can't be forgotten by an agent.
 3. **Validate at the seam.** run.py schema-checks each researcher's output immediately — the deterministic-validator-runs-free principle ([#7](https://github.com/cmengu/Research-Swarm/issues/7)) applied one stage earlier, where it costs nothing.
 4. **One retry** on parse/schema failure, with the error appended to the prompt: *"your previous output failed validation: `<error>` — re-emit valid JSON only."*
-5. **Retry exhausted → the beat fails visibly, the run continues.** The beat lands in `sources_and_method.beats_failed`, the manager is told which beats are missing, and the failed beat is a **declared degradation** — it can explain a thin section to the critic without blocking. One dead researcher must not kill the Monday issue; all six dead is a failed-run stub (existing pattern, `run.status: "failed"`).
+5. **Retry exhausted → the beat fails visibly, the run continues.** The beat lands in `sources_and_method.beats_failed`, the manager is told which beats are missing, and the failed beat is a **declared degradation** — registered as `beat_failed` in the [degradation register](../critic-rubric.md#the-register) (#23), which is its single home; this document references that declaration rather than making its own. It can explain a thin section to the critic without blocking. One dead researcher must not kill the Monday issue; all six dead is a failed-run stub (existing pattern, `run.status: "failed"`).
+
+   **The `beats_failed` entry is not the render** (#23). Every section the dead beat would have fed carries an **inline marker** — *"M&A coverage unavailable this cycle — beat failed"* — because a reader who never scrolls to Sources & Method reads a thin section as a fact about the world ("a quiet week for deals") rather than as an absence. `beats_failed` serves the audit trail and the critic; the inline marker serves the reader.
+
+   **`errors[]` is a different animal.** A researcher reporting an unreachable source raises a `source_unreachable` **advisory** and earns **no exemption** — a model self-report cannot satisfy the register's mechanical-detection test. A required section left empty with only `errors[]` to explain it **blocks**.
 
 ## Beat overlap
 
@@ -78,6 +82,6 @@ Beats overlap by construction and researchers are told to **report anyway** — 
 
 ## Consequences for the spec
 
-- `runs/<run_id>/raw/*.json` is a **retained** artifact with a critic-input duty, not a temp file. Retention policy (how many runs deep) is unresolved — the critic only ever needs the current run plus the previous issue.
+- `runs/<run_id>/findings/*.json` is a **retained** artifact with a critic-input duty, not a temp file. Retention policy (how many runs deep) is unresolved. Note it is no longer simply "the current run plus the previous issue": #23 binds continuity to the most recent issue *carrying* the compared field, so a run of stubs makes the lookback unbounded in principle. The floor rides with spec compilation.
 - Adding a beat is a `beats.toml` block; the contract is beat-agnostic.
 - **Entity-key naming is inconsistent across assets and needs one ruling at spec compilation.** `watchlist.json` keys entities as **`id`**; `issue.json` calls the same thing **`entity_id`**; the catalyst queue and this contract reference them as **`entity_ids[]`**. Referencing is consistent (`entity_ids[]` everywhere); the *definition* key is not. Found while validating this contract against the real seeded files — the roster render spec here was initially written against the issue.json vocabulary and would have interpolated `type` and `categories` fields that do not exist on any watchlist entity. Rides with spec compilation rather than reopening [#3](https://github.com/cmengu/Research-Swarm/issues/3)/[#4](https://github.com/cmengu/Research-Swarm/issues/4).
