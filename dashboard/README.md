@@ -2,7 +2,9 @@
 
 Asset for ticket [#8](https://github.com/cmengu/Research-Swarm/issues/8). **All content fabricated** — this renders the sample from the schema ticket.
 
-Run it: `cd dashboard && python3 -m http.server 8899` → http://localhost:8899
+Run it: open `dashboard/index.html` directly, or `cd dashboard && python3 -m http.server 8899` → http://localhost:8899
+
+**The prototype is self-contained**: the sample issue is inlined in a `<script>` block, so the page works with no server and no sibling files. `_sample.js` is kept only as the readable source of that data. Production replaces the inline block with `fetch('../issues/<id>.json')` — at which point a server (or GitHub Pages) is required again, because `fetch` on `file://` is blocked.
 
 ## Stack decision
 
