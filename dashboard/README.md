@@ -50,6 +50,16 @@ Rendered headless in Chrome against the live server: zero page errors, both them
 - **Sample data expanded** to 7 watchlist entries, 3 radar, 3 themes, 3 frontier moves, 2 critic catches, 2 thesis drifts — enough to judge density.
 - **`sample data` chip retained** (small, in the kicker) rather than the old dashed rail badge. **Deliberate**: the mock names real public companies doing invented things ("Merck acquires Verastem for $9B"). Unlabelled, a shared link reads as genuine M&A news. The eyesore went; the honesty stayed.
 
+## v3 changes (16 Jul, from live reaction)
+
+- **Dead right-hand space eliminated.** The real cause: body copy was capped at ~66ch inside a 60rem shell, so ~370px of every row was empty. Shell narrowed to 48rem and measures widened to ~74ch — measured dead space is now **20px**, down from ~370px.
+- **Everything scaled up**: base 16px → 17px; statline .72rem → .84rem with 1.05rem bold figures; TLDR bullets .97rem → 1.08rem; angle prose 1rem → 1.08rem.
+- **TLDR is plain bullets** — priority chips removed (priority belongs on entities, not on a scan list); eosin dot markers instead.
+- **All Research Angles open by default** (was: high-priority only).
+- **Entity headers made prominent**: name 1.28rem → 1.65rem on its own line, tags moved to a dedicated row below, chips enlarged with a *filled* eosin `HIGH` chip so priority reads at a glance instead of sitting flat.
+- **Open threads now sit in a greyed box** with a label, separating "still developing" from the rejected-claims material above it.
+- **Summaries enriched** — each watchlist entry now carries deal structure, financing, timeline and context rather than one line.
+
 ## Still open (for the spec)
 
 - Rail holds nav + stats; a horizontal stats bar atop the main column is the untested alternative.
