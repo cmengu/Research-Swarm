@@ -1,0 +1,496 @@
+<meta charset="utf-8">
+<title>ResearchSwarm — Latest Intel (v3)</title>
+<style>
+  :root {
+    --ink: #1B1832; --ink-2: #4A4463; --ink-3: #7C7594;
+    --paper: #FAF7F9; --paper-2: #F3EFF5; --rule: #E2DBE8; --rule-strong: #C9BFD4;
+    --hema: #4A3F8F; --eosin: #C8375D; --eosin-soft: #FBEDF1;
+    --confirms: #2E7D6B; --challenges: #B4661E;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --s1: .375rem; --s2: .75rem; --s3: 1.25rem; --s4: 2rem; --s5: 3rem;
+    --shadow: 0 1px 2px rgba(27,24,50,.06), 0 4px 12px rgba(27,24,50,.04);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) { :root {
+    --ink: #EDE9F2; --ink-2: #B5AECA; --ink-3: #837B9E; --paper: #141120; --paper-2: #1D1930; --rule: #2E2745; --rule-strong: #453C63;
+    --hema: #9B8FE0; --eosin: #F0708F; --eosin-soft: #2C1A25; --confirms: #5FBFA6; --challenges: #E0A055;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3); color-scheme: dark; } }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ink: #EDE9F2; --ink-2: #B5AECA; --ink-3: #837B9E; --paper: #141120; --paper-2: #1D1930; --rule: #2E2745; --rule-strong: #453C63;
+    --hema: #9B8FE0; --eosin: #F0708F; --eosin-soft: #2C1A25; --confirms: #5FBFA6; --challenges: #E0A055;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3); }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --ink: #1B1832; --ink-2: #4A4463; --ink-3: #7C7594; --paper: #FAF7F9; --paper-2: #F3EFF5; --rule: #E2DBE8; --rule-strong: #C9BFD4;
+    --hema: #4A3F8F; --eosin: #C8375D; --eosin-soft: #FBEDF1; --confirms: #2E7D6B; --challenges: #B4661E;
+    --shadow: 0 1px 2px rgba(27,24,50,.06), 0 4px 12px rgba(27,24,50,.04); }
+
+  body { background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 1.0625rem; line-height: 1.62; -webkit-font-smoothing: antialiased; }
+  .shell { max-width: 48rem; margin: 0 auto; padding: 0 var(--s3) var(--s5); }
+  hr { border: 0; border-top: 1px solid var(--rule); }
+
+  /* ── masthead bar ── */
+  .topbar { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; justify-content: space-between; padding: var(--s3) 0; }
+  .identity { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+  .identity svg { width: 1.75rem; height: 1.75rem; flex: none; }
+  .identity .name { font-family: var(--serif); font-size: 1.3rem; letter-spacing: -.01em; white-space: nowrap; }
+  .identity .name em { color: var(--eosin); font-style: normal; }
+  .identity .tag { font-family: var(--mono); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3);
+                   padding-left: var(--s2); border-left: 1px solid var(--rule); }
+  .picker { display: flex; align-items: center; gap: var(--s2); }
+  .picker > span { font-family: var(--mono); font-size: .64rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+  .sel { position: relative; display: inline-flex; }
+  .sel::after { content: ""; position: absolute; right: .7rem; top: 50%; width: .4rem; height: .4rem; pointer-events: none;
+                border-right: 1.5px solid var(--eosin); border-bottom: 1.5px solid var(--eosin); transform: translateY(-70%) rotate(45deg); }
+  .sel select { appearance: none; -webkit-appearance: none; font-family: var(--mono); font-size: .8rem; font-variant-numeric: tabular-nums;
+                color: var(--ink); background: var(--paper-2); border: 1px solid var(--rule-strong); border-radius: 4px;
+                padding: .45rem 2rem .45rem .7rem; cursor: pointer; box-shadow: var(--shadow); transition: border-color .15s, color .15s; }
+  .sel select:hover { border-color: var(--eosin); }
+  .sel select:focus-visible { outline: 2px solid var(--hema); outline-offset: 2px; }
+
+  /* ── tabs ── */
+  .tabs { display: flex; gap: var(--s4); border-bottom: 1px solid var(--rule); }
+  .tabs button { position: relative; background: none; border: 0; cursor: pointer; padding: var(--s2) 0 var(--s3);
+                 font-family: var(--mono); font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3);
+                 transition: color .15s; }
+  .tabs button::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--eosin);
+                        transform: scaleX(0); transition: transform .18s ease; }
+  .tabs button:hover { color: var(--ink); }
+  .tabs button:focus-visible { outline: 2px solid var(--hema); outline-offset: 3px; }
+  .tabs button[aria-selected="true"] { color: var(--eosin); }
+  .tabs button[aria-selected="true"]::after { transform: scaleX(1); }
+  @media (prefers-reduced-motion: reduce) { .tabs button::after { transition: none; } }
+
+  .stub { padding: var(--s5) 0; text-align: center; color: var(--ink-3); font-family: var(--mono); font-size: .8rem; line-height: 2; }
+  .stub b { display: block; font-family: var(--serif); font-size: 1.4rem; color: var(--ink-2); margin-bottom: var(--s2); }
+
+  /* ── masthead ── */
+  .masthead { padding-top: var(--s4); padding-bottom: var(--s4); display: flex; flex-direction: column; gap: var(--s3); }
+  .kicker { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; font-family: var(--mono); font-size: .64rem;
+            letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+  .kicker .live { color: var(--eosin); }
+  .sample { color: var(--challenges); border: 1px solid currentColor; border-radius: 3px; padding: .1rem .35rem; font-size: .58rem; }
+  h1 { font-family: var(--serif); font-size: clamp(1.8rem, 4.4vw, 2.5rem); line-height: 1.1; letter-spacing: -.022em; text-wrap: balance; }
+  .lede { font-size: 1.15rem; color: var(--ink-2); max-width: 74ch; }
+  .sowhat { font-family: var(--serif); font-style: italic; font-size: 1.18rem; color: var(--ink); max-width: 72ch;
+            padding-left: var(--s3); border-left: 3px solid var(--eosin); }
+  .statline { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); font-family: var(--mono); font-size: .84rem;
+              font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .statline b { color: var(--hema); font-weight: 700; font-size: 1.05rem; }
+  .statline .flag b { color: var(--eosin); }
+
+  /* ── sections ── */
+  main { display: flex; flex-direction: column; }
+  section { padding: var(--s5) 0; border-top: 1px solid var(--rule); display: flex; flex-direction: column; gap: var(--s3); }
+  .sechead { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); align-items: baseline; justify-content: space-between; }
+  .sechead h2 { font-family: var(--mono); font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; color: var(--ink); font-weight: 600; }
+  .sechead .sub { font-size: .86rem; color: var(--ink-3); flex: 1 1 20rem; }
+  .ghost { font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2);
+           background: none; border: 1px solid var(--rule-strong); border-radius: 4px; padding: .35rem .6rem; cursor: pointer;
+           transition: color .15s, border-color .15s; white-space: nowrap; }
+  .ghost:hover { color: var(--eosin); border-color: var(--eosin); }
+  .ghost:focus-visible { outline: 2px solid var(--hema); outline-offset: 2px; }
+
+  ul.bullets { list-style: none; display: flex; flex-direction: column; gap: var(--s3); }
+  ul.bullets li { position: relative; padding-left: var(--s3); font-size: 1.08rem; color: var(--ink); max-width: 76ch; }
+  ul.bullets li::before { content: ""; position: absolute; left: 0; top: .62em; width: .4rem; height: .4rem;
+                          border-radius: 50%; background: var(--eosin); }
+
+  .chip { font-family: var(--mono); font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .09em;
+          padding: .2rem .5rem; border: 1px solid currentColor; border-radius: 3px; white-space: nowrap; }
+  .chip.p-high { color: var(--paper); background: var(--eosin); border-color: var(--eosin); }
+  .p-high { color: var(--eosin); } .p-medium { color: var(--hema); } .p-low { color: var(--ink-3); }
+  .cat { font-family: var(--mono); font-size: .66rem; letter-spacing: .06em; color: var(--ink-2); background: var(--paper-2);
+         border: 1px solid var(--rule); padding: .2rem .5rem; border-radius: 3px; }
+
+  .entity { display: flex; flex-direction: column; gap: var(--s3); padding-left: var(--s3); border-left: 3px solid var(--rule-strong); }
+  .entity.confirms { border-left-color: var(--confirms); }
+  .entity.challenges { border-left-color: var(--challenges); }
+  .ehead { display: flex; flex-direction: column; gap: var(--s2); }
+  .enameline { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: baseline; }
+  .ehead h3 { font-family: var(--serif); font-size: 1.65rem; letter-spacing: -.015em; line-height: 1.15; }
+  .etags { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s2); align-items: center; }
+  .slug { font-family: var(--mono); font-size: .72rem; color: var(--ink-3); }
+  .summary { color: var(--ink-2); font-size: 1rem; max-width: 74ch; }
+  details.angle { background: var(--paper-2); border-radius: 4px; padding: var(--s2) var(--s3); }
+  details.angle > summary { list-style: none; cursor: pointer; display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap;
+    font-family: var(--mono); font-size: .6rem; letter-spacing: .12em; text-transform: uppercase; padding: var(--s1) 0; }
+  details.angle > summary::-webkit-details-marker { display: none; }
+  details.angle > summary b { color: var(--eosin); font-weight: 600; }
+  details.angle > summary::after { content: "+"; margin-left: auto; font-size: .95rem; color: var(--ink-3); }
+  details.angle[open] > summary::after { content: "\2212"; }
+  details.angle > summary:focus-visible { outline: 2px solid var(--hema); outline-offset: 2px; border-radius: 2px; }
+  details.angle > p { font-family: var(--serif); font-size: 1.08rem; line-height: 1.62; max-width: 74ch; padding-bottom: var(--s2); }
+  .impact { font-family: var(--mono); font-size: .58rem; letter-spacing: .05em; text-transform: uppercase; }
+  .impact.confirms { color: var(--confirms); } .impact.challenges { color: var(--challenges); } .impact.neutral { color: var(--ink-3); }
+  .srcs { display: flex; flex-wrap: wrap; gap: var(--s2); font-family: var(--mono); font-size: .66rem; }
+  .srcs a { color: var(--ink-3); text-decoration: none; border-bottom: 1px dotted var(--rule-strong); }
+  .srcs a:hover, .srcs a:focus-visible { color: var(--eosin); border-bottom-color: var(--eosin); outline: none; }
+  .tier { font-weight: 700; letter-spacing: .05em; }
+  .tier-primary { color: var(--confirms); } .tier-trade { color: var(--hema); } .tier-aggregator { color: var(--ink-3); }
+  .meta { font-family: var(--mono); font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
+  .meta.developing::before { content: "\25D0 "; color: var(--challenges); }
+  .meta.concluded::before { content: "\25CF "; color: var(--ink-3); }
+
+  .catch { border: 1px solid var(--eosin); background: var(--eosin-soft); border-radius: 4px; padding: var(--s3);
+           display: flex; flex-direction: column; gap: var(--s2); }
+  .catch .stamp { align-self: flex-start; font-family: var(--mono); font-size: .58rem; font-weight: 700; letter-spacing: .16em;
+                  text-transform: uppercase; color: var(--eosin); border: 2px solid var(--eosin); border-radius: 2px;
+                  padding: .15rem .45rem; transform: rotate(-1.5deg); }
+  .catch .claim { font-family: var(--serif); font-size: 1.12rem; color: var(--ink-2); max-width: 72ch;
+                  text-decoration: line-through; text-decoration-color: var(--eosin); text-decoration-thickness: 2px; }
+  .catch .why { font-size: .98rem; color: var(--ink-2); max-width: 74ch; }
+  .pills { display: flex; flex-wrap: wrap; gap: var(--s2); }
+  .pill { font-family: var(--mono); font-size: .7rem; color: var(--ink-3); border: 1px dashed var(--rule-strong);
+          border-radius: 3px; padding: .15rem .45rem; }
+  .pill b { color: var(--ink-2); font-weight: 500; }
+  .threads { background: var(--paper-2); border: 1px solid var(--rule); border-radius: 4px; padding: var(--s3);
+             display: flex; flex-direction: column; gap: var(--s3); }
+  .threads > .lbl { font-family: var(--mono); font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+  .thread { padding-left: var(--s3); border-left: 2px solid var(--challenges); display: flex; flex-direction: column; gap: var(--s1); }
+  .thread b { font-size: 1rem; font-weight: 600; }
+
+  .block { display: flex; flex-direction: column; gap: var(--s2); }
+  .block h3 { font-family: var(--serif); font-size: 1.2rem; }
+  .block p { color: var(--ink-2); font-size: 1rem; max-width: 74ch; }
+  .block .why { color: var(--eosin); }
+
+  .drift { border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+  .drift .dh { font-family: var(--mono); font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; padding: var(--s2) var(--s3);
+               background: var(--paper-2); color: var(--ink-3); border-bottom: 1px solid var(--rule); }
+  .drift .db { padding: var(--s3); display: flex; flex-direction: column; gap: var(--s2); font-size: .92rem; }
+  .drift .before { color: var(--ink-3); text-decoration: line-through; }
+  .drift .after { font-family: var(--serif); font-size: 1rem; color: var(--ink); }
+
+  .verdict { align-self: flex-start; font-family: var(--mono); font-size: .64rem; letter-spacing: .1em; text-transform: uppercase;
+             padding: .25rem .5rem; border-radius: 3px; color: var(--challenges); border: 1px solid var(--challenges); }
+  .finding { display: grid; grid-template-columns: auto 1fr; gap: var(--s2); align-items: baseline; font-size: .88rem; color: var(--ink-2); }
+  footer { padding: var(--s4) 0 0; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: .68rem;
+           color: var(--ink-3); line-height: 2; }
+</style>
+
+<div class="shell">
+  <header class="topbar">
+    <div class="identity">
+      <svg viewBox="0 0 32 32" aria-hidden="true" fill="none">
+        <path d="M16 3.2l6.9 4v8l-6.9 4-6.9-4v-8z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M7.6 17.6l5.6 3.25v6.5L7.6 30.6 2 27.35v-6.5z" stroke="var(--hema)" stroke-width="1.4" stroke-linejoin="round"/>
+        <path d="M24.4 17.6l5.6 3.25v6.5l-5.6 3.25-5.6-3.25v-6.5z" stroke="var(--hema)" stroke-width="1.4" stroke-linejoin="round"/>
+        <circle cx="16" cy="11.2" r="2.3" fill="var(--eosin)"/>
+      </svg>
+      <div class="name">Research<em>Swarm</em></div>
+      <div class="tag">Competitive Intelligence Analysis</div>
+    </div>
+    <div class="picker">
+      <span>Showing issue</span>
+      <label class="sel"><select id="issuePicker" aria-label="Select issue">
+        <option>2026-07-16</option><option>2026-07-13</option><option>2026-07-09</option><option>2026-07-06</option>
+      </select></label>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" aria-controls="panel-intel" id="tab-intel">Latest Intel</button>
+    <button role="tab" aria-selected="false" aria-controls="panel-pipelines" id="tab-pipelines">Pipelines</button>
+    <button role="tab" aria-selected="false" aria-controls="panel-map" id="tab-map">Modality Map</button>
+  </div>
+
+  <div id="panel-pipelines" role="tabpanel" aria-labelledby="tab-pipelines" hidden>
+    <div class="stub"><b>Pipelines</b>Per-company view: assets by phase, modality and readout date.<br>Not built yet — planned once Latest Intel settles.</div>
+  </div>
+  <div id="panel-map" role="tabpanel" aria-labelledby="tab-map" hidden>
+    <div class="stub"><b>Modality Map</b>Where every tracked player sits across modality &times; stage &mdash; who is crowding whom.<br>Not built yet — planned once Latest Intel settles.</div>
+  </div>
+
+  <div id="panel-intel" role="tabpanel" aria-labelledby="tab-intel">
+    <div class="masthead">
+      <div class="kicker" id="kicker"></div>
+      <h1 id="heroTitle"></h1>
+    </div>
+    <main>
+      <section>
+        <p class="lede" id="heroSummary"></p>
+        <div class="sowhat" id="heroSoWhat"></div>
+      </section>
+      <section><div class="statline" id="statline"></div></section>
+      <section id="tldr"><div class="sechead"><h2>TLDR</h2><span class="sub">Everything that moved this cycle, in one pass.</span></div>
+        <ul class="bullets" id="bullets"></ul></section>
+      <section id="watchlist"><div class="sechead"><h2>Tracked watchlist</h2>
+        <span class="sub">Every name we follow, and what it did.</span>
+        <button class="ghost" id="toggleAll" type="button">Expand all angles</button></div>
+        <div id="watchlistBody" style="display:flex;flex-direction:column;gap:2.25rem"></div></section>
+      <section id="quiet"><div class="sechead"><h2>Quiet this cycle</h2>
+        <span class="sub">Tracked names with nothing to report, claims we rejected, and threads still open.</span></div>
+        <div id="quietBody" style="display:flex;flex-direction:column;gap:1.5rem"></div></section>
+      <section id="radar"><div class="sechead"><h2>New on our radar</h2>
+        <span class="sub">Players newly on our radar this cycle.</span></div>
+        <div id="radarBody" style="display:flex;flex-direction:column;gap:2rem"></div></section>
+      <section id="themes"><div class="sechead"><h2>Themes &amp; signals</h2>
+        <span class="sub">Cross-cutting patterns from this cycle.</span></div>
+        <div id="themesBody" style="display:flex;flex-direction:column;gap:1.75rem"></div></section>
+      <section id="frontier"><div class="sechead"><h2>Elsewhere on the frontier</h2>
+        <span class="sub">Moves outside the watchlist that change the board.</span></div>
+        <div id="frontierBody" style="display:flex;flex-direction:column;gap:1.75rem"></div></section>
+      <section id="thesis"><div class="sechead"><h2>Thesis drift</h2>
+        <span class="sub">What this cycle forced us to change our mind about.</span></div>
+        <div id="thesisBody" style="display:flex;flex-direction:column;gap:1rem"></div></section>
+      <section id="critic"><div class="sechead"><h2>Critic report</h2>
+        <span class="sub">What the adversarial reviewer found before this issue published.</span></div>
+        <div id="criticBody" style="display:flex;flex-direction:column;gap:1rem"></div></section>
+      <footer id="method"></footer>
+    </main>
+  </div>
+</div>
+
+<script>
+// PROTOTYPE SAMPLE — all content FABRICATED for design purposes. Not real intelligence.
+const ISSUE = {
+  schema_version: "0.2.0",
+  issue: {
+    id: "2026-07-16",
+    published_at: "2026-07-16T07:42:11+08:00",
+    coverage_window: { from: "2026-07-13", to: "2026-07-16" },
+    run: { run_id: "run_20260716_0700", status: "published", critic_verdict: "pass_with_advisories", critic_retries: 1,
+      models: { researchers: "claude-sonnet-5", manager: "claude-opus-4-8", critic: "gpt-5.6-codex" } }
+  },
+  headline: {
+    title: "Merck's $9B Verastem buy resets ADC pricing — and every mid-cap oncology board knows it",
+    summary: "Merck paid a 71% premium for a company whose lead asset is still in Phase 2, signalling that post-Keytruda-LOE desperation now outweighs clinical de-risking. Two other cash-rich acquirers are reportedly circling the same ADC cohort, and bankers are already re-pricing comparable assets upward.",
+    so_what: "The buyer's-market assumption in our thesis is now falsifiable: premiums are re-inflating before readouts, not after.",
+    confidence: "high"
+  },
+  stats: { tracked_updates: 7, tracked_quiet: 4, new_on_radar: 3, frontier_items: 3, sources_cited: 34, critic_catches: 2, previous_issue: "2026-07-13" },
+  tldr_bullets: [
+    { text: "Merck acquires Verastem for $9B at a 71% premium — the biggest ADC deal since 2025, struck pre-Phase-3.", priority: "high" },
+    { text: "Hengrui out-licenses its PD-1/VEGF bispecific to Bristol Myers for $1.4B upfront — the China wave is no longer discount-priced.", priority: "high" },
+    { text: "FDA's confirmatory-trial rule for accelerated approval takes effect; three tracked sponsors must now enrol before approval.", priority: "high" },
+    { text: "Summit's ivonescimab OS data slips to Q4, pushing the PD-1/VEGF class readout past the JPM window.", priority: "medium" },
+    { text: "AstraZeneca widens its Daiichi alliance to two additional ADC targets, locking up the partner most rivals wanted.", priority: "medium" },
+    { text: "Arcus posts a clean but unremarkable Phase 2 — no inflection, and the cash runway question returns.", priority: "low" }
+  ],
+  watchlist: [
+    { entity_id: "merck", name: "Merck & Co.", type: "big_pharma", status: "developing", priority: "high", confidence: "high",
+      categories: ["deal_ma"], thesis_impact: "challenges",
+      summary: "Announced the acquisition of Verastem Oncology for $9B ($64/share) — a 71% premium to the prior close, and the largest ADC transaction since 2025. The target is a single Phase 2 asset: a KRAS-G12D-directed ADC with 41 patients dosed and no randomised data. Management framed the price as 'pipeline urgency ahead of 2028', a direct reference to the Keytruda loss-of-exclusivity cliff that removes roughly $25B of annual revenue. Financed from cash and a $4B bridge; expected to close Q1 2027 pending an FTC review that analysts widely expect to draw a second request. Two other acquirers were reportedly in the process, though neither has confirmed.",
+      research_angle: "This is the clearest evidence yet that the Keytruda LOE cliff is forcing Merck to buy clinical risk it would have refused in 2024. Our thesis said acquirers would wait for Phase 3 readouts to compress premiums; Merck just paid pre-readout money, which means scarcity of late-stage ADC assets is now the binding constraint, not capital discipline. If the next two deals price the same way, the 'patient acquirer' model is dead and target selection should be re-modelled around scarcity.",
+      sources: [ { url: "https://example.com/merck-pr", publisher: "Merck investor relations", tier: "primary", published_at: "2026-07-15" },
+                 { url: "https://example.com/endpoints-merck", publisher: "Endpoints News", tier: "trade", published_at: "2026-07-15" },
+                 { url: "https://example.com/reuters-merck", publisher: "Reuters", tier: "trade", published_at: "2026-07-15" } ] },
+    { entity_id: "hengrui", name: "Jiangsu Hengrui Pharma", type: "china_pharma", status: "concluded", priority: "high", confidence: "medium",
+      categories: ["deal_ma", "platform_tech"], thesis_impact: "confirms",
+      summary: "Out-licensed its PD-1/VEGF bispecific to Bristol Myers Squibb for $1.4B upfront against $6.1B in development and commercial milestones — the largest upfront ever paid for a Chinese-originated oncology asset. Hengrui retains full China rights and books a tiered royalty on ex-China sales. The asset is in three Phase 3 trials in China with a first readout guided for mid-2027. BMS gains a hedge against its own PD-1 franchise erosion without adding discovery headcount.",
+      research_angle: "The China licensing wave is no longer discount-priced. A $1.4B upfront from a Western acquirer for a Chinese-originated bispecific is a re-rating of the entire cohort — and it validates the wedge argument: Chinese biotechs are converting speed-to-clinic into Western capital without surrendering their home market. The interesting question is no longer whether Western pharma will buy Chinese assets, but whether it can still buy them cheaply. It cannot.",
+      sources: [ { url: "https://example.com/bms-pr", publisher: "BMS press release", tier: "primary", published_at: "2026-07-14" },
+                 { url: "https://example.com/fierce-hengrui", publisher: "Fierce Biotech", tier: "trade", published_at: "2026-07-14" } ] },
+    { entity_id: "astrazeneca", name: "AstraZeneca", type: "big_pharma", status: "developing", priority: "high", confidence: "high",
+      categories: ["platform_tech", "deal_ma"], thesis_impact: "confirms",
+      summary: "Expanded its long-running Daiichi Sankyo alliance to two further ADC targets, paying $1.2B upfront for co-development and co-commercialisation rights across the US and EU, with Daiichi retaining Japan. This is the third expansion of the same partnership in four years and takes the total committed capital past $8B. Notably, AstraZeneca took no equity and no control — it bought access to Daiichi's linker-payload chemistry, the only ADC platform with three approved products behind it.",
+      research_angle: "AstraZeneca is not buying assets, it is buying the partner — and that is the smarter version of the same scarcity trade Merck just made loudly. Locking up Daiichi's linker chemistry across more targets denies rivals the one platform with a proven clinical track record, without paying a control premium. Our thesis treats platform access as the real moat; this is the cleanest expression of it this quarter.",
+      sources: [ { url: "https://example.com/az-pr", publisher: "AstraZeneca press release", tier: "primary", published_at: "2026-07-14" },
+                 { url: "https://example.com/stat-az", publisher: "STAT", tier: "trade", published_at: "2026-07-15" } ] },
+    { entity_id: "summit", name: "Summit Therapeutics", type: "biotech", status: "developing", priority: "high", confidence: "medium",
+      categories: ["trial_readout"], thesis_impact: "neutral",
+      summary: "Guided that the pivotal overall-survival readout for ivonescimab in non-small-cell lung cancer will now land in Q4 2026 rather than Q3, attributing the slip to slower-than-modelled event accrual — which can indicate patients living longer, but which the market read as risk. Shares fell 14% on the day. The company reiterated cash runway into 2028 and made no change to trial design or powering. This is the second timeline revision in twelve months.",
+      research_angle: "A slip is not a signal, but the timing is: the readout now lands after the JPM window, which removes the single most likely catalyst for a 2026 take-out. For a company whose entire equity story is one PD-1/VEGF asset, delay is dilution risk by another name. We treat this as neutral to thesis — the class thesis is intact, the company-specific timing is worse.",
+      sources: [ { url: "https://example.com/summit-8k", publisher: "SEC 8-K", tier: "primary", published_at: "2026-07-15" },
+                 { url: "https://example.com/biopharmadive-summit", publisher: "BioPharma Dive", tier: "trade", published_at: "2026-07-15" } ] },
+    { entity_id: "akeso", name: "Akeso Biopharma", type: "china_pharma", status: "concluded", priority: "medium", confidence: "medium",
+      categories: ["trial_readout"], thesis_impact: "confirms",
+      summary: "Published updated HARMONi-2 subgroup analyses in a peer-reviewed journal, showing progression-free survival benefit concentrated in PD-L1-high patients and holding across two pre-specified subgroups. The data are incremental rather than practice-changing, but they were delivered on the guided date and survived peer review — reinforcing the class hypothesis that PD-1/VEGF bispecifics beat PD-1 monotherapy in first-line NSCLC.",
+      research_angle: "Akeso keeps doing the thing that makes the China wedge argument work: generating credible data faster and cheaper than the Western comparator, then letting a partner monetize it. The data itself is incremental; the fact that it publishes on schedule while Summit slips is the actual competitive information.",
+      sources: [ { url: "https://example.com/akeso-journal", publisher: "Journal of Clinical Oncology", tier: "primary", published_at: "2026-07-13" } ] },
+    { entity_id: "pfizer", name: "Pfizer", type: "big_pharma", status: "concluded", priority: "medium", confidence: "medium",
+      categories: ["pipeline"], thesis_impact: "neutral",
+      summary: "Quietly deprioritised two early-stage oncology programs in its quarterly pipeline update, redirecting spend toward obesity and the Seagen-derived ADC portfolio. Neither discontinued asset had reported human data. The update also reaffirmed 2026 guidance and made no mention of business development in oncology — the first quarter in six without an explicit M&A signal from management.",
+      research_angle: "Pfizer is doing the opposite of Merck: narrowing rather than buying. That is defensible given Seagen already bought it an ADC franchise, but it also means Pfizer is unlikely to be the second bidder that would validate the premium re-rating. One fewer acquirer at the table is a real datapoint for anyone modelling target competition.",
+      sources: [ { url: "https://example.com/pfizer-pipeline", publisher: "Pfizer pipeline update", tier: "primary", published_at: "2026-07-14" } ] },
+    { entity_id: "arcus", name: "Arcus Biosciences", type: "biotech", status: "concluded", priority: "low", confidence: "medium",
+      categories: ["trial_readout"], thesis_impact: "neutral",
+      summary: "Reported Phase 2 data for its adenosine-axis combination: safety was clean with no new signals, and overall response rates landed in line with prior guidance — neither a miss nor an inflection. The company maintained its cash runway guidance into H2 2027 and said it would decide on Phase 3 advancement by year-end, which effectively defers the strategic question by two quarters.",
+      research_angle: "'In line' is the worst possible outcome for a company that needs a reason to exist independently. Nothing here changes the thesis, but it moves Arcus from a possible target to a probable financing story, and we should expect the cash-runway conversation to dominate its next two cycles.",
+      sources: [ { url: "https://example.com/arcus-pr", publisher: "Arcus press release", tier: "primary", published_at: "2026-07-13" } ] }
+  ],
+  quiet_this_cycle: {
+    no_news: [ { entity_id: "roche", name: "Roche", cycles_quiet: 2 }, { entity_id: "gilead", name: "Gilead", cycles_quiet: 3 },
+               { entity_id: "daiichi", name: "Daiichi Sankyo", cycles_quiet: 1 }, { entity_id: "legend", name: "Legend Biotech", cycles_quiet: 2 } ],
+    critic_catches: [
+      { claim: "Zentalis raising $400M at a $2.1B valuation", rejected_because: "provenance_stale",
+        detail: "Every July 14–15 aggregator repeat traces to a single 12 Mar 2026 Bloomberg piece. No new primary source; the round may have closed months ago or died quietly. Publishing it as this cycle's news would have been wrong by four months.",
+        sources: [ { url: "https://example.com/bloomberg-mar", publisher: "Bloomberg", tier: "trade", published_at: "2026-03-12" } ] },
+      { claim: "Novartis in advanced talks to acquire Arcus Biosciences", rejected_because: "single_unverified_source",
+        detail: "Traced to one paywalled subscription newsletter with no named sourcing, no confirmation from either company, and no unusual options activity. Below the bar for an investor-grade digest.",
+        sources: [ { url: "https://example.com/newsletter", publisher: "Unnamed newsletter", tier: "aggregator", published_at: "2026-07-15" } ] }
+    ],
+    open_threads: [
+      { thread: "Antitrust review timeline for the Merck/Verastem deal", since: "2026-07-15", next_expected: "FTC second-request window closes ~Aug 2026" },
+      { thread: "Whether a second bidder emerges for the ADC cohort", since: "2026-07-15", next_expected: "Watch for 13D/G filings through August" }
+    ]
+  },
+  new_on_radar: [
+    { entity_id: "callio_tx", name: "Callio Therapeutics", type: "startup", priority: "medium", categories: ["funding"],
+      what_they_do: "Dual-payload ADC platform out of Basel; lead program in HER2-low breast cancer.",
+      development: "Raised $187M Series B at roughly $900M post-money, led by Forbion.",
+      why_we_care: "Dual-payload is the direct answer to ADC resistance, which our thesis names as the field's next bottleneck. A $900M post-money before the clinic is exactly the pre-readout premium inflation the Merck deal just rationalized — the private market is pricing the same scarcity the public one is.",
+      promotion_proposal: { promote_to_watchlist: true, reason: "Second dual-payload financing above $150M this quarter — the sub-sector now clears our tracking bar." },
+      sources: [ { url: "https://example.com/callio", publisher: "Fierce Biotech", tier: "trade", published_at: "2026-07-15" } ] },
+    { entity_id: "aktis", name: "Aktis Oncology", type: "startup", priority: "medium", categories: ["funding", "platform_tech"],
+      what_they_do: "Alpha-emitter radiopharmaceuticals using miniprotein targeting; lead asset in solid tumors.",
+      development: "Extended its Series C by $60M with participation from two strategic pharma investors.",
+      why_we_care: "Strategic money in a radiopharma extension round is a soft option on an acquisition. Radiopharma is the modality our thesis flags as most likely to be over-bought relative to evidence — this is the first datapoint of the cycle that tests it.",
+      promotion_proposal: { promote_to_watchlist: false, reason: "Single financing event; watch one more cycle before promoting." },
+      sources: [ { url: "https://example.com/aktis", publisher: "Endpoints News", tier: "trade", published_at: "2026-07-14" } ] },
+    { entity_id: "candid", name: "Candid Therapeutics", type: "startup", priority: "high", categories: ["deal_ma"],
+      what_they_do: "T-cell engager platform assembled by in-licensing Chinese-originated assets.",
+      development: "In-licensed two additional bispecifics from a Chengdu-based biotech for undisclosed upfronts.",
+      why_we_care: "This is the China wedge industrialized: a US company whose entire strategy is arbitraging the price gap our Hengrui angle says is closing. If Candid is still able to in-license cheaply while BMS pays $1.4B, then the re-rating is uneven — and that gap is the most actionable thing in this issue.",
+      promotion_proposal: { promote_to_watchlist: true, reason: "Directly tests the China-licensing thesis from the arbitrage side; high analytic value." },
+      sources: [ { url: "https://example.com/candid", publisher: "Endpoints News", tier: "trade", published_at: "2026-07-16" } ] }
+  ],
+  themes_and_signals: [
+    { theme: "Pre-readout premiums are back", thesis_impact: "challenges", evidence_refs: ["merck", "callio_tx"],
+      argument: "Two datapoints this cycle price clinical risk higher than 2025 comparables — one public, one private. If this holds for one more cycle, the 'patient acquirer' assumption in our thesis is dead and we should re-model target selection around asset scarcity rather than de-risking." },
+    { theme: "China is licensing up the value chain", thesis_impact: "confirms", evidence_refs: ["hengrui", "akeso", "candid"],
+      argument: "Upfronts have moved from roughly $100–300M to over $1B, and the assets are bispecifics rather than me-too small molecules. The wedge is holding — but Candid's continued cheap in-licensing suggests the re-rating is uneven, and the arbitrage window has not closed everywhere at once." },
+    { theme: "Platform access is beating asset ownership", thesis_impact: "confirms", evidence_refs: ["astrazeneca", "pfizer"],
+      argument: "AstraZeneca widened a partnership while Pfizer narrowed a pipeline; neither bought a company. The quiet story under Merck's loud one is that the disciplined players are buying access to chemistry, not control of it." }
+  ],
+  elsewhere_on_frontier: [
+    { actor: "FDA", move: "Final rule on accelerated-approval confirmatory trials takes effect; sponsors must have trials underway at approval.",
+      detail: "Three tracked oncology sponsors have pending AA applications that now require enrolled confirmatory trials, compressing timelines by an estimated 6–9 months and raising the capital needed to reach the same milestone.",
+      why_it_matters: "Raises the capital intensity of the AA shortcut — historically the main reason small oncology biotechs could stay independent. Expect more early sales, which feeds directly into the scarcity story driving premiums.",
+      sources: [ { url: "https://example.com/fda-rule", publisher: "FDA", tier: "primary", published_at: "2026-07-14" } ] },
+    { actor: "CMS", move: "Second-cycle IRA negotiation list adds two oncology small molecules.",
+      detail: "Both are past their peak-sales years, so the direct revenue impact is modest, but the signal is that oncology is no longer carved out of pricing pressure by default.",
+      why_it_matters: "The small-molecule penalty relative to biologics is now a portfolio-design input, not a policy talking point. It quietly favours ADCs and bispecifics — the same assets whose premiums are inflating.",
+      sources: [ { url: "https://example.com/cms", publisher: "CMS", tier: "primary", published_at: "2026-07-13" } ] },
+    { actor: "Isomorphic Labs", move: "Posted first oncology target-validation data from its internal pipeline.",
+      detail: "Structural predictions for two undisclosed oncology targets, with wet-lab confirmation reported by a partner. No clinical claims made.",
+      why_it_matters: "AI-native discovery entering oncology target selection is the slowest-moving but highest-variance item on this list. Nothing to trade on this cycle; everything to watch over eight.",
+      sources: [ { url: "https://example.com/isomorphic", publisher: "Isomorphic Labs", tier: "primary", published_at: "2026-07-16" } ] }
+  ],
+  thesis_updates: [
+    { change: "amended", field: "acquirer_behaviour", triggered_by: ["merck", "callio_tx"],
+      before: "Cash-rich acquirers will wait for Phase 3 readouts, compressing target premiums through 2026.",
+      after: "Acquirers are paying pre-readout premiums for scarce ADC and bispecific assets; capital discipline is subordinate to pipeline urgency ahead of 2028 LOEs." },
+    { change: "sharpened", field: "china_licensing_wave", triggered_by: ["hengrui", "candid"],
+      before: "Chinese-originated assets are systematically underpriced relative to Western equivalents.",
+      after: "The discount is closing at the top of the market (>$1B upfronts) but persists for smaller in-licensing deals — the re-rating is uneven, and the gap is the tradeable part." }
+  ],
+  critic_report: { verdict: "pass_with_advisories", retries_used: 1, blocking_findings: [],
+    advisory_findings: [
+      { kind: "thin_sourcing", where: "watchlist.hengrui", note: "Single primary source; no independent trade confirmation of the milestone structure." },
+      { kind: "coverage_gap", where: "elsewhere_on_frontier", note: "EU HTA regulation developments not covered this cycle despite being in scope." },
+      { kind: "unhedged_claim", where: "themes.pre_readout_premiums", note: "Two datapoints is thin for a class-wide claim; the argument acknowledges this but the headline does not." }
+    ] },
+  sources_and_method: {
+    beats_run: ["pharma_ma", "oncology_startups", "clinical_science", "policy_regulation", "incumbents_entrants", "backstop"],
+    beats_failed: [],
+    source_tier_counts: { primary: 14, trade: 17, aggregator: 3 },
+    paywalled_flagged: [ { claim: "Verastem board rejected an earlier $7.2B approach", publisher: "STAT+", url: "https://example.com/stat-plus", note: "Primary paywalled — assess manually." } ]
+  }
+};
+</script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const chip = (p) => '<span class="chip p-' + esc(p) + '">' + esc(p) + '</span>';
+  const srcs = (a) => '<div class="srcs">' + a.map(s => '<a href="' + esc(s.url) + '" target="_blank" rel="noopener"><span class="tier tier-' +
+    esc(s.tier) + '">' + esc(s.tier) + '</span> ' + esc(s.publisher) + ' &middot; ' + esc(s.published_at) + '</a>').join('') + '</div>';
+  const d = ISSUE, S = d.stats;
+
+  $('kicker').innerHTML = 'Issue ' + esc(d.issue.id) + '<span>&middot;</span><span class="live">confidence ' + esc(d.headline.confidence) +
+    '</span><span>&middot;</span>' + esc(d.issue.coverage_window.from) + ' &rarr; ' + esc(d.issue.coverage_window.to) +
+    '<span class="sample">sample data</span>';
+  $('heroTitle').textContent = d.headline.title;
+  $('heroSummary').textContent = d.headline.summary;
+  $('heroSoWhat').textContent = d.headline.so_what;
+
+  $('statline').innerHTML = [
+    ['<b>' + S.tracked_updates + '</b> tracked updates', 0], ['<b>' + S.tracked_quiet + '</b> quiet', 0],
+    ['<b>' + S.new_on_radar + '</b> new entrants', 0], ['<b>' + S.frontier_items + '</b> frontier items', 0],
+    ['<b>' + S.sources_cited + '</b> sources', 0], ['<b>' + S.critic_catches + '</b> critic catches', 1],
+    ['window <b>' + d.stats.previous_issue + '</b> &rarr; <b>' + d.issue.id + '</b>', 0]
+  ].map(a => '<span class="' + (a[1] ? 'flag' : '') + '">' + a[0] + '</span>').join('');
+
+  $('bullets').innerHTML = d.tldr_bullets.map(b => '<li>' + esc(b.text) + '</li>').join('');
+
+  $('watchlistBody').innerHTML = d.watchlist.map(e =>
+    '<article class="entity ' + esc(e.thesis_impact) + '"><div class="ehead">' +
+    '<div class="enameline"><h3>' + esc(e.name) + '</h3><span class="slug">' + esc(e.entity_id) + '</span></div>' +
+    '<div class="etags">' + chip(e.priority) + e.categories.map(c => '<span class="cat">' + esc(c) + '</span>').join('') +
+    '<span class="meta ' + esc(e.status) + '">' + esc(e.status) + '</span><span class="meta">conf ' + esc(e.confidence) + '</span></div></div>' +
+    '<p class="summary">' + esc(e.summary) + '</p>' +
+    '<details class="angle" open><summary><b>Research Angle</b><span class="impact ' +
+    esc(e.thesis_impact) + '">' + esc(e.thesis_impact) + ' thesis</span></summary><p>' + esc(e.research_angle) + '</p></details>' +
+    srcs(e.sources) + '</article>').join('');
+
+  const q = d.quiet_this_cycle;
+  $('quietBody').innerHTML =
+    '<div class="pills">' + q.no_news.map(n => '<span class="pill"><b>' + esc(n.name) + '</b> &middot; ' + n.cycles_quiet +
+      ' cycle' + (n.cycles_quiet > 1 ? 's' : '') + '</span>').join('') + '</div>' +
+    q.critic_catches.map(c => '<div class="catch"><div class="stamp">Rejected &middot; ' + esc(c.rejected_because) + '</div><div class="claim">' +
+      esc(c.claim) + '</div><div class="why">' + esc(c.detail) + '</div>' + srcs(c.sources) + '</div>').join('') +
+    '<div class="threads"><span class="lbl">Open threads &mdash; developing, no update this cycle</span>' +
+    q.open_threads.map(t => '<div class="thread"><b>' + esc(t.thread) + '</b><span class="meta">open since ' + esc(t.since) +
+      ' &middot; ' + esc(t.next_expected) + '</span></div>').join('') + '</div>';
+
+  $('radarBody').innerHTML = d.new_on_radar.map(r =>
+    '<article class="entity"><div class="ehead"><div class="enameline"><h3>' + esc(r.name) + '</h3><span class="slug">' + esc(r.entity_id) + '</span></div>' +
+    '<div class="etags">' + chip(r.priority) + r.categories.map(c => '<span class="cat">' + esc(c) + '</span>').join('') + '</div></div>' +
+    '<p class="summary">' + esc(r.what_they_do) + ' &mdash; ' + esc(r.development) + '</p>' +
+    '<details class="angle" open><summary><b>Why we care</b>' + (r.promotion_proposal.promote_to_watchlist ?
+      '<span class="impact confirms">promoting to watchlist</span>' : '<span class="impact neutral">watching one more cycle</span>') +
+    '</summary><p>' + esc(r.why_we_care) + '</p></details>' + srcs(r.sources) + '</article>').join('');
+
+  $('themesBody').innerHTML = d.themes_and_signals.map(t =>
+    '<div class="block"><h3>' + esc(t.theme) + ' <span class="impact ' + esc(t.thesis_impact) + '">' + esc(t.thesis_impact) + '</span></h3>' +
+    '<p>' + esc(t.argument) + '</p><div class="srcs">' + t.evidence_refs.map(r => '<span class="slug">' + esc(r) + '</span>').join('') + '</div></div>').join('');
+
+  $('frontierBody').innerHTML = d.elsewhere_on_frontier.map(f =>
+    '<div class="block"><h3>' + esc(f.actor) + ' &mdash; ' + esc(f.move) + '</h3><p>' + esc(f.detail) + '</p>' +
+    '<p class="why">' + esc(f.why_it_matters) + '</p>' + srcs(f.sources) + '</div>').join('');
+
+  $('thesisBody').innerHTML = d.thesis_updates.map(u =>
+    '<div class="drift"><div class="dh">' + esc(u.change) + ' &middot; ' + esc(u.field) + ' &middot; triggered by ' +
+    u.triggered_by.map(esc).join(', ') + '</div><div class="db"><span class="before">' + esc(u.before) + '</span><span class="after">' +
+    esc(u.after) + '</span></div></div>').join('');
+
+  const c = d.critic_report;
+  $('criticBody').innerHTML = '<span class="verdict">' + esc(c.verdict.replace(/_/g, ' ')) + ' &middot; ' + c.retries_used + ' retry</span>' +
+    c.blocking_findings.map(f => '<div class="finding">' + chip('high') + '<span>' + esc(f.note) + '</span></div>').join('') +
+    c.advisory_findings.map(f => '<div class="finding"><span class="cat">' + esc(f.kind) + '</span><span><b class="slug">' + esc(f.where) +
+      '</b> &mdash; ' + esc(f.note) + '</span></div>').join('');
+
+  const m = d.sources_and_method;
+  $('method').innerHTML = 'beats: ' + m.beats_run.map(esc).join(' &middot; ') + '<br>sources: ' +
+    Object.keys(m.source_tier_counts).map(k => '<span class="tier tier-' + k + '">' + k + '</span> ' + m.source_tier_counts[k]).join(' &middot; ') +
+    '<br>' + m.paywalled_flagged.map(p => '<span style="color:var(--eosin)">paywalled &mdash; assess manually:</span> ' + esc(p.claim) +
+      ' (' + esc(p.publisher) + ')').join('<br>') +
+    '<br>models: researchers ' + esc(d.issue.run.models.researchers) + ' &middot; manager ' + esc(d.issue.run.models.manager) +
+    ' &middot; critic ' + esc(d.issue.run.models.critic) + '<br>run ' + esc(d.issue.run.run_id) + ' &middot; published ' + esc(d.issue.published_at);
+
+  // tabs
+  const tabs = [...document.querySelectorAll('.tabs button')];
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(o => {
+      const on = o === t;
+      o.setAttribute('aria-selected', String(on));
+      $(o.getAttribute('aria-controls')).hidden = !on;
+    });
+  }));
+
+  // expand/collapse all
+  const btn = $('toggleAll');
+  const angles = () => [...document.querySelectorAll('#watchlistBody details.angle')];
+  const syncBtn = () => { btn.textContent = angles().some(x => !x.open) ? 'Expand all angles' : 'Collapse all angles'; };
+  angles().forEach(x => x.addEventListener('toggle', syncBtn));
+  syncBtn();
+  btn.addEventListener('click', () => { const e = angles().some(x => !x.open); angles().forEach(x => { x.open = e; }); syncBtn(); });
+
+  $('issuePicker').addEventListener('change', (e) => {
+    if (e.target.value !== d.issue.id) { alert('Prototype: only ' + d.issue.id + ' has data. Production fetches issues/<id>.json.'); e.target.value = d.issue.id; }
+  });
+</script>
