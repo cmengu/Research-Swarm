@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "seeded_at": "2026-07-16",
+  "last_recut_at": null,
+  "evidence_base": "docs/research/oncology-bellwethers-2026.md",
+  "design_note": {
+    "primitive": "A catalyst is a DATED EXPECTATION: a named readout or decision, expected in a window, that would prove or disprove something. The watchlist says WHAT we watch; the queue says WHAT, WHEN, and SO WHAT. This is the only structure in the system that commits to a claim about the future — which is exactly what makes it worth having, and exactly why its record must be tamper-evident.",
+    "vs_watchlist": "watchlist.entities[tier=frontier_asset] are standing subscription ADDRESSES. Catalysts are EVENTS expected at those addresses. Many catalysts per asset; an asset between catalysts is still watched. Linked by `entity_ids[]` — never duplicated.",
+    "sizing": "10–15 active (status=pending) items. Soft target: outside 8–18 is a validator advisory, never a block."
+  },
+  "accountability_rule": {
+    "invariant": "`first_expected_window` is written ONCE, at item creation, and is NEVER edited by any process. `expected_window` may be revised; every revision MUST append to `slip_log`. A queue that silently moves its own goalposts is worthless.",
+    "rendering": "The dashboard derives slip history from `first_expected_window` + `slip_log` — e.g. 'expected 2026-Q2, slipped twice, now 2026-Q4'.",
+    "no_self_grading": "The system does NOT score its own hit rate. It records what it said and what happened; the reader judges. Self-scoring is the judgment call the critic rubric keeps advisory."
+  },
+  "authorship_rule": {
+    "machine_authored": [
+      "asset",
+      "entity_ids",
+      "holders",
+      "catalyst",
+      "expected_window",
+      "window_source",
+      "status",
+      "slip_log",
+      "sources"
+    ],
+    "thesis_gated": [
+      "what_it_would_prove",
+      "bears_on_thesis_slot"
+    ],
+    "rule": "Factual fields are public record — the loop authors and maintains them with sources, no worldview required. Interpretive fields follow the #5 thesis contract: if `bears_on_thesis_slot` names a slot whose `stance` is null in state/thesis.json, `what_it_would_prove` renders the degradation marker and the item still ships. Seeding a thesis slot activates interpretation for its catalysts. The loop MUST NOT invent interpretation into a dormant slot.",
+    "degradation_marker": "No thesis seeded — facts only."
+  },
+  "cadence": {
+    "per_cycle": {
+      "allowed": ["status transitions", "append to slip_log"],
+      "forbidden": ["add items", "retire items", "edit first_expected_window"],
+      "evidence_required": "Every transition needs a source. `delivered` requires a citation to the readout; `slipped` requires evidence of the revised window. No source, no transition."
+    },
+    "monthly_recut": {
+      "when": "First scheduled run of each calendar month.",
+      "allowed": ["add items", "retire items", "resize toward 10–15", "re-anchor windows to the conference calendar"],
+      "approval": "none — auto_promote, consistent with watchlist self-evolution (CAPTURE #6). Every add/retire/resize appends to `drift_log` with a reason.",
+      "calendar_dependency": "Windows anchor to the conference calendar defined in #18. Until that exists, `expected_window` stays null and the loop sources windows from primary guidance (company IR, trial registries) where available."
+    }
+  },
+  "status_values": {
+    "pending": "Expected, window not yet elapsed.",
+    "delivered": "The readout/decision happened. Requires a source. Terminal.",
+    "slipped": "Window elapsed with no event, and a revised window exists. Returns to pending on re-anchor; every slip is logged.",
+    "dead": "Will not happen — trial halted, asset dropped, decision mooted. Requires a source. Terminal."
+  },
+  "item_contract": {
+    "id": "stable kebab-case, `cat_` prefixed; never reused",
+    "asset": "the asset or mechanism the catalyst concerns (free text)",
+    "entity_ids": "array of watchlist entity ids — validator's dangling_entity check applies",
+    "holders": "array of current holder names, free text — MAY change without changing the catalyst (an asset outlives its holder)",
+    "catalyst": "the specific expected readout or decision — named, not a topic",
+    "first_expected_window": "IMMUTABLE. e.g. '2026-Q4' | '2026-10' | null if never established",
+    "expected_window": "current best estimate; revisions append to slip_log",
+    "window_source": "source object justifying the window, or null if unsourced",
+    "status": "pending | delivered | slipped | dead",
+    "what_it_would_prove": "THESIS-GATED. What a positive/negative result would establish.",
+    "bears_on_thesis_slot": "thesis belief slot id, or null",
+    "slip_log": "append-only [{date, from_window, to_window, reason, source}]",
+    "sources": "array of source objects {url, publisher, tier, published_at}"
+  },
+  "queue": [
+    {
+      "id": "cat_revmed_merck_confirmation",
+      "asset": "daraxonrasib / RAS(ON) inhibitors",
+      "entity_ids": ["asset_daraxonrasib", "merck"],
+      "holders": ["Revolution Medicines"],
+      "catalyst": "Confirmation or collapse of the reported Merck acquisition of Revolution Medicines (~$28–32B, rumour only — no 8-K, no company confirmation).",
+      "first_expected_window": null,
+      "expected_window": null,
+      "window_source": null,
+      "status": "pending",
+      "what_it_would_prove": "No thesis seeded — facts only.",
+      "bears_on_thesis_slot": "pharma-ma-appetite",
+      "slip_log": [],
+      "sources": [],
+      "seed_note": "Existence grounded in docs/research/oncology-bellwethers-2026.md, which flags the price as FT-sourced rumour and explicitly says 'do not treat as done'. No window is citable; the loop must source one."
+    },
+    {
+      "id": "cat_western_pd1vegf_ph3",
+      "asset": "pumitamig & PF-08634404 (Western PD-1×VEGF)",
+      "entity_ids": ["asset_western_pd1vegf", "asset_ivonescimab"],
+      "holders": ["BioNTech/BMS", "Pfizer/3SBio"],
+      "catalyst": "Western Phase 3 OS readouts — the trials that settle whether the >$10B pre-proof pile-on was right.",
+      "first_expected_window": null,
+      "expected_window": null,
+      "window_source": null,
+      "status": "pending",
+      "what_it_would_prove": "No thesis seeded — facts only.",
+      "bears_on_thesis_slot": null,
+      "slip_log": [],
+      "sources": [],
+      "seed_note": "Grounded in the research's Tier 0 analysis. Windows unknown — research notes ESMO 2026 (Oct) has not happened and its map has a ~3-month shelf life."
+    },
+    {
+      "id": "cat_ivonescimab_fda_position",
+      "asset": "ivonescimab / PD-1×VEGF",
+      "entity_ids": ["asset_ivonescimab", "fda_oce"],
+      "holders": ["Akeso", "Summit Therapeutics"],
+      "catalyst": "FDA position on the regional generalizability of the China-only HARMONi-6 OS win (HR 0.66) — the same endpoint-standard question that killed Summit's earlier filing.",
+      "first_expected_window": null,
+      "expected_window": null,
+      "window_source": null,
+      "status": "pending",
+      "what_it_would_prove": "No thesis seeded — facts only.",
+      "bears_on_thesis_slot": "china-licensing-wave",
+      "slip_log": [],
+      "sources": [],
+      "seed_note": "The research calls regional generalizability 'THE contested question in IO'."
+    },
+    {
+      "id": "cat_radioligand_readouts",
+      "asset": "Radioligand / alpha-emitter platform",
+      "entity_ids": ["asset_radioligand"],
+      "holders": ["Aktis", "Novartis", "ARTBIO"],
+      "catalyst": "Aktis clinical data — the pure-play read on whether radioligand is the next validated modality.",
+      "first_expected_window": null,
+      "expected_window": null,
+      "window_source": null,
+      "status": "pending",
+      "what_it_would_prove": "No thesis seeded — facts only.",
+      "bears_on_thesis_slot": "radiopharma",
+      "slip_log": [],
+      "sources": [],
+      "seed_note": "Grounded in the research's frontier-asset tier (Lilly's ~$100M Aktis IPO anchor). No window citable."
+    }
+  ],
+  "seed_note": "Seeded at 4 items, below the 10–15 target, deliberately. The queue's value is falsifiable dated predictions; the evidence base contains no citable forward windows (it is retrospective and predates ESMO 2026), so inventing dates here would poison the one structure whose entire purpose is being checkable. These four are grounded in the research; the loop populates windows and grows the queue to target on first run and first monthly re-cut.",
+  "drift_log": []
+}
