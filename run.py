@@ -35,7 +35,7 @@ from researchswarm.beats import load_beats
 from researchswarm.cadence import is_run_day, load_cadence
 from researchswarm.manager import ManagerFailed, load_models
 from researchswarm.prompts import RunContext, load_template
-from researchswarm.publish import run_publish_stage
+from researchswarm.publish import publish_stub, run_publish_stage
 from researchswarm.research import render_all_prompts, run_research_stage
 from researchswarm.runs import (
     LOOKBACK_FLOOR,
@@ -44,7 +44,7 @@ from researchswarm.runs import (
     resolve_run_id,
 )
 from researchswarm.state import check_entity_refs, load_state
-from researchswarm.stub import PublishedIssueExists, write_failed_stub
+from researchswarm.stub import PublishedIssueExists
 from researchswarm.synthesis import IssueIdentity, run_synthesis_stage
 from researchswarm.validation import ValidationExhausted, run_validation_stage
 
@@ -93,6 +93,34 @@ def _config_error(exc: Exception) -> int:
     """Config and state problems all die the same way: say what broke, exit 2."""
     log.error("%s", exc)
     return EXIT_CONFIG_ERROR
+
+
+def _fail_run(root, *, run_id, now, window, stage, detail, thesis_version, beats_failed) -> int:
+    """Publish a failed-run stub and return EXIT_RUN_FAILED — the one failure path.
+
+    Every stage that can die (research, synthesis, validation, publish) ends here,
+    so a stub always reaches the manifest and the commit at write time, not
+    whenever the next successful run regenerates them (publish_stub owns that
+    tail). A stub that overlaps a day already published raises PublishedIssueExists
+    — the real issue is immutable, so the rerun reports its failure without
+    touching it.
+    """
+    try:
+        path = publish_stub(
+            root,
+            run_id=run_id,
+            now=now,
+            window=window,
+            stage=stage,
+            detail=detail,
+            thesis_version=thesis_version,
+            beats_failed=beats_failed,
+        )
+    except PublishedIssueExists as exc:
+        log.error("%s", exc)
+        return EXIT_RUN_FAILED
+    log.error("run failed at %s — published failed-run stub %s", stage, path.relative_to(root))
+    return EXIT_RUN_FAILED
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -201,24 +229,16 @@ def main(argv: list[str] | None = None) -> int:
         # stub, not a degradation. The dashboard shows the miss; the next
         # successful run widens its window over the days this one dropped.
         detail = f"all {len(stage.beats_failed)} beat(s) failed validation — see the run log"
-        try:
-            path = write_failed_stub(
-                root,
-                run_id=run_id,
-                now=now,
-                window=ctx.window,
-                stage="research",
-                detail=detail,
-                thesis_version=state.thesis.get("version"),
-                beats_failed=stage.beats_failed,
-            )
-        except PublishedIssueExists as exc:
-            # A forced rerun failed on a day that already published. The real
-            # issue stays; the failure is the rerun's alone.
-            log.error("%s", exc)
-            return EXIT_RUN_FAILED
-        log.error("all beats failed — published failed-run stub %s", path.relative_to(root))
-        return EXIT_RUN_FAILED
+        return _fail_run(
+            root,
+            run_id=run_id,
+            now=now,
+            window=ctx.window,
+            stage="research",
+            detail=detail,
+            thesis_version=state.thesis.get("version"),
+            beats_failed=stage.beats_failed,
+        )
 
     log.info(
         "research complete: %d ran, %d failed", len(stage.beats_run), len(stage.beats_failed)
@@ -256,22 +276,16 @@ def main(argv: list[str] | None = None) -> int:
         # degradation. Same immutability guard as the research path — a rerun
         # that fails must not overwrite a real issue with a stub.
         log.error("manager failed: %s", exc)
-        try:
-            path = write_failed_stub(
-                root,
-                run_id=run_id,
-                now=now,
-                window=ctx.window,
-                stage="synthesis",
-                detail=str(exc),
-                thesis_version=state.thesis.get("version"),
-                beats_failed=stage.beats_failed,
-            )
-        except PublishedIssueExists as exists:
-            log.error("%s", exists)
-            return EXIT_RUN_FAILED
-        log.error("manager failed — published failed-run stub %s", path.relative_to(root))
-        return EXIT_RUN_FAILED
+        return _fail_run(
+            root,
+            run_id=run_id,
+            now=now,
+            window=ctx.window,
+            stage="synthesis",
+            detail=str(exc),
+            thesis_version=state.thesis.get("version"),
+            beats_failed=stage.beats_failed,
+        )
 
     log.info(
         "manager: draft %s (%d turn(s), $%.4f, attempt %d)",
@@ -308,22 +322,16 @@ def main(argv: list[str] | None = None) -> int:
         # Both mean a draft exists but cannot be published: a validation stub,
         # with the same immutability guard as every other stub path.
         log.error("validation failed: %s", exc)
-        try:
-            path = write_failed_stub(
-                root,
-                run_id=run_id,
-                now=now,
-                window=ctx.window,
-                stage="validation",
-                detail=str(exc),
-                thesis_version=state.thesis.get("version"),
-                beats_failed=stage.beats_failed,
-            )
-        except PublishedIssueExists as exists:
-            log.error("%s", exists)
-            return EXIT_RUN_FAILED
-        log.error("validation exhausted — published failed-run stub %s", path.relative_to(root))
-        return EXIT_RUN_FAILED
+        return _fail_run(
+            root,
+            run_id=run_id,
+            now=now,
+            window=ctx.window,
+            stage="validation",
+            detail=str(exc),
+            thesis_version=state.thesis.get("version"),
+            beats_failed=stage.beats_failed,
+        )
 
     log.info(
         "validation passed: %d retr%s, %d advisory finding(s)",
@@ -344,8 +352,9 @@ def main(argv: list[str] | None = None) -> int:
     # Derived stats, the immutable issue, the regenerated manifest, the state
     # edits, and one git commit. A publish-stage failure becomes a publish stub
     # under the same immutability guard as every other stub path — but if the
-    # issue was already written before the failure, that guard fires first and
-    # the run simply reports the failure without laundering the published issue.
+    # issue was already written before the failure, publish already best-effort
+    # regenerated the manifest and committed what exists, and the immutability
+    # guard fires here so the run reports the failure without laundering it.
     try:
         publish = run_publish_stage(
             root, draft=validation.draft, state=state, run_id=run_id, now=now
@@ -355,22 +364,16 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_RUN_FAILED
     except Exception as exc:  # noqa: BLE001 — any publish failure becomes a stub
         log.error("publish failed: %s", exc)
-        try:
-            path = write_failed_stub(
-                root,
-                run_id=run_id,
-                now=now,
-                window=ctx.window,
-                stage="publish",
-                detail=str(exc),
-                thesis_version=state.thesis.get("version"),
-                beats_failed=stage.beats_failed,
-            )
-        except PublishedIssueExists as exists:
-            log.error("%s", exists)
-            return EXIT_RUN_FAILED
-        log.error("publish failed — published failed-run stub %s", path.relative_to(root))
-        return EXIT_RUN_FAILED
+        return _fail_run(
+            root,
+            run_id=run_id,
+            now=now,
+            window=ctx.window,
+            stage="publish",
+            detail=str(exc),
+            thesis_version=state.thesis.get("version"),
+            beats_failed=stage.beats_failed,
+        )
 
     log.info(
         "published %s (%s)%s",

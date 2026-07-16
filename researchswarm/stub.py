@@ -35,6 +35,15 @@ class PublishedIssueExists(RuntimeError):
     a failed rerun must not replace one with a stub."""
 
 
+def issue_path(root: Path, issue_id: str) -> Path:
+    """The path an issue with this id lives at: issues/<id>.json.
+
+    One home for the layout rule, shared by the stub writer and the publisher so
+    the two can never disagree about where a dated issue lands.
+    """
+    return root / "issues" / f"{issue_id}.json"
+
+
 def check_overwritable(path: Path) -> None:
     """Guard the one immutability rule every writer of issues/<date>.json obeys.
 
@@ -90,7 +99,7 @@ def write_failed_stub(
         raise ValueError(f"unknown failure stage {stage!r}; expected one of {FAILURE_STAGES}")
 
     issue_id = now.date().isoformat()
-    path = root / "issues" / f"{issue_id}.json"
+    path = issue_path(root, issue_id)
     check_overwritable(path)
     stub = {
         "schema_version": SCHEMA_VERSION,

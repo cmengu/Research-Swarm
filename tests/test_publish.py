@@ -7,24 +7,37 @@ wiring lives in test_run_cli.py, where the whole pipeline lands as a real commit
 """
 
 import json
+import shutil
+import subprocess
 from datetime import datetime
+from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from researchswarm.publish import (
-    apply_state_edits,
     derive_full_stats,
     git_commit_run,
+    publish_stub,
     regenerate_manifest,
     run_publish_stage,
     stamp_run_fields,
     write_issue,
 )
 from researchswarm.state import load_state
+from researchswarm.state_edits import apply_state_edits
 from researchswarm.stub import PublishedIssueExists, write_failed_stub
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
 NOW = datetime(2026, 7, 17, 0, 45, 3)
 RUN_ID = "run_20260717_0045"
+
+
+def _git_init(root):
+    """A tmp git repo with an identity, so real commits land."""
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    subprocess.run(["git", "-C", str(root), "config", "user.email", "t@t.com"], check=True)
+    subprocess.run(["git", "-C", str(root), "config", "user.name", "T"], check=True)
 
 
 def _issue(**overrides):
@@ -71,9 +84,7 @@ def _src(tag):
 
 def _fake_repo(tmp_path):
     """A repo skeleton with the real seeded state files and an issues/ dir."""
-    import shutil
-    root_src = __import__("pathlib").Path(__file__).resolve().parent.parent
-    shutil.copytree(root_src / "state", tmp_path / "state")
+    shutil.copytree(REPO_ROOT / "state", tmp_path / "state")
     (tmp_path / "issues").mkdir()
     return tmp_path
 
@@ -123,6 +134,8 @@ class TestDeriveStats:
         # The stub is transparent — previous_issue is the last one that covered days.
         assert stats["previous_issue"] == "2026-07-13"
 
+
+class TestStampRunFields:
     def test_stamp_overwrites_manager_run_fields(self):
         issue = _issue()
         stamp_run_fields(issue, {"tracked_updates": 0})
@@ -322,6 +335,23 @@ class TestThesisRevisions:
         assert state.thesis["version"] == v0  # no bump
         assert (root / "state" / "thesis.json") not in paths
 
+    def test_nulling_an_active_stance_is_refused(self, tmp_path):
+        """The loop may revise a stance, never null it back to dormancy — that is
+        an owner-only transition ([03])."""
+        root = _fake_repo(tmp_path)
+        state = load_state(root / "state")
+        v0 = state.thesis["version"]
+        issue = _issue(thesis_updates=[{
+            "change": "retired", "field": "pharma-ma-appetite",
+            "before": "old", "after": None, "triggered_by": [],
+        }])
+        paths = apply_state_edits(root, issue, state, RUN_ID, NOW)
+
+        slot = next(b for b in state.thesis["beliefs"] if b["id"] == "pharma-ma-appetite")
+        assert slot["stance"] is not None  # untouched
+        assert state.thesis["version"] == v0
+        assert (root / "state" / "thesis.json") not in paths
+
 
 class TestQueueTransitions:
     def _state_item(self, state):
@@ -372,6 +402,41 @@ class TestQueueTransitions:
         assert self._state_item(state)["status"] == "pending"  # item skipped entirely
         assert (root / "state" / "catalyst-queue.json") not in paths
 
+    def test_sources_are_unioned_not_replaced(self, tmp_path):
+        """A transition adds its receipt to the citation record without dropping
+        the ones already on file — replacement would let a dropped-then-reappearing
+        URL count as new evidence for a later transition."""
+        root = _fake_repo(tmp_path)
+        state = load_state(root / "state")
+        item = self._state_item(state)
+        item["sources"] = [_src("old")]
+        snap = dict(item)
+        snap["status"] = "delivered"
+        snap["sources"] = [_src("new")]  # the snapshot carries only the fresh receipt
+        issue = _issue(catalyst_queue={"items": [snap]})
+        apply_state_edits(root, issue, state, RUN_ID, NOW)
+
+        urls = {s["url"] for s in self._state_item(state)["sources"]}
+        assert urls == {"https://ex.com/old", "https://ex.com/new"}  # old retained
+
+    def test_window_change_without_a_slip_entry_is_refused(self, tmp_path):
+        """The state writer defends the slip invariant too: an expected_window
+        change with no slip_log entry recording it is refused, not applied."""
+        root = _fake_repo(tmp_path)
+        state = load_state(root / "state")
+        item = self._state_item(state)
+        item["first_expected_window"] = "2026-Q2"
+        item["expected_window"] = "2026-Q2"
+        snap = dict(item)
+        snap["expected_window"] = "2026-Q4"  # moved, but no slip_log entry records it
+        snap["slip_log"] = []
+        snap["sources"] = [_src("new")]
+        issue = _issue(catalyst_queue={"items": [snap]})
+        paths = apply_state_edits(root, issue, state, RUN_ID, NOW)
+
+        assert self._state_item(state)["expected_window"] == "2026-Q2"  # unchanged
+        assert (root / "state" / "catalyst-queue.json") not in paths
+
     def test_window_slip_appends_to_slip_log(self, tmp_path):
         root = _fake_repo(tmp_path)
         state = load_state(root / "state")
@@ -402,10 +467,7 @@ class TestQueueTransitions:
 
 class TestGitCommit:
     def test_commit_lands_in_a_real_repo(self, tmp_path):
-        import subprocess
-        subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-        subprocess.run(["git", "-C", str(tmp_path), "config", "user.email", "t@t.com"], check=True)
-        subprocess.run(["git", "-C", str(tmp_path), "config", "user.name", "T"], check=True)
+        _git_init(tmp_path)
         issue = tmp_path / "issues" / "2026-07-17.json"
         issue.parent.mkdir()
         issue.write_text("{}\n")
@@ -417,24 +479,17 @@ class TestGitCommit:
 
     def test_git_failure_does_not_raise(self):
         """git failure is a warning, not a run failure — the issue is on disk."""
-        from types import SimpleNamespace
-
         def failing(cmd, **kw):
             return SimpleNamespace(returncode=1, stdout="", stderr="fatal: not a repo")
 
         # A path that exists so we get past the nothing-to-stage guard.
-        import pathlib
-        here = pathlib.Path(__file__)
-        assert git_commit_run(here.parent.parent, RUN_ID, [here], message="m", runner=failing) is False
+        assert git_commit_run(REPO_ROOT, RUN_ID, [Path(__file__)], message="m", runner=failing) is False
 
     def test_injected_runner_that_raises_is_swallowed(self):
-        import pathlib
-        here = pathlib.Path(__file__)
-
         def exploding(cmd, **kw):
             raise OSError("git not found")
 
-        assert git_commit_run(here.parent.parent, RUN_ID, [here], message="m", runner=exploding) is False
+        assert git_commit_run(REPO_ROOT, RUN_ID, [Path(__file__)], message="m", runner=exploding) is False
 
 
 # ---------------------------------------------------------------------------
@@ -444,11 +499,8 @@ class TestGitCommit:
 
 class TestRunPublishStage:
     def test_publishes_derives_commits(self, tmp_path):
-        import subprocess
         root = _fake_repo(tmp_path)
-        subprocess.run(["git", "init", "-q", str(root)], check=True)
-        subprocess.run(["git", "-C", str(root), "config", "user.email", "t@t.com"], check=True)
-        subprocess.run(["git", "-C", str(root), "config", "user.name", "T"], check=True)
+        _git_init(root)
         state = load_state(root / "state")
 
         draft = _issue(
@@ -466,3 +518,54 @@ class TestRunPublishStage:
         # The manifest was regenerated and includes the just-written issue.
         manifest = json.loads((root / "issues" / "index.json").read_text())
         assert manifest["issues"][0]["id"] == "2026-07-17"
+
+
+class TestStubReachesManifestAndCommit:
+    def test_publish_stub_manifests_and_commits_at_write_time(self, tmp_path):
+        """A stub is a run outcome: it reaches the dropdown and the commit trail
+        immediately, not whenever the next successful run regenerates them — an
+        unexplained date gap is exactly what spec/08 refuses."""
+        root = _fake_repo(tmp_path)
+        _git_init(root)
+
+        path = publish_stub(
+            root, run_id=RUN_ID, now=NOW, window={"from": "2026-07-16", "to": "2026-07-17"},
+            stage="research", detail="all beats failed", thesis_version=2,
+            beats_failed=["ma_dealmaking"],
+        )
+        assert json.loads(path.read_text())["issue"]["run"]["status"] == "failed"
+
+        manifest = json.loads((root / "issues" / "index.json").read_text())
+        assert manifest["issues"][0]["id"] == "2026-07-17"
+        assert manifest["issues"][0]["status"] == "failed"
+        assert manifest["issues"][0]["headline_title"] is None
+
+        log = subprocess.run(["git", "-C", str(root), "log", "--oneline"],
+                             capture_output=True, text=True).stdout
+        assert RUN_ID in log and "failed at research" in log
+
+    def test_partial_publish_leaves_issue_manifested_and_committed(self, tmp_path, monkeypatch):
+        """When the issue is written and a downstream step dies, the failure
+        handler still commits what exists — the trail never lags the artifact."""
+        import researchswarm.publish as publish_mod
+
+        root = _fake_repo(tmp_path)
+        _git_init(root)
+        state = load_state(root / "state")
+
+        def boom(*a, **k):
+            raise RuntimeError("state edit exploded")
+
+        monkeypatch.setattr(publish_mod, "apply_state_edits", boom)
+
+        with pytest.raises(RuntimeError, match="state edit exploded"):
+            run_publish_stage(root, draft=_issue(), state=state, run_id=RUN_ID, now=NOW)
+
+        # The published issue is on disk, manifested, and committed despite the fail.
+        issue = json.loads((root / "issues" / "2026-07-17.json").read_text())
+        assert issue["issue"]["run"]["status"] == "published_uncritiqued"
+        manifest = json.loads((root / "issues" / "index.json").read_text())
+        assert manifest["issues"][0]["id"] == "2026-07-17"
+        log = subprocess.run(["git", "-C", str(root), "log", "--oneline"],
+                             capture_output=True, text=True).stdout
+        assert RUN_ID in log
