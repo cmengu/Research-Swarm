@@ -11,7 +11,7 @@ from datetime import date, datetime
 
 import pytest
 
-from researchswarm.stub import FAILURE_STAGES, write_failed_stub
+from researchswarm.stub import FAILURE_STAGES, PublishedIssueExists, write_failed_stub
 
 NOW = datetime(2026, 7, 16, 7, 0, 12)
 WINDOW = {"from": "2026-07-13", "to": "2026-07-16"}
@@ -75,6 +75,33 @@ class TestStubShape:
             "critique",
             "publish",
         )
+
+
+class TestPublishedIssuesAreImmutable:
+    def test_a_stub_never_overwrites_a_published_issue(self, tmp_path):
+        """A forced rerun that fails on a day that already published must not
+        replace the real issue with a stub claiming the whole day failed."""
+        issues = tmp_path / "issues"
+        issues.mkdir()
+        published = {
+            "issue": {
+                "id": "2026-07-16",
+                "coverage_window": WINDOW,
+                "run": {"status": "published"},
+            }
+        }
+        (issues / "2026-07-16.json").write_text(json.dumps(published))
+
+        with pytest.raises(PublishedIssueExists):
+            write(tmp_path)
+        assert json.loads((issues / "2026-07-16.json").read_text()) == published
+
+    def test_a_rerun_may_replace_its_own_earlier_stub(self, tmp_path):
+        first = write(tmp_path, detail="first failure")
+        second = write(tmp_path, detail="second failure")
+        assert first == second
+        issue = json.loads(second.read_text())["issue"]
+        assert issue["failure"]["detail"] == "second failure"
 
 
 class TestStubIsTransparentToContinuity:

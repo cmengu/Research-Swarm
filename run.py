@@ -37,7 +37,7 @@ from researchswarm.prompts import RunContext, load_template
 from researchswarm.research import render_all_prompts, run_research_stage
 from researchswarm.runs import LOOKBACK_FLOOR, resolve_coverage_window, resolve_run_id
 from researchswarm.state import check_entity_refs, load_state
-from researchswarm.stub import write_failed_stub
+from researchswarm.stub import PublishedIssueExists, write_failed_stub
 
 REPO_ROOT = Path(__file__).resolve().parent
 
@@ -192,16 +192,22 @@ def main(argv: list[str] | None = None) -> int:
         # stub, not a degradation. The dashboard shows the miss; the next
         # successful run widens its window over the days this one dropped.
         detail = f"all {len(stage.beats_failed)} beat(s) failed validation — see the run log"
-        path = write_failed_stub(
-            root,
-            run_id=run_id,
-            now=now,
-            window={"from": ctx.coverage_window_from, "to": ctx.coverage_window_to},
-            stage="research",
-            detail=detail,
-            thesis_version=state.thesis.get("version"),
-            beats_failed=stage.beats_failed,
-        )
+        try:
+            path = write_failed_stub(
+                root,
+                run_id=run_id,
+                now=now,
+                window=ctx.window,
+                stage="research",
+                detail=detail,
+                thesis_version=state.thesis.get("version"),
+                beats_failed=stage.beats_failed,
+            )
+        except PublishedIssueExists as exc:
+            # A forced rerun failed on a day that already published. The real
+            # issue stays; the failure is the rerun's alone.
+            log.error("%s", exc)
+            return EXIT_RUN_FAILED
         log.error("all beats failed — published failed-run stub %s", path.relative_to(root))
         return EXIT_RUN_FAILED
 

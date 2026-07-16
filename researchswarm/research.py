@@ -97,7 +97,7 @@ def run_research_stage(
     rather than silence.
     """
     prompts = render_all_prompts(beats, template, ctx, state)
-    window = {"from": ctx.coverage_window_from, "to": ctx.coverage_window_to}
+    window = ctx.window
 
     succeeded: set[str] = set()
     failed: set[str] = set()

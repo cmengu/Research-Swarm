@@ -30,6 +30,11 @@ SCHEMA_VERSION = "1.0.0"
 FAILURE_STAGES = ("research", "synthesis", "validation", "critique", "publish")
 
 
+class PublishedIssueExists(RuntimeError):
+    """The date already has a real issue. Every published issue is immutable —
+    a failed rerun must not replace one with a stub."""
+
+
 def write_failed_stub(
     root: Path,
     *,
@@ -47,14 +52,27 @@ def write_failed_stub(
     for the dashboard, and safe to include because joining is gated on
     run.status, never on the window's presence.
 
-    Overwriting is allowed only because a same-day rerun replacing its own
-    stub with a real issue is the desired behaviour; published (non-failed)
-    issues are immutable and are never rewritten by this path.
+    A same-day rerun may overwrite its own earlier STUB — retrying a failure
+    is the desired behaviour — but a published (non-failed) issue is immutable
+    and this path refuses to touch one. Without the refusal, a forced rerun of
+    one dead beat (--beats) that failed again would replace the morning's real
+    issue with a stub claiming the whole day failed.
     """
     if stage not in FAILURE_STAGES:
         raise ValueError(f"unknown failure stage {stage!r}; expected one of {FAILURE_STAGES}")
 
     issue_id = now.date().isoformat()
+    path = root / "issues" / f"{issue_id}.json"
+    if path.exists():
+        try:
+            existing_status = json.loads(path.read_text())["issue"]["run"]["status"]
+        except (json.JSONDecodeError, KeyError, TypeError):
+            existing_status = None  # unreadable ≠ published; a stub may replace it
+        if existing_status is not None and existing_status != "failed":
+            raise PublishedIssueExists(
+                f"{path} already holds a published issue (status {existing_status!r}) — "
+                "refusing to overwrite it with a failed-run stub"
+            )
     stub = {
         "schema_version": SCHEMA_VERSION,
         "issue": {
@@ -84,8 +102,6 @@ def write_failed_stub(
         "sources_and_method": {"beats_failed": list(beats_failed or [])},
     }
 
-    issues_dir = root / "issues"
-    issues_dir.mkdir(parents=True, exist_ok=True)
-    path = issues_dir / f"{issue_id}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(stub, indent=2) + "\n")
     return path
