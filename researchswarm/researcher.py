@@ -143,8 +143,12 @@ def run_researcher(
             raise ResearcherFailed(f"{beat.id}: timed out after {timeout}s") from exc
 
         if completed.returncode != 0:
+            # claude -p reports its failure on stdout (a JSON envelope or plain
+            # text), so stderr alone is usually blank — carry both or the
+            # operator gets an empty error.
             raise ResearcherFailed(
-                f"{beat.id}: claude exited {completed.returncode}: {completed.stderr[:400]}"
+                f"{beat.id}: claude exited {completed.returncode}: "
+                f"stdout={completed.stdout[:400]!r} stderr={completed.stderr[:400]!r}"
             )
 
         try:
