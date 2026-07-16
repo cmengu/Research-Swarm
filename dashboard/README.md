@@ -29,10 +29,14 @@ This product's differentiator is that it publishes its own doubt, so the UI enco
 
 ## Verified
 
-Rendered headless in Chrome: no page errors, both themes, no horizontal body scroll, all 9 sections populate from the sample.
+Rendered headless in Chrome against the live server: zero page errors, both themes, no horizontal body scroll, all 9 sections populate, and the collapse/expand interaction verified through load → expand-all → collapse-all → manual toggle. One real bug was caught this way and fixed: an em-dash rendered as mojibake until `<meta charset="utf-8">` was added (Python's http.server sends no charset for .html).
 
-## Open for reaction
+## Resolved in reaction (16 Jul 2026)
 
-- Is the H&E palette right, or too clinical//too pink?
-- Rail is sticky nav + stats — or should stats be a horizontal bar across the top of the main column?
-- Should the watchlist be collapsible (scan headlines, expand angles), or always fully expanded as now?
+- **H&E palette stays** — the subject's own material; eosin red is reserved for the things that must draw the eye (critic catches, the headline's so-what, the catches stat).
+- **Watchlist angles are collapsible** — `<details>` per entry, **open by default only for `priority: high`**, so a 16-entity issue scans in seconds while the high-priority arguments still read without a click. A rail button expands/collapses all; its label derives from live state.
+
+## Still open (for the spec)
+
+- Rail holds nav + stats; a horizontal stats bar atop the main column is the untested alternative.
+- Issue picker needs an `issues/index.json` manifest contract.

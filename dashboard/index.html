@@ -60,6 +60,13 @@
   .ehead h3 { font-family: var(--serif); font-size: 1.3rem; letter-spacing: -0.01em; }
   .slug { font-family: var(--mono); font-size: 0.68rem; color: var(--ink-3); }
   .summary { color: var(--ink-2); font-size: 0.95rem; max-width: 66ch; }
+  details.angle > summary { list-style: none; cursor: pointer; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; }
+  details.angle > summary::-webkit-details-marker { display: none; }
+  details.angle > summary b { color: var(--eosin); font-weight: 600; }
+  details.angle > summary::after { content: "\002B"; font-size: 0.9rem; color: var(--ink-3); margin-left: auto; }
+  details.angle[open] > summary::after { content: "\2212"; }
+  details.angle > summary:focus-visible { outline: 2px solid var(--hema); outline-offset: 2px; }
+  details.angle > p { margin-top: var(--s2); }
   .angle { background: var(--paper-2); padding: var(--s3); border-radius: 2px; display: flex; flex-direction: column; gap: var(--s2); }
   .angle .lbl { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; }
   .angle .lbl b { color: var(--eosin); font-weight: 600; }
@@ -95,6 +102,8 @@
   .finding { display: grid; grid-template-columns: auto 1fr; gap: var(--s2); font-size: 0.88rem; align-items: baseline; color: var(--ink-2); }
   .verdict { align-self: flex-start; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.25rem 0.5rem; border-radius: 2px; color: var(--challenges); border: 1px solid var(--challenges); }
   footer { font-family: var(--mono); font-size: 0.7rem; color: var(--ink-3); line-height: 1.9; border-top: 1px solid var(--rule); padding-top: var(--s3); }
+  #toggleAll { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); background: none; border: 1px solid var(--rule); border-radius: 2px; padding: var(--s2); cursor: pointer; }
+  #toggleAll:hover, #toggleAll:focus-visible { color: var(--eosin); border-color: var(--eosin); outline: none; }
   .proto { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--eosin); border: 1px dashed var(--eosin); padding: var(--s2); text-align: center; }
 </style>
 
@@ -107,6 +116,7 @@
     <div class="window" id="window"></div>
     <div class="stats" id="stats"></div>
     <nav id="nav"></nav>
+    <button id="toggleAll" type="button">Expand all angles</button>
     <div class="proto">Prototype &mdash; content fabricated</div>
   </aside>
   <main>
@@ -157,7 +167,7 @@
     '<article class="entity ' + esc(e.thesis_impact) + '"><div class="ehead"><h3>' + esc(e.name) + '</h3><span class="slug">' + esc(e.entity_id) + '</span>' +
     chip(e.priority) + e.categories.map(c => '<span class="cat">' + esc(c) + '</span>').join('') +
     '<span class="status ' + esc(e.status) + '">' + esc(e.status) + '</span><span class="status">conf: ' + esc(e.confidence) + '</span></div>' +
-    '<p class="summary">' + esc(e.summary) + '</p><div class="angle"><div class="lbl"><b>Research Angle</b><span class="impact ' + esc(e.thesis_impact) + '">' + esc(e.thesis_impact) + ' thesis</span></div><p>' + esc(e.research_angle) + '</p></div>' +
+    '<p class="summary">' + esc(e.summary) + '</p><details class="angle"' + (e.priority === 'high' ? ' open' : '') + '><summary><b>Research Angle</b><span class="impact ' + esc(e.thesis_impact) + '">' + esc(e.thesis_impact) + ' thesis</span></summary><p>' + esc(e.research_angle) + '</p></details>' +
     srcList(e.sources) + '</article>').join('');
 
   const q = d.quiet_this_cycle;
@@ -169,7 +179,7 @@
   $('radarBody').innerHTML = d.new_on_radar.map(r =>
     '<article class="entity"><div class="ehead"><h3>' + esc(r.name) + '</h3><span class="slug">' + esc(r.entity_id) + '</span>' + chip(r.priority) +
     r.categories.map(c => '<span class="cat">' + esc(c) + '</span>').join('') + '</div><p class="summary">' + esc(r.what_they_do) + ' &mdash; ' + esc(r.development) + '</p>' +
-    '<div class="angle"><div class="lbl"><b>Why we care</b>' + (r.promotion_proposal.promote_to_watchlist ? '<span class="impact confirms">promoting to watchlist</span>' : '') + '</div><p>' + esc(r.why_we_care) + '</p></div>' +
+    '<details class="angle" open><summary><b>Why we care</b>' + (r.promotion_proposal.promote_to_watchlist ? '<span class="impact confirms">promoting to watchlist</span>' : '') + '</summary><p>' + esc(r.why_we_care) + '</p></details>' +
     srcList(r.sources) + '</article>').join('');
 
   $('themesBody').innerHTML = d.themes_and_signals.map(t =>
@@ -194,6 +204,20 @@
     m.paywalled_flagged.map(p => '<span style="color:var(--eosin)">paywalled &mdash; assess manually:</span> ' + esc(p.claim) + ' (' + esc(p.publisher) + ')').join('<br>') +
     '<br>models: researchers ' + esc(d.issue.run.models.researchers) + ' &middot; manager ' + esc(d.issue.run.models.manager) + ' &middot; critic ' + esc(d.issue.run.models.critic) +
     '<br>run ' + esc(d.issue.run.run_id) + ' &middot; published ' + esc(d.issue.published_at);
+
+  const btn = $('toggleAll');
+  const syncBtn = () => {
+    const all = document.querySelectorAll('#watchlistBody details.angle');
+    btn.textContent = [...all].some(x => !x.open) ? 'Expand all angles' : 'Collapse all angles';
+  };
+  syncBtn();
+  document.querySelectorAll('#watchlistBody details.angle').forEach(x => x.addEventListener('toggle', syncBtn));
+  btn.addEventListener('click', () => {
+    const all = document.querySelectorAll('#watchlistBody details.angle');
+    const expand = [...all].some(x => !x.open);
+    all.forEach(x => { x.open = expand; });
+    syncBtn();
+  });
 
   $('issuePicker').addEventListener('change', (e) => {
     if (e.target.value !== d.issue.id) alert('Prototype: only ' + d.issue.id + ' has data. Production fetches issues/<id>.json.');
