@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+"""ResearchSwarm orchestrator — the thin recipe-follower.
+
+The OS scheduler fires this at 07:00 local, every day, forever. It reads
+config/cadence.toml, asks "is today a run day?", and exits in milliseconds if
+not. A skipped day is a no-op, not a run: no issue, no stub, no dashboard
+entry, no trace.
+
+This file decides only things a script can decide with certainty. Every
+judgment call belongs to a model (the manager interprets, the critic judges) or
+to a human (the owner seeds stances). If you find yourself writing an `if` that
+weighs significance, it belongs in a prompt.
+
+Stages, and where each lands:
+  0. gate       — this ticket
+  1. prepare    — this ticket
+  2. research   — build 02/03
+  3. synthesize — build 04
+  4. validate   — build 05
+  5. critique   — build 07/08
+  6. publish    — build 06
+
+Spec: SPEC.md, docs/spec/09-orchestrator.md
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import sys
+from datetime import date, datetime
+from pathlib import Path
+
+from researchswarm.cadence import is_run_day, load_cadence
+from researchswarm.runs import LOOKBACK_FLOOR, resolve_coverage_window, resolve_run_id
+from researchswarm.state import check_entity_refs, load_state
+
+REPO_ROOT = Path(__file__).resolve().parent
+
+EXIT_OK = 0
+EXIT_CONFIG_ERROR = 2
+
+log = logging.getLogger("researchswarm")
+
+
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run one ResearchSwarm cycle.")
+    parser.add_argument(
+        "--today",
+        type=date.fromisoformat,
+        default=None,
+        help="Fake the date (YYYY-MM-DD). Cadence is testable by faking the date "
+        "rather than waiting a week.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Run even if today is not a run day. Does not fake the date.",
+    )
+    parser.add_argument(
+        "--root", type=Path, default=REPO_ROOT, help="Repo root (defaults to this file's dir)."
+    )
+    parser.add_argument("-v", "--verbose", action="store_true")
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parse_args(argv)
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(levelname)s %(message)s",
+    )
+
+    root: Path = args.root
+    now = datetime.now()
+    if args.today:
+        # Keep run_id and the coverage window on the SAME date. Otherwise a
+        # faked run stamps its findings dir with the real date while the window
+        # uses the fake one, and the artifact disagrees with itself.
+        now = now.replace(year=args.today.year, month=args.today.month, day=args.today.day)
+    today = now.date()
+
+    # --- Stage 0: the gate -------------------------------------------------
+    # Exits before touching anything else. The scheduler is dumb; this is where
+    # cadence actually lives, which is why it is a config fact and not a cron
+    # fact — versioned, git-visible, reviewable in a diff.
+    try:
+        cadence = load_cadence(root / "config" / "cadence.toml")
+    except (FileNotFoundError, ValueError) as exc:
+        log.error("%s", exc)
+        return EXIT_CONFIG_ERROR
+
+    if not is_run_day(cadence, today) and not args.force:
+        log.info("%s is not a run day (cadence: %s) — no-op", today, ", ".join(cadence.days))
+        return EXIT_OK
+
+    # --- Stage 1: prepare --------------------------------------------------
+    run_id = resolve_run_id(now)
+    log.info("run_id=%s today=%s", run_id, today)
+
+    try:
+        state = load_state(root / "state")
+    except (FileNotFoundError, ValueError) as exc:
+        log.error("%s", exc)
+        return EXIT_CONFIG_ERROR
+
+    dangling = check_entity_refs(state)
+    if dangling:
+        # The spine is what links watchlist to issue to queue to findings.
+        # If it has forked, everything downstream is unsound — refuse the run
+        # rather than publish an issue built on references that go nowhere.
+        for ref in dangling:
+            log.error("dangling entity_id %r referenced at %s", ref.entity_id, ref.where)
+        log.error("%d dangling entity reference(s) — refusing to run", len(dangling))
+        return EXIT_CONFIG_ERROR
+
+    log.info(
+        "state ok: %d entities, %d beliefs (v%s), %d queue items",
+        len(state.entity_ids),
+        len(state.thesis.get("beliefs", [])),
+        state.thesis.get("version"),
+        len(state.catalyst_queue.get("queue", [])),
+    )
+
+    window = resolve_coverage_window(
+        root / "issues", today=today, cold_start_days=cadence.cold_start_lookback_days
+    )
+    if window.previous_issue:
+        log.info("coverage %s → %s (joins %s)", window.from_, window.to, window.previous_issue)
+    elif window.baseline_expired:
+        # Advisory, not fatal: the validator files continuity_baseline_expired.
+        log.warning(
+            "no issue carrying a coverage window within the last %d — cold-start window %s → %s",
+            LOOKBACK_FLOOR,
+            window.from_,
+            window.to,
+        )
+    else:
+        log.info("no previous issue — run #1, cold-start window %s → %s", window.from_, window.to)
+
+    # --- Stages 2-6 --------------------------------------------------------
+    log.info("prepare complete; research → publish land in builds 02-06")
+    return EXIT_OK
+
+
+if __name__ == "__main__":
+    sys.exit(main())

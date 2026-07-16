@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+"""Register the daily heartbeat with the OS scheduler.
+
+This is the ENTIRE platform-specific surface of the system, and it is meant to
+stay that way. The scheduler is dumb: it fires run.py at the configured hour,
+every day, forever, and is never rewritten. Everything about whether today is
+actually a run day lives in config/cadence.toml, where it is versioned,
+reviewable in a diff, and testable by faking the date.
+
+If you ever find yourself wanting this script to know about Mondays, Thursdays
+or conference windows, the design has gone wrong — that knowledge belongs in
+cadence.toml.
+
+Usage:
+    ./schedule-install              # install, using config/cadence.toml's hour
+    ./schedule-install --dry-run    # print what would happen
+    ./schedule-install --uninstall
+
+Spec: docs/spec/02-cadence-and-surge.md, docs/spec/09-orchestrator.md
+"""
+
+from __future__ import annotations
+
+import argparse
+import platform
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from researchswarm.cadence import load_cadence  # noqa: E402
+
+REPO_ROOT = Path(__file__).resolve().parent
+TASK_NAME = "ResearchSwarm"
+LAUNCHD_LABEL = "com.researchswarm.heartbeat"
+
+
+def _plist_path() -> Path:
+    return Path.home() / "Library" / "LaunchAgents" / f"{LAUNCHD_LABEL}.plist"
+
+
+def _launchd_plist(hour: int, python: str) -> str:
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>{LAUNCHD_LABEL}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>{python}</string>
+    <string>{REPO_ROOT / "run.py"}</string>
+  </array>
+  <key>WorkingDirectory</key><string>{REPO_ROOT}</string>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>{hour}</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+  <key>StandardOutPath</key><string>{REPO_ROOT / "runs" / "heartbeat.log"}</string>
+  <key>StandardErrorPath</key><string>{REPO_ROOT / "runs" / "heartbeat.log"}</string>
+</dict>
+</plist>
+"""
+
+
+def install_launchd(hour: int, dry_run: bool) -> int:
+    plist_path = _plist_path()
+    content = _launchd_plist(hour, sys.executable)
+    if dry_run:
+        print(f"would write {plist_path}\n\n{content}")
+        return 0
+    plist_path.parent.mkdir(parents=True, exist_ok=True)
+    (REPO_ROOT / "runs").mkdir(exist_ok=True)
+    plist_path.write_text(content)
+    subprocess.run(["launchctl", "unload", str(plist_path)], capture_output=True, check=False)
+    subprocess.run(["launchctl", "load", str(plist_path)], check=True)
+    print(f"installed: {LAUNCHD_LABEL} fires run.py daily at {hour:02d}:00")
+    print(f"  plist: {plist_path}")
+    return 0
+
+
+def uninstall_launchd(hour: int, dry_run: bool) -> int:
+    plist_path = _plist_path()
+    if dry_run:
+        print(f"would unload and remove {plist_path}")
+        return 0
+    subprocess.run(["launchctl", "unload", str(plist_path)], capture_output=True, check=False)
+    plist_path.unlink(missing_ok=True)
+    print(f"uninstalled: {LAUNCHD_LABEL}")
+    return 0
+
+
+def install_windows(hour: int, dry_run: bool) -> int:
+    """Windows Task Scheduler — the target machine for this system.
+
+    /F overwrites an existing task, so re-running is idempotent.
+    """
+    cmd = [
+        "schtasks", "/Create", "/F",
+        "/TN", TASK_NAME,
+        "/SC", "DAILY",
+        "/ST", f"{hour:02d}:00",
+        "/TR", f'"{sys.executable}" "{REPO_ROOT / "run.py"}"',
+    ]
+    if dry_run:
+        print("would run: " + " ".join(cmd))
+        return 0
+    subprocess.run(cmd, check=True)
+    print(f"installed: task {TASK_NAME!r} fires run.py daily at {hour:02d}:00")
+    return 0
+
+
+def uninstall_windows(hour: int, dry_run: bool) -> int:
+    cmd = ["schtasks", "/Delete", "/F", "/TN", TASK_NAME]
+    if dry_run:
+        print("would run: " + " ".join(cmd))
+        return 0
+    subprocess.run(cmd, check=True)
+    print(f"uninstalled: task {TASK_NAME!r}")
+    return 0
+
+
+def install_cron(hour: int, dry_run: bool) -> int:
+    """Linux: print the line rather than editing the user's crontab for them.
+
+    Silently rewriting someone's crontab is not a favour.
+    """
+    line = f"0 {hour} * * * cd {REPO_ROOT} && {sys.executable} run.py >> {REPO_ROOT}/runs/heartbeat.log 2>&1"
+    print("Add this line to your crontab (`crontab -e`):\n")
+    print(f"  {line}\n")
+    print("It fires every day; config/cadence.toml decides whether today is a run day.")
+    return 0
+
+
+def uninstall_cron(hour: int, dry_run: bool) -> int:
+    print("Remove the ResearchSwarm line from your crontab (`crontab -e`).")
+    return 0
+
+
+# One table, both directions. Keeping install and uninstall in a single map is
+# what stops them drifting apart: they were previously two separate cascades,
+# and the copy had already diverged — install errored on an unknown OS while
+# uninstall quietly told everyone else to edit their crontab.
+INSTALLERS: dict[str, tuple] = {
+    "Darwin": (install_launchd, uninstall_launchd),
+    "Windows": (install_windows, uninstall_windows),
+    "Linux": (install_cron, uninstall_cron),
+}
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("--dry-run", action="store_true", help="Print, don't touch anything.")
+    parser.add_argument("--uninstall", action="store_true")
+    args = parser.parse_args(argv)
+
+    cadence = load_cadence(REPO_ROOT / "config" / "cadence.toml")
+    system = platform.system()
+
+    if system not in INSTALLERS:
+        print(f"unsupported platform: {system}", file=sys.stderr)
+        return 1
+
+    install, uninstall = INSTALLERS[system]
+    if args.uninstall:
+        return uninstall(cadence.hour, args.dry_run)
+
+    print(f"platform: {system}; heartbeat hour from cadence.toml: {cadence.hour:02d}:00")
+    print(f"cadence: run days = {', '.join(cadence.days)} (the scheduler does not know this)\n")
+    return install(cadence.hour, args.dry_run)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.venv/
+venv/
+
+# Run artifacts: raw findings and logs are retained for 24 runs on the host,
+# but they are working papers, not the product. The issues they produce are
+# what gets committed.
+runs/
