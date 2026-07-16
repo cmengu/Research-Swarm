@@ -13,6 +13,7 @@
       "status": "published",
       "critic_verdict": "pass_with_advisories",
       "critic_retries": 1,
+      "thesis_version": 2,
       "models": {
         "researchers": "claude-sonnet-5",
         "manager": "claude-opus-4-8",

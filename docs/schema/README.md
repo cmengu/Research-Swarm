@@ -19,6 +19,10 @@ Prototype asset for ticket [#3](https://github.com/cmengu/Research-Swarm/issues/
 - **`priority` stays a three-value tag** (high | medium | low). No numeric score — 82-vs-79 is false precision. Ranking within a tier = document order, i.e. the manager's judgment.
 - **`confidence` lives on the headline and on each watchlist entry** — the two places a reader acts on. Not on radar items, themes, or frontier moves: scoring everything makes the manager stamp 'high' everywhere and kills the signal.
 
+## Thesis propagation (v0.2.0)
+
+`issue.run.thesis_version` stamps which thesis version an issue argued against. This exists to make one invariant checkable: **if the owner edits a stance and the next issue still argues the old one, the pipeline is broken.** Stances live in exactly one place (`state/thesis.json`), are read fresh at run time, and are never inlined into a prompt template — a template that bakes in stance text is a bug. On an owner edit the version bumps and nothing carries over: prior Research Angles are not re-validated and accumulated `thesis_impact` tallies do not transfer. `candidate_evidence` is retained, because it is sourced fact rather than opinion. Full contract: `state/thesis.json` → `propagation_contract`.
+
 ## Still open (for the spec)
 
 - Whether `headline.so_what` and `research_angle` are the same field wearing two hats.
