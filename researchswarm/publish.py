@@ -1,0 +1,405 @@
+"""Stage 6 — publish: the issue reaches disk, state edits itself, one commit lands.
+
+The last stage, and the one where the pipeline becomes a product. A stage module
+in the idiom of research.py / synthesis.py / validation.py: it owns the recipe,
+run.py stays a recipe-follower. The recipe is FIVE ordered steps, and the order
+is load-bearing:
+
+  1. **Derive stats** — compute the bar from the arrays, never trust the manager
+     ([07]: stats is derived, never authored). Runs first so the issue that
+     reaches disk already carries a stats block the validator would re-accept.
+  2. **Write issues/<date>.json** — immutable. A later run never edits an earlier
+     issue ([08]); the guard lives in stub.check_overwritable, shared with the
+     stub writer so "already published" means one thing.
+  3. **Regenerate issues/index.json** — derived from the issues ON DISK, so it is
+     rebuilt AFTER the issue is written and therefore includes it. If the
+     manifest and the disk ever disagree, disk wins by construction.
+  4. **Apply state edits** — the governance contract made real. This module owns
+     the *publication* recipe; the self-edits themselves (promotions, thesis
+     revisions, queue transitions) live in state_edits.py, which this imports as a
+     seam — publication and the governance contract are different concerns.
+  5. **One git commit** — the whole run as a single reviewable diff. If there is
+     nothing to commit or git is unavailable, the run does NOT fail: the issue is
+     already on disk, and the commit is the review trail, not the product.
+
+A **stub is a run outcome too**, and publish_stub gives it the same last two
+steps: a failed run's stub reaches the manifest and the commit at write time, not
+whenever the next successful run happens to regenerate them — otherwise index.json
+carries an unexplained date gap ([08]) and "one commit per run" quietly means
+"per successful run".
+
+Spec: docs/spec/08-publishing-and-dashboard.md, docs/spec/09-orchestrator.md,
+docs/spec/03-state-and-governance.md, docs/spec/07-issue-schema.md
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import subprocess
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+
+from researchswarm.runs import latest_covering_issue
+from researchswarm.state import State
+from researchswarm.state_edits import apply_state_edits, write_json
+from researchswarm.stub import check_overwritable, issue_path, write_failed_stub
+from researchswarm.validator import derive_stats
+
+log = logging.getLogger("researchswarm.publish")
+
+# While no critic exists (build 07 wires the real one), every published run is
+# uncritiqued by construction — a legitimate status, not a stopgap. The digest is
+# good, unvetted, and honest about it; the uncritiqued banner the dashboard draws
+# is PRECISELY run.status, so no separate banner artifact is written.
+UNCRITIQUED_STATUS = "published_uncritiqued"
+UNCRITIQUED_VERDICT = "not_run"
+
+# Advisory kinds a reader should see in the dropdown BEFORE opening the issue —
+# the markers that change how much to trust it. They ride in the manifest's
+# `flags`. "beats_failed" is added mechanically when the audit trail carries any
+# dead beat. Kept small on purpose: flags are a triage signal, not the full
+# degradation record (which lives in the issue itself).
+FLAG_ADVISORY_KINDS = ("calendar_stale", "continuity_baseline_expired")
+
+
+@dataclass(frozen=True)
+class PublishResult:
+    """What stage 6 hands back: where the issue landed, the status it published
+    under, the stats it stamped, which state files it edited, and whether the run
+    committed. `committed` is False on a benign no-op (nothing staged, or git
+    unavailable) — the issue is still on disk, so it is not a failure."""
+
+    issue_path: Path
+    manifest_path: Path
+    status: str
+    stats: dict
+    state_paths: tuple[Path, ...]
+    committed: bool
+
+
+# ---------------------------------------------------------------------------
+# Step 1 — derive stats and stamp the orchestrator-owned run fields
+# ---------------------------------------------------------------------------
+
+
+def derive_full_stats(issue, issues_dir: Path) -> dict:
+    """The full stats block: the six shared counts plus `previous_issue`.
+
+    The counts come from `validator.derive_stats` — the same function the gate
+    uses to check them, so the stamp cannot drift from what the validator would
+    re-accept. `previous_issue` is the id of the most recent issue that actually
+    covered days, found by the continuity walk that skips stubs; null on run #1,
+    which is TRUE, not a bootstrap flag — there simply was no prior issue ([07]).
+    """
+    stats = derive_stats(issue)
+    prior = latest_covering_issue(issues_dir)
+    stats["previous_issue"] = (
+        prior.payload["issue"]["id"] if prior.payload is not None else None
+    )
+    return stats
+
+
+def stamp_run_fields(issue, stats: dict) -> None:
+    """Stamp the fields the ORCHESTRATOR owns, overwriting the manager's guesses.
+
+    `stats` is derived, never authored, so it replaces whatever the seam forced
+    to {}. `run.status` and `run.critic_verdict` are the orchestrator's to set:
+    with no critic wired they are published_uncritiqued / not_run regardless of
+    what the manager wrote, because a missing critic is a property of the run, not
+    of the draft. `critic_report.validator_report` is left untouched — stage 4
+    already stamped it, and it is the validator's record, not ours to rewrite.
+    """
+    issue["stats"] = stats
+    run = issue.setdefault("issue", {}).setdefault("run", {})
+    run["status"] = UNCRITIQUED_STATUS
+    run["critic_verdict"] = UNCRITIQUED_VERDICT
+
+
+# ---------------------------------------------------------------------------
+# Step 2 — write the immutable issue file
+# ---------------------------------------------------------------------------
+
+
+def write_issue(root: Path, issue) -> Path:
+    """Write issues/<date>.json, refusing to overwrite a published issue.
+
+    The immutability guard is shared with the stub writer (stub.check_overwritable):
+    a same-day rerun may replace its own earlier FAILED stub — a retried failure
+    succeeding is exactly the behaviour we want — but a published issue is
+    immutable and this refuses to touch one, raising PublishedIssueExists.
+    """
+    path = issue_path(root, issue["issue"]["id"])
+    check_overwritable(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_json(path, issue)
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Step 3 — regenerate the manifest from the issues on disk
+# ---------------------------------------------------------------------------
+
+
+def regenerate_manifest(issues_dir: Path, *, generated_at: str | None = None) -> Path:
+    """Rewrite issues/index.json from every issue on disk, newest first.
+
+    Derived, never hand-edited ([08]): the manifest is a projection of the
+    issues, so it is rebuilt whole every run rather than patched. Stubs appear
+    with status "failed" and a null headline_title — a date gap is never
+    unexplained. Unreadable issue files are skipped rather than fatal: one
+    corrupt byte must not stop the dropdown from listing every other issue.
+    """
+    issues_dir = Path(issues_dir)
+    entries = []
+    for path in sorted(issues_dir.glob("*.json"), reverse=True):
+        if path.name == "index.json":
+            continue
+        try:
+            issue = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            continue  # an unreadable issue is not a dropdown entry
+        entries.append(_manifest_entry(issue))
+
+    manifest = {
+        "generated_at": generated_at or datetime.now().isoformat(),
+        "issues": entries,
+    }
+    path = issues_dir / "index.json"
+    issues_dir.mkdir(parents=True, exist_ok=True)
+    write_json(path, manifest)
+    return path
+
+
+def _manifest_entry(issue) -> dict:
+    """One dropdown row — the subset a reader needs to triage without opening.
+
+    headline_title is null for a stub (it has no headline). `surge` rides only
+    when the issue carries it — absent on a baseline run, never null, so the
+    dropdown can group an ASCO week under its window without opening five files.
+    The stats subset is {tracked_updates, sources_cited}; a stub's stats is {}, so
+    the subset is empty rather than a row of nulls.
+    """
+    block = issue.get("issue", {})
+    run = block.get("run", {})
+    headline = issue.get("headline")
+    stats = issue.get("stats") or {}
+
+    entry = {
+        "id": block.get("id"),
+        "published_at": block.get("published_at"),
+        "coverage_window": block.get("coverage_window"),
+        "status": run.get("status"),
+        "headline_title": headline.get("title") if isinstance(headline, dict) else None,
+        "stats": {k: stats[k] for k in ("tracked_updates", "sources_cited") if k in stats},
+        "flags": _manifest_flags(issue),
+    }
+    surge = run.get("surge")
+    if surge:
+        entry["surge"] = surge
+    return entry
+
+
+def _manifest_flags(issue) -> list[str]:
+    """The advisory markers worth seeing before opening — mechanical, no judgment.
+
+    Two sources, both facts the issue already carries: the advisory kinds the
+    validator or critic filed (calendar_stale, continuity_baseline_expired), and
+    "beats_failed" whenever the audit trail names a dead beat. Order is stable
+    (registered kinds first, then beats_failed) so a diff of the manifest is
+    readable.
+    """
+    critic_report = issue.get("critic_report") or {}
+    validator_report = critic_report.get("validator_report") or {}
+    kinds = {
+        f.get("kind")
+        for f in (validator_report.get("findings") or [])
+        + (critic_report.get("advisory_findings") or [])
+        if isinstance(f, dict)
+    }
+    flags = [kind for kind in FLAG_ADVISORY_KINDS if kind in kinds]
+    if (issue.get("sources_and_method") or {}).get("beats_failed"):
+        flags.append("beats_failed")
+    return flags
+
+
+# ---------------------------------------------------------------------------
+# Step 5 — the single git commit, and the manifest+commit both outcomes share
+# ---------------------------------------------------------------------------
+
+
+def git_commit_run(root: Path, run_id: str, paths, *, message: str, runner=subprocess.run) -> bool:
+    """Stage the run's artifacts and commit them as one reviewable diff.
+
+    The commit is the review trail that replaces a human approval step: the issue,
+    the regenerated manifest, the edited state files, and the run's findings +
+    draft (evidence the spec retains) land as one diff citing the run_id.
+
+    Failure here is NOT a run failure. If there is nothing to commit (a run that
+    changed no state and re-derived an identical manifest can still stage the
+    issue, but a dry rerun may stage nothing) or git is unavailable, this logs a
+    warning and returns False — the issue is already on disk, and the product does
+    not depend on the commit. The commit shells out through an injected runner so
+    the failure path is testable without a real repo.
+    """
+    root = Path(root)
+    rel = [str(Path(p).relative_to(root)) for p in paths if Path(p).exists()]
+    if not rel:
+        log.warning("publish: nothing to stage for %s — commit skipped", run_id)
+        return False
+    try:
+        add = runner(
+            ["git", "-C", str(root), "add", *rel], capture_output=True, text=True
+        )
+        if add.returncode != 0:
+            log.warning(
+                "publish: git add failed (%s) — issue is on disk, commit skipped",
+                (add.stderr or "").strip(),
+            )
+            return False
+        commit = runner(
+            ["git", "-C", str(root), "commit", "-m", message], capture_output=True, text=True
+        )
+        if commit.returncode != 0:
+            log.warning(
+                "publish: git commit did not land (%s) — issue is on disk",
+                (commit.stdout or commit.stderr or "").strip(),
+            )
+            return False
+    except Exception as exc:  # git missing, or the injected runner raised
+        log.warning("publish: git unavailable (%s) — issue is on disk, commit skipped", exc)
+        return False
+    log.info("publish: committed run %s", run_id)
+    return True
+
+
+def _manifest_and_commit(
+    root: Path,
+    *,
+    run_id: str,
+    now: datetime,
+    issue_file: Path,
+    state_paths,
+    message: str,
+    runner,
+) -> tuple[Path, bool]:
+    """Regenerate the manifest from disk and commit the run — the shared tail.
+
+    Every run outcome ends the same way: the manifest is a projection of the
+    issues on disk (so it always includes what was just written, published or
+    stub), and the whole run lands as one commit. Sharing this between the
+    published path and the stub path is what makes "in the dropdown" and "one
+    commit per run" true for BOTH — a stub that skipped these would leave an
+    unexplained date gap until the next success.
+    """
+    manifest_path = regenerate_manifest(root / "issues", generated_at=now.isoformat())
+    committed = git_commit_run(
+        root,
+        run_id,
+        [issue_file, manifest_path, *state_paths, root / "runs" / run_id],
+        message=message,
+        runner=runner,
+    )
+    return manifest_path, committed
+
+
+# ---------------------------------------------------------------------------
+# The recipe, and the stub that shares its tail
+# ---------------------------------------------------------------------------
+
+
+def run_publish_stage(
+    root: Path,
+    *,
+    draft: dict,
+    state: State,
+    run_id: str,
+    now: datetime,
+    runner=subprocess.run,
+) -> PublishResult:
+    """Run stage 6's five ordered steps and return where the issue landed.
+
+    `draft` is the validated issue from stage 4 — validator_report already
+    stamped, stats still {}. This derives stats, stamps the orchestrator-owned run
+    fields, writes the immutable issue, regenerates the manifest, applies the
+    state edits, and commits once. May raise PublishedIssueExists if the date
+    already holds a published issue (immutability).
+
+    Once the issue is ON DISK, a downstream failure (state edits, say) must not
+    leave the artifact trail behind the artifact: the manifest is regenerated and
+    the run committed on a best-effort basis before the exception propagates, so
+    the caller's stub attempt finds the day already published (and correctly fails
+    without laundering it), while the manifest and commit still reflect what
+    reached disk.
+    """
+    issues_dir = root / "issues"
+
+    stats = derive_full_stats(draft, issues_dir)
+    stamp_run_fields(draft, stats)
+
+    # write_issue may raise BEFORE anything lands (immutability) — a clean fail.
+    issue_file = write_issue(root, draft)
+    issue_id = draft["issue"]["id"]
+    status = draft["issue"]["run"]["status"]
+    message = f"run {run_id}: publish {issue_id} ({status})"
+
+    try:
+        state_paths = apply_state_edits(root, draft, state, run_id, now)
+    except Exception:
+        # The issue is already published on disk; keep the trail current even as
+        # this run fails, then let the failure propagate to the caller's handler.
+        log.warning("publish: state edits failed after the issue was written — committing what exists")
+        _manifest_and_commit(
+            root, run_id=run_id, now=now, issue_file=issue_file, state_paths=(),
+            message=message, runner=runner,
+        )
+        raise
+
+    manifest_path, committed = _manifest_and_commit(
+        root, run_id=run_id, now=now, issue_file=issue_file, state_paths=state_paths,
+        message=message, runner=runner,
+    )
+
+    return PublishResult(
+        issue_path=issue_file,
+        manifest_path=manifest_path,
+        status=status,
+        stats=stats,
+        state_paths=tuple(state_paths),
+        committed=committed,
+    )
+
+
+def publish_stub(
+    root: Path,
+    *,
+    run_id: str,
+    now: datetime,
+    window: dict,
+    stage: str,
+    detail: str,
+    thesis_version=None,
+    beats_failed=None,
+    runner=subprocess.run,
+) -> Path:
+    """Write a failed-run stub AND land it in the manifest and one commit.
+
+    A stub is a run OUTCOME, not the absence of one: it must reach the dropdown
+    and the commit trail exactly as a published issue does. Wrapping the stub
+    writer with the shared manifest+commit tail is the one home for that — every
+    failure path in run.py calls this, so none can forget, and "one commit per
+    run" holds for failed runs too. Raises PublishedIssueExists (from
+    write_failed_stub) when the date already published — the caller reports the
+    failure without overwriting the real issue.
+    """
+    path = write_failed_stub(
+        root, run_id=run_id, now=now, window=window, stage=stage, detail=detail,
+        thesis_version=thesis_version, beats_failed=beats_failed,
+    )
+    message = f"run {run_id}: stub {now.date().isoformat()} (failed at {stage})"
+    _manifest_and_commit(
+        root, run_id=run_id, now=now, issue_file=path, state_paths=(),
+        message=message, runner=runner,
+    )
+    return path
