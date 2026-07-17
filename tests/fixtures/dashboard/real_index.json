@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-07-17T10:55:00.717585",
+  "issues": [
+    {
+      "id": "2026-07-17",
+      "published_at": "2026-07-17T10:55:00.717585",
+      "coverage_window": {
+        "from": "2026-07-10",
+        "to": "2026-07-17"
+      },
+      "status": "published_uncritiqued",
+      "headline_title": "China-originated ADCs post two Phase 3 wins in one week \u2014 and the licensors, not the platform owners, are collecting",
+      "stats": {
+        "tracked_updates": 9,
+        "sources_cited": 51
+      },
+      "flags": [
+        "beats_failed"
+      ]
+    }
+  ]
+}
