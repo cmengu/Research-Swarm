@@ -75,7 +75,8 @@ def test_a_real_manager_returns_a_valid_v1_0_0_issue(repo_root, newest_findings)
         findings_by_beat=findings_by_beat,
         beats_failed=beats_failed,
         prior_quiet=resolve_prior_quiet(repo_root / "issues"),
-        models={"researchers": beats[0].model, "manager": models_config["manager"], "critic": None},
+        models={"researchers": beats[0].model, "manager": models_config["manager"],
+                "critic": models_config.get("critic")},
         issue_id="2026-07-16",
         published_at="2026-07-16T07:00:00+08:00",
     )

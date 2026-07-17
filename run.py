@@ -33,6 +33,7 @@ from pathlib import Path
 
 from researchswarm.beats import load_beats
 from researchswarm.cadence import is_run_day, load_cadence
+from researchswarm.critique import run_critique_stage
 from researchswarm.manager import ManagerFailed, load_models
 from researchswarm.prompts import RunContext, load_template
 from researchswarm.publish import publish_stub, run_publish_stage
@@ -341,12 +342,35 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     # --- Stage 5: critique -------------------------------------------------
-    # The critic (build 07) is not wired yet. A missing critic is NOT a failed
-    # run: the digest publishes with run.status published_uncritiqued, and the
-    # dashboard draws the uncritiqued banner from that status. The gap is
-    # banner-visible, not silent — which is why this ticket ships a working
-    # product on its own.
-    log.info("critic lands in build 07 — publishing uncritiqued")
+    # The cross-family gate: Codex judges what Claude wrote. One pass, its verdict
+    # mapped to the run.status the issue publishes under (the retry loop is #35).
+    # A missing or unparseable critic is NOT a failed run — run_critique_stage
+    # resolves it to not_run and the digest publishes published_uncritiqued with a
+    # banner. There is deliberately NO try/except here laundering a critic failure
+    # into a stub: the handled failures are already not_run, and a genuine bug in
+    # this wiring should escape loudly rather than masquerade as a critique stub.
+    try:
+        critic_template = load_template(root / "prompts" / "critic.md")
+    except (FileNotFoundError, ValueError) as exc:
+        return _config_error(exc)
+
+    critic = run_critique_stage(
+        root,
+        draft=validation.draft,
+        state=state,
+        run_id=run_id,
+        beats_run=stage.beats_run,
+        issues_dir=root / "issues",
+        critic_template=critic_template,
+        model=models_config["critic"],
+        schema_file=root / "prompts" / "critic-output-schema.json",
+    )
+    log.info(
+        "critic: %s → %s%s",
+        critic.verdict,
+        critic.status,
+        f" ({critic.reason})" if critic.reason else "",
+    )
 
     # --- Stage 6: publish --------------------------------------------------
     # Derived stats, the immutable issue, the regenerated manifest, the state
@@ -357,7 +381,7 @@ def main(argv: list[str] | None = None) -> int:
     # guard fires here so the run reports the failure without laundering it.
     try:
         publish = run_publish_stage(
-            root, draft=validation.draft, state=state, run_id=run_id, now=now
+            root, draft=validation.draft, state=state, run_id=run_id, now=now, critic=critic
         )
     except PublishedIssueExists as exc:
         log.error("%s", exc)

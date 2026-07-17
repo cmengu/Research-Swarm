@@ -351,9 +351,10 @@ class TestPublishStage:
     def test_pipeline_publishes_and_commits(self, fake_repo, monkeypatch):
         """The whole point of the ticket: a run reaches disk as a published issue
         with derived stats, published_uncritiqued, a regenerated manifest, applied
-        state edits, and one git commit. Research/synthesis/validation are stubbed
-        so the test isolates the stage-6 wiring; publish runs for real."""
+        state edits, and one git commit. Research/synthesis/validation/critique are
+        stubbed so the test isolates the stage-6 wiring; publish runs for real."""
         import run
+        from researchswarm.critique import CritiqueStageResult, PUBLISHED_UNCRITIQUED
         from researchswarm.research import ResearchStage
         from researchswarm.validation import ValidationStageResult
 
@@ -388,6 +389,15 @@ class TestPublishStage:
             run, "run_validation_stage",
             lambda **k: ValidationStageResult(draft=draft, retries_used=0, advisory=()),
         )
+        # Stage 5 is isolated here (its own tests live in test_critic.py / a
+        # dedicated wiring class); stub it to a not_run outcome so this test keeps
+        # asserting the published_uncritiqued publish path end to end.
+        monkeypatch.setattr(
+            run, "run_critique_stage",
+            lambda *a, **k: CritiqueStageResult(
+                status=PUBLISHED_UNCRITIQUED, verdict="not_run", reason="stubbed"
+            ),
+        )
 
         code = run.main(["--today", "2026-07-16", "--root", str(fake_repo)])
         assert code == 0
@@ -411,6 +421,120 @@ class TestPublishStage:
             ["git", "-C", str(fake_repo), "log", "--oneline"], capture_output=True, text=True
         ).stdout
         assert "publish 2026-07-16 (published_uncritiqued)" in log
+
+
+class TestCritiqueStage:
+    """Stage 5 → publish wiring: each critic outcome lands as the right published
+    run.status and critic_report, and stage 4's validator_report is preserved."""
+
+    def _drive(self, fake_repo, monkeypatch, critic_result, *, draft=None):
+        import run
+        from researchswarm.research import ResearchStage
+        from researchswarm.validation import ValidationStageResult
+
+        subprocess.run(["git", "init", "-q", str(fake_repo)], check=True)
+        subprocess.run(["git", "-C", str(fake_repo), "config", "user.email", "t@t.com"], check=True)
+        subprocess.run(["git", "-C", str(fake_repo), "config", "user.name", "T"], check=True)
+
+        the_draft = draft if draft is not None else _valid_draft()
+        # Stage 4 stamps a validator_report; publish must preserve it under the critic outcome.
+        the_draft["critic_report"] = {
+            "validator_report": {"passed": True, "retries_used": 1,
+                                 "findings": [{"kind": "empty_section", "where": "x", "note": "fixed"}]}
+        }
+
+        monkeypatch.setattr(
+            run, "run_research_stage",
+            lambda *a, **k: ResearchStage(beats_run=["ma_dealmaking"], beats_failed=[]),
+        )
+        draft_path = fake_repo / "runs" / SYNTH_RUN_ID / "issue-draft.json"
+
+        def fake_synthesis(root, **kwargs):
+            draft_path.parent.mkdir(parents=True, exist_ok=True)
+            draft_path.write_text(json.dumps(the_draft))
+            return SimpleNamespace(draft=the_draft, num_turns=1, cost_usd=0.0, attempts=1), draft_path
+
+        monkeypatch.setattr(run, "run_synthesis_stage", fake_synthesis)
+        monkeypatch.setattr(
+            run, "run_validation_stage",
+            lambda **k: ValidationStageResult(draft=the_draft, retries_used=0, advisory=()),
+        )
+        monkeypatch.setattr(run, "run_critique_stage", lambda *a, **k: critic_result)
+
+        code = run.main(["--today", "2026-07-16", "--root", str(fake_repo)])
+        issue = json.loads((fake_repo / "issues" / "2026-07-16.json").read_text())
+        manifest = json.loads((fake_repo / "issues" / "index.json").read_text())
+        return code, issue, manifest
+
+    @pytest.mark.parametrize(
+        "verdict,status",
+        [("pass", "published"),
+         ("pass_with_advisories", "published"),
+         ("blocked", "published_with_unresolved_findings"),
+         ("not_run", "published_uncritiqued")],
+    )
+    def test_each_verdict_maps_to_its_status(self, fake_repo, monkeypatch, verdict, status):
+        from researchswarm.critique import CritiqueStageResult
+
+        result = CritiqueStageResult(status=status, verdict=verdict)
+        code, issue, manifest = self._drive(fake_repo, monkeypatch, result)
+        assert code == 0
+        assert issue["issue"]["run"]["status"] == status
+        assert issue["issue"]["run"]["critic_verdict"] == verdict
+        # critic_retries is orchestrator-owned too — 0 for now (#35's loop), never
+        # a manager-authored value.
+        assert issue["issue"]["run"]["critic_retries"] == 0
+        assert manifest["issues"][0]["status"] == status
+
+    def test_blocking_findings_publish_in_the_report(self, fake_repo, monkeypatch):
+        from researchswarm.critique import CritiqueStageResult
+
+        blocking = ({"kind": "overclaim", "where": "headline", "note": "too strong"},)
+        result = CritiqueStageResult(status="published_with_unresolved_findings",
+                                     verdict="blocked", blocking_findings=blocking)
+        _, issue, _ = self._drive(fake_repo, monkeypatch, result)
+        assert issue["critic_report"]["blocking_findings"] == list(blocking)
+
+    def test_validator_report_is_preserved_inside_critic_report(self, fake_repo, monkeypatch):
+        from researchswarm.critique import CritiqueStageResult
+
+        result = CritiqueStageResult(status="published", verdict="pass")
+        _, issue, _ = self._drive(fake_repo, monkeypatch, result)
+        vr = issue["critic_report"]["validator_report"]
+        assert vr["passed"] is True and vr["retries_used"] == 1
+        assert vr["findings"][0]["kind"] == "empty_section"
+
+    def test_not_run_reason_lands_in_the_report(self, fake_repo, monkeypatch):
+        from researchswarm.critique import CritiqueStageResult
+
+        result = CritiqueStageResult(status="published_uncritiqued", verdict="not_run",
+                                     reason="codex binary not found on PATH")
+        _, issue, _ = self._drive(fake_repo, monkeypatch, result)
+        assert issue["critic_report"]["verdict"] == "not_run"
+        assert issue["critic_report"]["reason"] == "codex binary not found on PATH"
+
+    def test_manager_authored_critic_catches_survive_to_publish_and_stats(self, fake_repo, monkeypatch):
+        """A critic_catch is a manager-authored record of a rejected claim (its
+        population is #35's job, but the plumbing must already carry it through).
+        Drive a nonempty quiet_this_cycle.critic_catches through critique→publish
+        and assert it survives the issue AND is counted in the derived stats."""
+        from researchswarm.critique import CritiqueStageResult
+
+        draft = _valid_draft()
+        draft["quiet_this_cycle"]["critic_catches"] = [
+            {"claim": "Zentalis raising $400M at a $2.1B valuation",
+             "rejected_because": "provenance_stale",
+             "detail": "Every repeat traces to a single 12 Mar Bloomberg piece.",
+             "caught_by": "critic", "sources": []}
+        ]
+        result = CritiqueStageResult(status="published", verdict="pass")
+        _, issue, _ = self._drive(fake_repo, monkeypatch, result, draft=draft)
+
+        catches = issue["quiet_this_cycle"]["critic_catches"]
+        assert len(catches) == 1
+        assert catches[0]["rejected_because"] == "provenance_stale"
+        # Derived, never authored: the stat is recomputed from the array.
+        assert issue["stats"]["critic_catches"] == 1
 
 
 class TestFailureModes:

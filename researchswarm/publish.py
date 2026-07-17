@@ -41,6 +41,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from researchswarm.critic import NOT_RUN, PUBLISHED_UNCRITIQUED
+from researchswarm.critique import CritiqueStageResult
 from researchswarm.runs import latest_covering_issue
 from researchswarm.state import State
 from researchswarm.state_edits import apply_state_edits, write_json
@@ -49,12 +51,13 @@ from researchswarm.validator import derive_stats
 
 log = logging.getLogger("researchswarm.publish")
 
-# While no critic exists (build 07 wires the real one), every published run is
-# uncritiqued by construction — a legitimate status, not a stopgap. The digest is
-# good, unvetted, and honest about it; the uncritiqued banner the dashboard draws
-# is PRECISELY run.status, so no separate banner artifact is written.
-UNCRITIQUED_STATUS = "published_uncritiqued"
-UNCRITIQUED_VERDICT = "not_run"
+# The pre-critic default outcome: when stage 5 produced no CritiqueStageResult, a
+# run publishes uncritiqued by construction — a legitimate status, not a stopgap.
+# The digest is good, unvetted, and honest about it; the uncritiqued banner the
+# dashboard draws is PRECISELY run.status, so no separate banner artifact is
+# written. The literals come from critic — one home for the vocabulary.
+UNCRITIQUED_STATUS = PUBLISHED_UNCRITIQUED
+UNCRITIQUED_VERDICT = NOT_RUN
 
 # Advisory kinds a reader should see in the dropdown BEFORE opening the issue —
 # the markers that change how much to trust it. They ride in the manifest's
@@ -101,20 +104,50 @@ def derive_full_stats(issue, issues_dir: Path) -> dict:
     return stats
 
 
-def stamp_run_fields(issue, stats: dict) -> None:
+def stamp_run_fields(issue, stats: dict, critic: CritiqueStageResult | None = None) -> None:
     """Stamp the fields the ORCHESTRATOR owns, overwriting the manager's guesses.
 
     `stats` is derived, never authored, so it replaces whatever the seam forced
-    to {}. `run.status` and `run.critic_verdict` are the orchestrator's to set:
-    with no critic wired they are published_uncritiqued / not_run regardless of
-    what the manager wrote, because a missing critic is a property of the run, not
-    of the draft. `critic_report.validator_report` is left untouched — stage 4
-    already stamped it, and it is the validator's record, not ours to rewrite.
+    to {}. `run.status`, `run.critic_verdict`, `run.critic_retries`, and the
+    critic_report's own verdict/findings are ALL the orchestrator's to set — a
+    critic outcome is a property of the RUN, not of the draft, so the manager's
+    authored guesses (including its zero critic_retries) are overwritten rather
+    than trusted, and #35's real retry counts cannot diverge from a stale zero.
+
+    `critic` is the stage-5 CritiqueStageResult or None. None keeps the pre-critic
+    default — published_uncritiqued / not_run — still correct for a run where stage
+    5 produced no outcome. Either way `critic_report.validator_report` is PRESERVED:
+    stage 4 stamped it, it is the validator's record, not the critic's to clobber.
     """
     issue["stats"] = stats
     run = issue.setdefault("issue", {}).setdefault("run", {})
-    run["status"] = UNCRITIQUED_STATUS
-    run["critic_verdict"] = UNCRITIQUED_VERDICT
+    report = issue.setdefault("critic_report", {})
+    validator_report = report.get("validator_report")  # stage 4's — preserve it
+
+    if critic is None:
+        run["status"] = UNCRITIQUED_STATUS
+        run["critic_verdict"] = UNCRITIQUED_VERDICT
+        run["critic_retries"] = 0
+        report["verdict"] = UNCRITIQUED_VERDICT
+        report["retries_used"] = 0
+        report["blocking_findings"] = []
+        report["advisory_findings"] = []
+    else:
+        run["status"] = critic.status
+        run["critic_verdict"] = critic.verdict
+        run["critic_retries"] = critic.retries_used
+        report["verdict"] = critic.verdict
+        report["retries_used"] = critic.retries_used
+        report["blocking_findings"] = list(critic.blocking_findings)
+        report["advisory_findings"] = list(critic.advisory_findings)
+        # critic_report.reason is a DELIBERATE extension beyond spec/07's shape:
+        # on not_run it carries the banner's explanation of WHY the run went
+        # uncritiqued (missing binary, timeout, unparseable output), not just that
+        # it did. Omitted when there is no reason to record.
+        if critic.reason:
+            report["reason"] = critic.reason
+
+    report["validator_report"] = validator_report
 
 
 # ---------------------------------------------------------------------------
@@ -233,8 +266,11 @@ def git_commit_run(root: Path, run_id: str, paths, *, message: str, runner=subpr
     """Stage the run's artifacts and commit them as one reviewable diff.
 
     The commit is the review trail that replaces a human approval step: the issue,
-    the regenerated manifest, the edited state files, and the run's findings +
-    draft (evidence the spec retains) land as one diff citing the run_id.
+    the regenerated manifest, and the edited state files land as one diff citing
+    the run_id. The run's findings + draft stay OUT of it — `runs/` is gitignored
+    working papers with its own 24-run retention on disk (spec/09), and staging an
+    ignored path makes `git add` fail wholesale, taking the real artifacts down
+    with it.
 
     Failure here is NOT a run failure. If there is nothing to commit (a run that
     changed no state and re-derived an identical manifest can still stage the
@@ -297,7 +333,7 @@ def _manifest_and_commit(
     committed = git_commit_run(
         root,
         run_id,
-        [issue_file, manifest_path, *state_paths, root / "runs" / run_id],
+        [issue_file, manifest_path, *state_paths],
         message=message,
         runner=runner,
     )
@@ -316,15 +352,18 @@ def run_publish_stage(
     state: State,
     run_id: str,
     now: datetime,
+    critic: CritiqueStageResult | None = None,
     runner=subprocess.run,
 ) -> PublishResult:
     """Run stage 6's five ordered steps and return where the issue landed.
 
     `draft` is the validated issue from stage 4 — validator_report already
-    stamped, stats still {}. This derives stats, stamps the orchestrator-owned run
-    fields, writes the immutable issue, regenerates the manifest, applies the
-    state edits, and commits once. May raise PublishedIssueExists if the date
-    already holds a published issue (immutability).
+    stamped, stats still {}. `critic` is the stage-5 outcome that decides the
+    published run.status and critic_report (None → the pre-critic
+    published_uncritiqued default). This derives stats, stamps the
+    orchestrator-owned run fields, writes the immutable issue, regenerates the
+    manifest, applies the state edits, and commits once. May raise
+    PublishedIssueExists if the date already holds a published issue (immutability).
 
     Once the issue is ON DISK, a downstream failure (state edits, say) must not
     leave the artifact trail behind the artifact: the manifest is regenerated and
@@ -336,7 +375,7 @@ def run_publish_stage(
     issues_dir = root / "issues"
 
     stats = derive_full_stats(draft, issues_dir)
-    stamp_run_fields(draft, stats)
+    stamp_run_fields(draft, stats, critic)
 
     # write_issue may raise BEFORE anything lands (immutability) — a clean fail.
     issue_file = write_issue(root, draft)
