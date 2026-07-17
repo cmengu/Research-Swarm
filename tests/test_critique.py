@@ -21,7 +21,7 @@ from researchswarm.prompts import load_template
 from researchswarm.state import load_state
 
 RUN_ID = "run_20260716_0700"
-MODEL = "gpt-5.6-codex"
+MODEL = "gpt-5-codex"
 DROPPED_URL = "https://endpoints.com/merck-verastem"
 
 

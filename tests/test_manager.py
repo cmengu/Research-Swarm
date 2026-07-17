@@ -89,7 +89,7 @@ class TestLoadModels:
     def test_reads_the_role_ids_from_the_repo(self, repo_root):
         models = load_models(repo_root / "config" / "models.toml")
         assert models["manager"] == "claude-opus-4-8"
-        assert models["critic"] == "gpt-5.6-codex"
+        assert models["critic"] == "gpt-5-codex"
 
     def test_missing_file_fails_loudly(self, tmp_path):
         with pytest.raises(FileNotFoundError, match="models config not found"):
@@ -99,7 +99,7 @@ class TestLoadModels:
         """A missing manager id must fail here, not surface as an empty --model
         flag the CLI rejects three stages later."""
         path = tmp_path / "models.toml"
-        path.write_text("[models]\ncritic = \"gpt-5.6-codex\"\n")
+        path.write_text("[models]\ncritic = \"gpt-5-codex\"\n")
         with pytest.raises(ValueError, match="manager is required"):
             load_models(path)
 

@@ -51,7 +51,7 @@ The complete field-level contract for a published issue. This is what the manage
     "models": {
       "researchers": "claude-sonnet-5",
       "manager": "claude-opus-4-8",
-      "critic": "gpt-5.6-codex"
+      "critic": "gpt-5-codex"
     },
     "surge": {                              // ABSENT (not null) on a baseline run
       "window": "ASCO 2026",

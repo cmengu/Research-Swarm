@@ -266,8 +266,11 @@ def git_commit_run(root: Path, run_id: str, paths, *, message: str, runner=subpr
     """Stage the run's artifacts and commit them as one reviewable diff.
 
     The commit is the review trail that replaces a human approval step: the issue,
-    the regenerated manifest, the edited state files, and the run's findings +
-    draft (evidence the spec retains) land as one diff citing the run_id.
+    the regenerated manifest, and the edited state files land as one diff citing
+    the run_id. The run's findings + draft stay OUT of it — `runs/` is gitignored
+    working papers with its own 24-run retention on disk (spec/09), and staging an
+    ignored path makes `git add` fail wholesale, taking the real artifacts down
+    with it.
 
     Failure here is NOT a run failure. If there is nothing to commit (a run that
     changed no state and re-derived an identical manifest can still stage the
@@ -330,7 +333,7 @@ def _manifest_and_commit(
     committed = git_commit_run(
         root,
         run_id,
-        [issue_file, manifest_path, *state_paths, root / "runs" / run_id],
+        [issue_file, manifest_path, *state_paths],
         message=message,
         runner=runner,
     )

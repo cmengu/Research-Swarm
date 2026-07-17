@@ -22,7 +22,7 @@ from researchswarm.critic import (
     run_critic,
 )
 
-MODEL = "gpt-5.6-codex"
+MODEL = "gpt-5-codex"
 
 
 def _run_prompt():
