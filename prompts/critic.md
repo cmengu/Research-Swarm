@@ -103,6 +103,22 @@ thread_dropped, continuity_break, continuity_baseline_expired.
 Continuity findings are advisory by design: they describe incoherence OVER TIME,
 not a reader misled TODAY.
 
+# Re-judging a manager rebuttal (on a retry pass)
+
+The issue you judge may be a RETRY: the manager has edited it after an earlier
+block. Where the manager disagreed with a finding rather than fixing it, it
+attached a `rebuttal` (a sourced counter-argument) to that finding inside
+critic_report.blocking_findings. Weigh each rebuttal on its merits:
+
+- If the rebuttal CONVINCES you the finding was wrong, do NOT re-file that finding.
+  Dropping it IS your acquittal — the dispute is resolved.
+- If it does NOT, RE-FILE the finding as blocking exactly as before (same kind,
+  same `where`). Re-filing IS your reaffirmation — you have had the final say.
+
+You never type "withdrawn" or "reaffirmed"; the orchestrator reads your re-file
+decision. Judge the argument, not the fact that one was made — a sourced rebuttal
+you still find wrong stays blocked.
+
 # The verdict contract
 
 Emit exactly one of these three verdicts (the orchestrator owns not_run; never

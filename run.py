@@ -351,6 +351,7 @@ def main(argv: list[str] | None = None) -> int:
     # this wiring should escape loudly rather than masquerade as a critique stub.
     try:
         critic_template = load_template(root / "prompts" / "critic.md")
+        critic_retry_template = load_template(root / "prompts" / "critic-retry.md")
     except (FileNotFoundError, ValueError) as exc:
         return _config_error(exc)
 
@@ -362,15 +363,25 @@ def main(argv: list[str] | None = None) -> int:
         beats_run=stage.beats_run,
         issues_dir=root / "issues",
         critic_template=critic_template,
+        retry_template=critic_retry_template,
         model=models_config["critic"],
+        manager_model=models_config["manager"],
+        draft_path=draft_path,
+        thesis_version=state.thesis.get("version"),
         schema_file=root / "prompts" / "critic-output-schema.json",
     )
     log.info(
-        "critic: %s → %s%s",
+        "critic: %s → %s (%d retr%s)%s",
         critic.verdict,
         critic.status,
+        critic.retries_used,
+        "y" if critic.retries_used == 1 else "ies",
         f" ({critic.reason})" if critic.reason else "",
     )
+    # The retry loop may have edited the draft (manager fixes, rebuttals): publish
+    # the draft that came OUT of stage 5, not the one that went in. The stage always
+    # returns one, so there is no fallback.
+    published_draft = critic.draft
 
     # --- Stage 6: publish --------------------------------------------------
     # Derived stats, the immutable issue, the regenerated manifest, the state
@@ -381,7 +392,7 @@ def main(argv: list[str] | None = None) -> int:
     # guard fires here so the run reports the failure without laundering it.
     try:
         publish = run_publish_stage(
-            root, draft=validation.draft, state=state, run_id=run_id, now=now, critic=critic
+            root, draft=published_draft, state=state, run_id=run_id, now=now, critic=critic
         )
     except PublishedIssueExists as exc:
         log.error("%s", exc)

@@ -16,9 +16,17 @@ import pytest
 from researchswarm.critic import (
     ADVISORY_KINDS,
     BLOCKING_KINDS,
+    REAFFIRMED,
+    WITHDRAWN,
     CriticOfflineViolation,
+    attach_adjudication,
     build_codex_command,
     enforce_receipt_rule,
+    extract_rebuttals,
+    finding_key,
+    match_survivor_key,
+    rebuttal_of,
+    rebuttal_record,
     run_critic,
 )
 
@@ -367,6 +375,83 @@ class TestReceiptRule:
         )
         assert overclaim in kept and good in kept
         assert len(kept) == 2 and len(downgraded) == 1
+
+
+# --- the rebuttal channel (mechanical half) --------------------------------
+
+
+def _good_rebuttal():
+    return {"text": "The source does support the claim.",
+            "sources": [{"url": "https://x", "publisher": "Endpoints",
+                         "tier": "trade", "published_at": "2026-07-15"}]}
+
+
+class TestRebuttalHelpers:
+    def test_finding_key_is_kind_and_where(self):
+        assert finding_key({"kind": "overclaim", "where": "headline"}) == ("overclaim", "headline")
+
+    def test_a_sourced_rebuttal_is_well_formed(self):
+        assert rebuttal_of({"rebuttal": _good_rebuttal()}) is not None
+
+    def test_a_rebuttal_without_sources_is_not_a_rebuttal(self):
+        assert rebuttal_of({"rebuttal": {"text": "trust me", "sources": []}}) is None
+
+    def test_a_rebuttal_without_text_is_not_a_rebuttal(self):
+        assert rebuttal_of({"rebuttal": {"text": "", "sources": [{"url": "x"}]}}) is None
+
+    def test_no_rebuttal_field_is_none(self):
+        assert rebuttal_of({"kind": "overclaim"}) is None
+
+    def test_extract_pulls_rebuttals_keyed_by_finding(self):
+        draft = {"critic_report": {"blocking_findings": [
+            {"kind": "overclaim", "where": "headline", "rebuttal": _good_rebuttal()},
+            {"kind": "aggregator_only", "where": "watchlist.merck"},  # no rebuttal
+        ]}}
+        rebuttals = extract_rebuttals(draft)
+        assert set(rebuttals) == {("overclaim", "headline")}
+
+    def test_extract_strips_a_manager_set_adjudication(self):
+        """The manager may not set adjudication — extraction drops it so only the
+        critic's re-judgment can supply it."""
+        reb = {**_good_rebuttal(), "adjudication": "withdrawn"}
+        draft = {"critic_report": {"blocking_findings": [
+            {"kind": "overclaim", "where": "headline", "rebuttal": reb}]}}
+        assert "adjudication" not in extract_rebuttals(draft)[("overclaim", "headline")]
+
+    def test_extract_tolerates_a_malformed_report(self):
+        assert extract_rebuttals({"critic_report": "nonsense"}) == {}
+        assert extract_rebuttals({}) == {}
+
+    def test_match_survivor_is_exact_first(self):
+        findings = [{"kind": "overclaim", "where": "headline"}]
+        assert match_survivor_key(("overclaim", "headline"), findings) == ("overclaim", "headline")
+
+    def test_match_survivor_falls_back_to_a_sole_same_kind(self):
+        """The critic re-filed the same fault with a reworded `where`; one survivor
+        of that kind is an unambiguous re-file, so the rebuttal still attaches."""
+        findings = [{"kind": "overclaim", "where": "headline.summary"}]
+        assert match_survivor_key(("overclaim", "headline"), findings) == ("overclaim", "headline.summary")
+
+    def test_match_survivor_is_none_when_same_kind_is_ambiguous(self):
+        findings = [{"kind": "overclaim", "where": "headline"},
+                    {"kind": "overclaim", "where": "watchlist.x"}]
+        assert match_survivor_key(("overclaim", "headline.summary"), findings) is None
+
+    def test_match_survivor_is_none_when_the_kind_is_gone(self):
+        assert match_survivor_key(("overclaim", "headline"), [{"kind": "aggregator_only", "where": "x"}]) is None
+
+    def test_attach_adjudication_stamps_both_sides_onto_a_finding(self):
+        finding = {"kind": "overclaim", "where": "headline", "note": "x"}
+        annotated = attach_adjudication(finding, _good_rebuttal(), REAFFIRMED)
+        assert annotated["rebuttal"]["adjudication"] == REAFFIRMED
+        assert annotated["rebuttal"]["text"] == _good_rebuttal()["text"]
+        assert finding == {"kind": "overclaim", "where": "headline", "note": "x"}  # unmutated
+
+    def test_rebuttal_record_is_a_standalone_withdrawn_entry(self):
+        record = rebuttal_record(("overclaim", "headline"), _good_rebuttal(), WITHDRAWN)
+        assert record["kind"] == "overclaim" and record["where"] == "headline"
+        assert record["rebuttal"]["adjudication"] == WITHDRAWN
+        assert record["rebuttal"]["sources"]  # both sides carried
 
 
 def test_the_six_blocking_kinds_are_registered():

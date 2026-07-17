@@ -395,7 +395,7 @@ class TestPublishStage:
         monkeypatch.setattr(
             run, "run_critique_stage",
             lambda *a, **k: CritiqueStageResult(
-                status=PUBLISHED_UNCRITIQUED, verdict="not_run", reason="stubbed"
+                draft=draft, status=PUBLISHED_UNCRITIQUED, verdict="not_run", reason="stubbed"
             ),
         )
 
@@ -459,7 +459,14 @@ class TestCritiqueStage:
             run, "run_validation_stage",
             lambda **k: ValidationStageResult(draft=the_draft, retries_used=0, advisory=()),
         )
-        monkeypatch.setattr(run, "run_critique_stage", lambda *a, **k: critic_result)
+        # The stage always returns the (possibly edited) draft; these outcome tests
+        # only care about status/verdict/findings, so inject the_draft here rather
+        # than restate it in every case.
+        import dataclasses
+        monkeypatch.setattr(
+            run, "run_critique_stage",
+            lambda *a, **k: dataclasses.replace(critic_result, draft=the_draft),
+        )
 
         code = run.main(["--today", "2026-07-16", "--root", str(fake_repo)])
         issue = json.loads((fake_repo / "issues" / "2026-07-16.json").read_text())
@@ -476,7 +483,8 @@ class TestCritiqueStage:
     def test_each_verdict_maps_to_its_status(self, fake_repo, monkeypatch, verdict, status):
         from researchswarm.critique import CritiqueStageResult
 
-        result = CritiqueStageResult(status=status, verdict=verdict)
+        # draft is a placeholder — _drive injects the real one the stage returns.
+        result = CritiqueStageResult(draft={}, status=status, verdict=verdict)
         code, issue, manifest = self._drive(fake_repo, monkeypatch, result)
         assert code == 0
         assert issue["issue"]["run"]["status"] == status
@@ -490,7 +498,7 @@ class TestCritiqueStage:
         from researchswarm.critique import CritiqueStageResult
 
         blocking = ({"kind": "overclaim", "where": "headline", "note": "too strong"},)
-        result = CritiqueStageResult(status="published_with_unresolved_findings",
+        result = CritiqueStageResult(draft={}, status="published_with_unresolved_findings",
                                      verdict="blocked", blocking_findings=blocking)
         _, issue, _ = self._drive(fake_repo, monkeypatch, result)
         assert issue["critic_report"]["blocking_findings"] == list(blocking)
@@ -498,7 +506,7 @@ class TestCritiqueStage:
     def test_validator_report_is_preserved_inside_critic_report(self, fake_repo, monkeypatch):
         from researchswarm.critique import CritiqueStageResult
 
-        result = CritiqueStageResult(status="published", verdict="pass")
+        result = CritiqueStageResult(draft={}, status="published", verdict="pass")
         _, issue, _ = self._drive(fake_repo, monkeypatch, result)
         vr = issue["critic_report"]["validator_report"]
         assert vr["passed"] is True and vr["retries_used"] == 1
@@ -507,7 +515,7 @@ class TestCritiqueStage:
     def test_not_run_reason_lands_in_the_report(self, fake_repo, monkeypatch):
         from researchswarm.critique import CritiqueStageResult
 
-        result = CritiqueStageResult(status="published_uncritiqued", verdict="not_run",
+        result = CritiqueStageResult(draft={}, status="published_uncritiqued", verdict="not_run",
                                      reason="codex binary not found on PATH")
         _, issue, _ = self._drive(fake_repo, monkeypatch, result)
         assert issue["critic_report"]["verdict"] == "not_run"
@@ -527,7 +535,7 @@ class TestCritiqueStage:
              "detail": "Every repeat traces to a single 12 Mar Bloomberg piece.",
              "caught_by": "critic", "sources": []}
         ]
-        result = CritiqueStageResult(status="published", verdict="pass")
+        result = CritiqueStageResult(draft={}, status="published", verdict="pass")
         _, issue, _ = self._drive(fake_repo, monkeypatch, result, draft=draft)
 
         catches = issue["quiet_this_cycle"]["critic_catches"]
