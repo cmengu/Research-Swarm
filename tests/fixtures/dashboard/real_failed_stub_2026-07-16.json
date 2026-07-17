@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0.0",
+  "issue": {
+    "id": "2026-07-16",
+    "published_at": "2026-07-16T22:08:57.724419",
+    "coverage_window": {
+      "from": "2026-07-09",
+      "to": "2026-07-16"
+    },
+    "run": {
+      "run_id": "run_20260716_2208",
+      "status": "failed",
+      "critic_verdict": "not_run",
+      "critic_retries": 0,
+      "thesis_version": 2
+    },
+    "failure": {
+      "stage": "research",
+      "detail": "all 6 beat(s) failed validation \u2014 see the run log"
+    }
+  },
+  "headline": null,
+  "stats": {},
+  "tldr_bullets": [],
+  "catalyst_queue": {},
+  "watchlist": [],
+  "quiet_this_cycle": {},
+  "new_on_radar": [],
+  "themes_and_signals": [],
+  "elsewhere_on_frontier": [],
+  "thesis_updates": [],
+  "critic_report": {},
+  "sources_and_method": {
+    "beats_failed": [
+      "ma_dealmaking",
+      "startup_frontier",
+      "clinical_scientific",
+      "policy_regulation",
+      "incumbent_moves",
+      "backstop"
+    ]
+  }
+}

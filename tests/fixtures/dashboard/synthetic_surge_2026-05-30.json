@@ -1,0 +1,221 @@
+{
+  "schema_version": "1.0.0",
+  "issue": {
+    "id": "2026-05-30",
+    "published_at": "2026-05-30T07:42:11+08:00",
+    "coverage_window": {"from": "2026-05-29", "to": "2026-05-30"},
+    "run": {
+      "run_id": "run_20260530_0700",
+      "status": "published_with_unresolved_findings",
+      "critic_verdict": "blocked",
+      "critic_retries": 2,
+      "thesis_version": 3,
+      "models": {"researchers": "claude-sonnet-5", "manager": "claude-opus-4-8", "critic": "gpt-5.6-codex"},
+      "surge": {"window": "ASCO 2026", "day": 2, "of": 5}
+    }
+  },
+  "headline": {
+    "title": "ASCO day 2: daraxonrasib OS readout lands, and the RAS(ON) trade reprices in an afternoon",
+    "summary": "Revolution Medicines reported final overall-survival data from RASolute 302 at ASCO, an HR of 0.40 that beat the pre-specified bar. The readout removes the single largest overhang on the RAS(ON) class and puts a floor under the acquisition case that has circled the company since January.",
+    "so_what": "Every pharma-M&A stance that assumed acquirers wait for the de-risking readout now has its cleanest test: the readout printed, and what the acquirers do next is the datapoint.",
+    "entity_refs": ["revolution_medicines", "merck"],
+    "confidence": "high",
+    "sources": [
+      {"url": "https://example.com/revmed-asco", "publisher": "Revolution Medicines", "tier": "primary", "published_at": "2026-05-30"},
+      {"url": "https://example.com/endpoints-revmed", "publisher": "Endpoints News", "tier": "trade", "published_at": "2026-05-30"}
+    ]
+  },
+  "stats": {
+    "tracked_updates": 2,
+    "tracked_quiet": 5,
+    "new_on_radar": 1,
+    "frontier_items": 1,
+    "sources_cited": 12,
+    "critic_catches": 1,
+    "previous_issue": "2026-05-29"
+  },
+  "tldr_bullets": [
+    {"text": "RASolute 302 final OS: HR 0.40, the RAS(ON) class's first clean survival win.", "entity_refs": ["revolution_medicines"], "priority": "high"},
+    {"text": "M&A desk read is thin this cycle — the dealmaking beat failed and the section carries the marker.", "entity_refs": ["merck"], "priority": "medium"}
+  ],
+  "catalyst_queue": {
+    "snapshot_of": "state/catalyst-queue.json",
+    "recut_at": "2026-05-01",
+    "items": [
+      {
+        "id": "asco26_daraxonrasib_os",
+        "asset": "daraxonrasib",
+        "entity_ids": ["asset_daraxonrasib", "revolution_medicines"],
+        "holders": ["Revolution Medicines"],
+        "catalyst": "RASolute 302 final OS readout",
+        "first_expected_window": "2026-Q2",
+        "expected_window": "2026-Q2",
+        "window_source": {"url": "https://example.com/rasolute-guidance", "publisher": "Revolution Medicines", "tier": "primary", "published_at": "2026-02-10"},
+        "status": "delivered",
+        "slip_log": [],
+        "what_it_would_prove": "A clean OS win removes the class overhang and tests the pharma-M&A stance that acquirers wait for the de-risking readout.",
+        "bears_on_thesis_slot": "pharma-ma-appetite",
+        "sources": [
+          {"url": "https://example.com/revmed-asco", "publisher": "Revolution Medicines", "tier": "primary", "published_at": "2026-05-30"}
+        ]
+      },
+      {
+        "id": "asco26_ivonescimab_os",
+        "asset": "ivonescimab",
+        "entity_ids": ["asset_ivonescimab", "summit"],
+        "holders": ["Summit Therapeutics", "Akeso"],
+        "catalyst": "HARMONi overall-survival readout in 1L NSCLC",
+        "first_expected_window": "2026-Q2",
+        "expected_window": "2026-Q4",
+        "window_source": {"url": "https://example.com/summit-8k", "publisher": "SEC 8-K", "tier": "primary", "published_at": "2026-05-15"},
+        "status": "slipped",
+        "slip_log": [
+          {"from": "2026-Q2", "to": "2026-Q3", "date": "2026-04-02", "source": {"url": "https://example.com/slip1", "publisher": "Summit Therapeutics", "tier": "primary", "published_at": "2026-04-02"}},
+          {"from": "2026-Q3", "to": "2026-Q4", "date": "2026-05-15", "source": {"url": "https://example.com/slip2", "publisher": "SEC 8-K", "tier": "primary", "published_at": "2026-05-15"}}
+        ],
+        "what_it_would_prove": "No thesis seeded — facts only",
+        "bears_on_thesis_slot": "pd1-vegf-class",
+        "sources": [
+          {"url": "https://example.com/summit-8k", "publisher": "SEC 8-K", "tier": "primary", "published_at": "2026-05-15"}
+        ]
+      }
+    ]
+  },
+  "watchlist": [
+    {
+      "entity_id": "revolution_medicines",
+      "name": "Revolution Medicines",
+      "type": "biotech",
+      "status": "developing",
+      "priority": "high",
+      "categories": ["trial_readout"],
+      "summary": "Reported final OS from RASolute 302 at ASCO: HR 0.40 (95% CI 0.31-0.52), median OS not yet reached in the daraxonrasib arm. The readout clears the last major clinical question on the RAS(ON) mechanism.",
+      "research_angle": "The pharma-M&A stance says acquirers wait for the de-risking readout, then pay. RevMed just delivered the readout the January approach reportedly stalled over. If a bid returns within a quarter, the stance holds cleanly; if it does not, the discipline half of the stance is real and price beats even a clean survival curve.",
+      "thesis_impact": "confirms",
+      "confidence": "high",
+      "degradation": null,
+      "sources": [
+        {"url": "https://example.com/revmed-asco", "publisher": "Revolution Medicines", "tier": "primary", "published_at": "2026-05-30"},
+        {"url": "https://example.com/reuters-revmed", "publisher": "Reuters", "tier": "trade", "published_at": "2026-05-30"}
+      ]
+    },
+    {
+      "entity_id": "merck",
+      "name": "Merck & Co.",
+      "type": "big_pharma",
+      "status": "developing",
+      "priority": "high",
+      "categories": ["deal_ma"],
+      "summary": "No confirmed in-window development. The dealmaking beat failed this cycle, so Merck's read is thinner than usual.",
+      "research_angle": "No thesis seeded — facts only",
+      "confidence": "low",
+      "degradation": {"kind": "beat_failed", "marker": "M&A coverage unavailable this cycle — beat failed"},
+      "sources": [
+        {"url": "https://example.com/merck-ir", "publisher": "Merck investor relations", "tier": "primary", "published_at": "2026-05-28"}
+      ]
+    }
+  ],
+  "quiet_this_cycle": {
+    "no_news": [
+      {"entity_id": "pfizer", "name": "Pfizer", "cycles_quiet": 2},
+      {"entity_id": "gilead", "name": "Gilead", "cycles_quiet": 3}
+    ],
+    "critic_catches": [
+      {
+        "claim": "Novartis in advanced talks to acquire Revolution Medicines at $32B",
+        "rejected_because": "single_unverified_source",
+        "detail": "Traced to one paywalled newsletter with no named sourcing and no confirmation from either company. Below the bar for an investor-grade digest during a week when the OS readout alone moves the stock.",
+        "caught_by": "critic",
+        "sources": [
+          {"url": "https://example.com/newsletter", "publisher": "Unnamed newsletter", "tier": "aggregator", "published_at": "2026-05-29"}
+        ]
+      }
+    ],
+    "open_threads": [
+      {"entity_id": "revolution_medicines", "thread": "Whether the January acquisition approach re-engages after the OS readout", "since": "2026-05-30", "next_expected": "Watch for 8-K or 13D activity through June"}
+    ]
+  },
+  "new_on_radar": [
+    {
+      "entity_id": "frontier_rason",
+      "name": "Frontier RAS(ON) Bio",
+      "type": "startup",
+      "priority": "medium",
+      "categories": ["funding"],
+      "what_they_do": "Next-generation RAS(ON) inhibitor platform spun out of an academic lab.",
+      "development": "Raised a $120M Series A on the back of the RASolute readout de-risking the mechanism.",
+      "why_we_care": "No thesis seeded — facts only",
+      "promotion_proposal": {"promote_to_watchlist": false, "reason": "Single financing event; watch one more cycle before promoting."},
+      "sources": [
+        {"url": "https://example.com/frontier-rason", "publisher": "Fierce Biotech", "tier": "trade", "published_at": "2026-05-30"}
+      ]
+    }
+  ],
+  "themes_and_signals": [
+    {
+      "theme": "One clean readout reprices a whole mechanism in an afternoon",
+      "evidence_refs": ["revolution_medicines"],
+      "argument": "The RAS(ON) class carried a single binary overhang, and clearing it moved comps across the field. If the follow-on financings price the mechanism rather than the asset, scarcity is doing the work the stance attributes to de-risking.",
+      "thesis_impact": "confirms"
+    }
+  ],
+  "elsewhere_on_frontier": [
+    {
+      "actor": "FDA",
+      "move": "Oncology Center of Excellence signals faster review for RAS-directed agents with OS data.",
+      "detail": "A conference remark, not a rule; sufficient to note, not to trade on.",
+      "why_it_matters": "Shortens the regulatory tail on exactly the class that just read out, feeding the scarcity story.",
+      "sources": [
+        {"url": "https://example.com/fda-oce", "publisher": "FDA", "tier": "primary", "published_at": "2026-05-29"}
+      ]
+    }
+  ],
+  "thesis_updates": [
+    {
+      "change": "amended",
+      "field": "pharma-ma-appetite",
+      "before": "Acquirers wait for the Phase 3 de-risking readout, then pay a compressed premium.",
+      "after": "Acquirers wait for the readout, but scarcity of clean late-stage assets is re-inflating the premium they pay once it prints.",
+      "triggered_by": ["revolution_medicines"]
+    }
+  ],
+  "critic_report": {
+    "verdict": "blocked",
+    "retries_used": 2,
+    "blocking_findings": [
+      {
+        "kind": "dropped_story",
+        "where": "watchlist.revolution_medicines",
+        "note": "The digest omits that a second, independently-sourced bidder was reported circling RevMed the same afternoon — a materially relevant competitive datapoint for the acquisition case the angle rests on.",
+        "source": {"url": "https://example.com/second-bidder", "publisher": "Bloomberg", "tier": "trade", "published_at": "2026-05-30"},
+        "rebuttal": {
+          "text": "The Bloomberg item names no bidder and no deal terms, and the companion trade desks did not confirm it within the window. Including it as a competitive datapoint would launder a single unconfirmed line into the acquisition case; the omission is deliberate, not a drop.",
+          "sources": [
+            {"url": "https://example.com/desk-no-confirm", "publisher": "Endpoints News", "tier": "trade", "published_at": "2026-05-30"}
+          ],
+          "adjudication": "reaffirmed"
+        }
+      }
+    ],
+    "advisory_findings": [
+      {"kind": "calendar_stale", "where": "issue.run.surge", "note": "Conference calendar last verified 9 cycles ago; the ASCO window is being asserted from a cached schedule, not a re-verified one."},
+      {"kind": "thin_sourcing", "where": "watchlist.merck", "note": "Merck read rests on a single primary source with the dealmaking beat down."}
+    ],
+    "validator_report": {
+      "passed": true,
+      "retries_used": 1,
+      "findings": [
+        {"kind": "beat_failed", "where": "sources_and_method.beats_failed", "note": "ma_dealmaking failed validation; the degradation marker is stamped on every section it fed."}
+      ]
+    },
+    "reason": null
+  },
+  "sources_and_method": {
+    "beats_run": ["clinical_scientific", "startup_frontier", "incumbent_moves", "policy_regulation", "backstop"],
+    "beats_failed": ["ma_dealmaking"],
+    "source_tier_counts": {"primary": 7, "trade": 4, "aggregator": 1},
+    "paywalled_flagged": [
+      {"claim": "RevMed board rejected an earlier all-cash approach", "publisher": "STAT+", "url": "https://example.com/stat-plus", "note": "Primary paywalled — assess manually."}
+    ]
+  }
+}

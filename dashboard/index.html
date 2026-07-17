@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>ResearchSwarm — Latest Intel (v3)</title>
+<title>ResearchSwarm — Latest Intel</title>
 <style>
   :root {
     --ink: #1B1832; --ink-2: #4A4463; --ink-3: #7C7594;
@@ -47,7 +47,7 @@
                 border-right: 1.5px solid var(--eosin); border-bottom: 1.5px solid var(--eosin); transform: translateY(-70%) rotate(45deg); }
   .sel select { appearance: none; -webkit-appearance: none; font-family: var(--mono); font-size: .8rem; font-variant-numeric: tabular-nums;
                 color: var(--ink); background: var(--paper-2); border: 1px solid var(--rule-strong); border-radius: 4px;
-                padding: .45rem 2rem .45rem .7rem; cursor: pointer; box-shadow: var(--shadow); transition: border-color .15s, color .15s; }
+                padding: .45rem 2rem .45rem .7rem; cursor: pointer; box-shadow: var(--shadow); transition: border-color .15s, color .15s; max-width: 22rem; }
   .sel select:hover { border-color: var(--eosin); }
   .sel select:focus-visible { outline: 2px solid var(--hema); outline-offset: 2px; }
 
@@ -67,12 +67,26 @@
   .stub { padding: var(--s5) 0; text-align: center; color: var(--ink-3); font-family: var(--mono); font-size: .8rem; line-height: 2; }
   .stub b { display: block; font-family: var(--serif); font-size: 1.4rem; color: var(--ink-2); margin-bottom: var(--s2); }
 
+  /* ── load / error ── */
+  .loaderr { margin: var(--s4) 0; padding: var(--s3); border: 1px solid var(--eosin); background: var(--eosin-soft); border-radius: 4px;
+             font-family: var(--mono); font-size: .8rem; color: var(--ink); line-height: 1.8; }
+  .loaderr b { color: var(--eosin); display: block; margin-bottom: var(--s1); }
+
+  /* ── failed-run stub (whole issue) ── */
+  .failstub { padding: var(--s5) 0; display: flex; flex-direction: column; gap: var(--s3); text-align: center; align-items: center; }
+  .failstub .stamp { font-family: var(--mono); font-size: .62rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+                     color: var(--eosin); border: 2px solid var(--eosin); border-radius: 2px; padding: .2rem .5rem; transform: rotate(-1.5deg); }
+  .failstub h2 { font-family: var(--serif); font-size: 1.7rem; color: var(--ink-2); }
+  .failstub p { font-family: var(--mono); font-size: .82rem; color: var(--ink-3); line-height: 1.9; max-width: 60ch; }
+
   /* ── masthead ── */
   .masthead { padding-top: var(--s4); padding-bottom: var(--s4); display: flex; flex-direction: column; gap: var(--s3); }
   .kicker { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; font-family: var(--mono); font-size: .64rem;
             letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
   .kicker .live { color: var(--eosin); }
-  .sample { color: var(--challenges); border: 1px solid currentColor; border-radius: 3px; padding: .1rem .35rem; font-size: .58rem; }
+  .surge { color: var(--eosin); border: 1px solid var(--eosin); border-radius: 3px; padding: .1rem .45rem; font-size: .6rem;
+           font-weight: 700; letter-spacing: .06em; text-transform: none; }
+  .kflag { color: var(--challenges); border: 1px solid currentColor; border-radius: 3px; padding: .1rem .45rem; font-size: .58rem; }
   h1 { font-family: var(--serif); font-size: clamp(1.8rem, 4.4vw, 2.5rem); line-height: 1.1; letter-spacing: -.022em; text-wrap: balance; }
   .lede { font-size: 1.15rem; color: var(--ink-2); max-width: 74ch; }
   .sowhat { font-family: var(--serif); font-style: italic; font-size: 1.18rem; color: var(--ink); max-width: 72ch;
@@ -81,6 +95,24 @@
               font-variant-numeric: tabular-nums; color: var(--ink-2); }
   .statline b { color: var(--hema); font-weight: 700; font-size: 1.05rem; }
   .statline .flag b { color: var(--eosin); }
+
+  /* ── banners ── */
+  .banner { border-radius: 4px; padding: var(--s3); display: flex; flex-direction: column; gap: var(--s2); }
+  .banner .btitle { font-family: var(--mono); font-size: .66rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+  .banner p { font-size: .98rem; color: var(--ink-2); max-width: 74ch; }
+  .banner.uncritiqued { border-left: 3px solid var(--challenges); background: var(--paper-2); }
+  .banner.uncritiqued .btitle { color: var(--challenges); }
+  .banner.unresolved { border-left: 3px solid var(--eosin); background: var(--eosin-soft); }
+  .banner.unresolved .btitle { color: var(--eosin); }
+  .bfind { border-top: 1px solid var(--rule); padding-top: var(--s2); display: flex; flex-direction: column; gap: var(--s2); }
+  .bfind .where { font-family: var(--mono); font-size: .66rem; color: var(--ink-3); }
+  .rebuttal { padding-left: var(--s3); border-left: 2px solid var(--rule-strong); display: flex; flex-direction: column; gap: var(--s1); }
+  .rebuttal .rlbl { font-family: var(--mono); font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+  .adj { align-self: flex-start; font-family: var(--mono); font-size: .58rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+         border: 1px solid currentColor; border-radius: 2px; padding: .12rem .4rem; }
+  .adj.reaffirmed { color: var(--eosin); } .adj.withdrawn { color: var(--confirms); }
+  .stale { font-family: var(--mono); font-size: .68rem; letter-spacing: .04em; color: var(--challenges);
+           border: 1px dashed var(--challenges); border-radius: 3px; padding: .4rem .6rem; align-self: flex-start; }
 
   /* ── sections ── */
   main { display: flex; flex-direction: column; }
@@ -106,6 +138,20 @@
   .cat { font-family: var(--mono); font-size: .66rem; letter-spacing: .06em; color: var(--ink-2); background: var(--paper-2);
          border: 1px solid var(--rule); padding: .2rem .5rem; border-radius: 3px; }
 
+  /* ── catalyst queue ── */
+  .qitem { display: flex; flex-direction: column; gap: var(--s2); padding-left: var(--s3); border-left: 3px solid var(--hema); }
+  .qhead { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: baseline; }
+  .qhead .asset { font-family: var(--serif); font-size: 1.25rem; letter-spacing: -.01em; }
+  .qhead .holders { font-size: .9rem; color: var(--ink-3); }
+  .qstatus { font-family: var(--mono); font-size: .6rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+             border: 1px solid currentColor; border-radius: 2px; padding: .12rem .4rem; }
+  .qstatus.pending { color: var(--ink-3); } .qstatus.slipped { color: var(--challenges); }
+  .qstatus.delivered { color: var(--confirms); } .qstatus.dead { color: var(--eosin); }
+  .qcat { font-size: 1rem; color: var(--ink); max-width: 74ch; }
+  .slip { font-family: var(--mono); font-size: .78rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .slip .now { color: var(--eosin); font-weight: 700; }
+  .prove { font-family: var(--serif); font-size: 1.02rem; color: var(--ink-2); max-width: 74ch; }
+
   .entity { display: flex; flex-direction: column; gap: var(--s3); padding-left: var(--s3); border-left: 3px solid var(--rule-strong); }
   .entity.confirms { border-left-color: var(--confirms); }
   .entity.challenges { border-left-color: var(--challenges); }
@@ -126,6 +172,9 @@
   details.angle > p { font-family: var(--serif); font-size: 1.08rem; line-height: 1.62; max-width: 74ch; padding-bottom: var(--s2); }
   .impact { font-family: var(--mono); font-size: .58rem; letter-spacing: .05em; text-transform: uppercase; }
   .impact.confirms { color: var(--confirms); } .impact.challenges { color: var(--challenges); } .impact.neutral { color: var(--ink-3); }
+  /* degradation / dormant-thesis marker — renders at the point of the absence, never blank */
+  .absence { font-family: var(--mono); font-size: .72rem; letter-spacing: .03em; color: var(--challenges);
+             border: 1px dashed var(--challenges); border-radius: 3px; padding: .4rem .6rem; align-self: flex-start; }
   .srcs { display: flex; flex-wrap: wrap; gap: var(--s2); font-family: var(--mono); font-size: .66rem; }
   .srcs a { color: var(--ink-3); text-decoration: none; border-bottom: 1px dotted var(--rule-strong); }
   .srcs a:hover, .srcs a:focus-visible { color: var(--eosin); border-bottom-color: var(--eosin); outline: none; }
@@ -134,6 +183,7 @@
   .meta { font-family: var(--mono); font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
   .meta.developing::before { content: "\25D0 "; color: var(--challenges); }
   .meta.concluded::before { content: "\25CF "; color: var(--ink-3); }
+  .muted { color: var(--ink-3); font-style: italic; font-size: .95rem; }
 
   .catch { border: 1px solid var(--eosin); background: var(--eosin-soft); border-radius: 4px; padding: var(--s3);
            display: flex; flex-direction: column; gap: var(--s2); }
@@ -186,9 +236,7 @@
     </div>
     <div class="picker">
       <span>Showing issue</span>
-      <label class="sel"><select id="issuePicker" aria-label="Select issue">
-        <option>2026-07-16</option><option>2026-07-13</option><option>2026-07-09</option><option>2026-07-06</option>
-      </select></label>
+      <label class="sel"><select id="issuePicker" aria-label="Select issue"></select></label>
     </div>
   </header>
 
@@ -206,291 +254,385 @@
   </div>
 
   <div id="panel-intel" role="tabpanel" aria-labelledby="tab-intel">
-    <div class="masthead">
-      <div class="kicker" id="kicker"></div>
-      <h1 id="heroTitle"></h1>
+    <div id="loadError" class="loaderr" hidden></div>
+    <div id="stubView" hidden></div>
+    <div id="issueView" hidden>
+      <div class="masthead">
+        <div class="kicker" id="kicker"></div>
+        <div id="banners" style="display:flex;flex-direction:column;gap:1.25rem"></div>
+        <h1 id="heroTitle"></h1>
+      </div>
+      <main>
+        <section>
+          <p class="lede" id="heroSummary"></p>
+          <div class="sowhat" id="heroSoWhat"></div>
+        </section>
+        <section><div class="statline" id="statline"></div></section>
+        <section id="tldr"><div class="sechead"><h2>TLDR</h2><span class="sub">Everything that moved this cycle, in one pass.</span></div>
+          <ul class="bullets" id="bullets"></ul></section>
+        <section id="catalyst"><div class="sechead"><h2>Catalyst queue</h2>
+          <span class="sub">What we are waiting on. Forward-looking first; slip history rides inline.</span></div>
+          <div id="catalystBody" style="display:flex;flex-direction:column;gap:2rem"></div></section>
+        <section id="watchlist"><div class="sechead"><h2>Tracked watchlist</h2>
+          <span class="sub">Every name we follow, and what it did.</span>
+          <button class="ghost" id="toggleAll" type="button">Expand all angles</button></div>
+          <div id="watchlistBody" style="display:flex;flex-direction:column;gap:2.25rem"></div></section>
+        <section id="quiet"><div class="sechead"><h2>Quiet this cycle</h2>
+          <span class="sub">Tracked names with nothing to report, claims we rejected, and threads still open.</span></div>
+          <div id="quietBody" style="display:flex;flex-direction:column;gap:1.5rem"></div></section>
+        <section id="radar"><div class="sechead"><h2>New on our radar</h2>
+          <span class="sub">Players newly on our radar this cycle.</span></div>
+          <div id="radarBody" style="display:flex;flex-direction:column;gap:2rem"></div></section>
+        <section id="themes"><div class="sechead"><h2>Themes &amp; signals</h2>
+          <span class="sub">Cross-cutting patterns from this cycle.</span></div>
+          <div id="themesBody" style="display:flex;flex-direction:column;gap:1.75rem"></div></section>
+        <section id="frontier"><div class="sechead"><h2>Elsewhere on the frontier</h2>
+          <span class="sub">Moves outside the watchlist that change the board.</span></div>
+          <div id="frontierBody" style="display:flex;flex-direction:column;gap:1.75rem"></div></section>
+        <section id="thesis"><div class="sechead"><h2>Thesis drift</h2>
+          <span class="sub">What this cycle forced us to change our mind about.</span></div>
+          <div id="thesisBody" style="display:flex;flex-direction:column;gap:1rem"></div></section>
+        <section id="critic"><div class="sechead"><h2>Critic report</h2>
+          <span class="sub">What the adversarial reviewer found before this issue published.</span></div>
+          <div id="criticBody" style="display:flex;flex-direction:column;gap:1rem"></div></section>
+        <footer id="method"></footer>
+      </main>
     </div>
-    <main>
-      <section>
-        <p class="lede" id="heroSummary"></p>
-        <div class="sowhat" id="heroSoWhat"></div>
-      </section>
-      <section><div class="statline" id="statline"></div></section>
-      <section id="tldr"><div class="sechead"><h2>TLDR</h2><span class="sub">Everything that moved this cycle, in one pass.</span></div>
-        <ul class="bullets" id="bullets"></ul></section>
-      <section id="watchlist"><div class="sechead"><h2>Tracked watchlist</h2>
-        <span class="sub">Every name we follow, and what it did.</span>
-        <button class="ghost" id="toggleAll" type="button">Expand all angles</button></div>
-        <div id="watchlistBody" style="display:flex;flex-direction:column;gap:2.25rem"></div></section>
-      <section id="quiet"><div class="sechead"><h2>Quiet this cycle</h2>
-        <span class="sub">Tracked names with nothing to report, claims we rejected, and threads still open.</span></div>
-        <div id="quietBody" style="display:flex;flex-direction:column;gap:1.5rem"></div></section>
-      <section id="radar"><div class="sechead"><h2>New on our radar</h2>
-        <span class="sub">Players newly on our radar this cycle.</span></div>
-        <div id="radarBody" style="display:flex;flex-direction:column;gap:2rem"></div></section>
-      <section id="themes"><div class="sechead"><h2>Themes &amp; signals</h2>
-        <span class="sub">Cross-cutting patterns from this cycle.</span></div>
-        <div id="themesBody" style="display:flex;flex-direction:column;gap:1.75rem"></div></section>
-      <section id="frontier"><div class="sechead"><h2>Elsewhere on the frontier</h2>
-        <span class="sub">Moves outside the watchlist that change the board.</span></div>
-        <div id="frontierBody" style="display:flex;flex-direction:column;gap:1.75rem"></div></section>
-      <section id="thesis"><div class="sechead"><h2>Thesis drift</h2>
-        <span class="sub">What this cycle forced us to change our mind about.</span></div>
-        <div id="thesisBody" style="display:flex;flex-direction:column;gap:1rem"></div></section>
-      <section id="critic"><div class="sechead"><h2>Critic report</h2>
-        <span class="sub">What the adversarial reviewer found before this issue published.</span></div>
-        <div id="criticBody" style="display:flex;flex-direction:column;gap:1rem"></div></section>
-      <footer id="method"></footer>
-    </main>
   </div>
 </div>
 
 <script>
-// PROTOTYPE SAMPLE — all content FABRICATED for design purposes. Not real intelligence.
-const ISSUE = {
-  schema_version: "0.2.0",
-  issue: {
-    id: "2026-07-16",
-    published_at: "2026-07-16T07:42:11+08:00",
-    coverage_window: { from: "2026-07-13", to: "2026-07-16" },
-    run: { run_id: "run_20260716_0700", status: "published", critic_verdict: "pass_with_advisories", critic_retries: 1, thesis_version: 2,
-      models: { researchers: "claude-sonnet-5", manager: "claude-opus-4-8", critic: "gpt-5.6-codex" } }
-  },
-  headline: {
-    title: "Merck's $9B Verastem buy resets ADC pricing — and every mid-cap oncology board knows it",
-    summary: "Merck paid a 71% premium for a company whose lead asset is still in Phase 2, signalling that post-Keytruda-LOE desperation now outweighs clinical de-risking. Two other cash-rich acquirers are reportedly circling the same ADC cohort, and bankers are already re-pricing comparable assets upward.",
-    so_what: "The buyer's-market assumption in our thesis is now falsifiable: premiums are re-inflating before readouts, not after.",
-    confidence: "high"
-  },
-  stats: { tracked_updates: 7, tracked_quiet: 4, new_on_radar: 3, frontier_items: 3, sources_cited: 34, critic_catches: 2, previous_issue: "2026-07-13" },
-  tldr_bullets: [
-    { text: "Merck acquires Verastem for $9B at a 71% premium — the biggest ADC deal since 2025, struck pre-Phase-3.", priority: "high" },
-    { text: "Hengrui out-licenses its PD-1/VEGF bispecific to Bristol Myers for $1.4B upfront — the China wave is no longer discount-priced.", priority: "high" },
-    { text: "FDA's confirmatory-trial rule for accelerated approval takes effect; three tracked sponsors must now enrol before approval.", priority: "high" },
-    { text: "Summit's ivonescimab OS data slips to Q4, pushing the PD-1/VEGF class readout past the JPM window.", priority: "medium" },
-    { text: "AstraZeneca widens its Daiichi alliance to two additional ADC targets, locking up the partner most rivals wanted.", priority: "medium" },
-    { text: "Arcus posts a clean but unremarkable Phase 2 — no inflection, and the cash runway question returns.", priority: "low" }
-  ],
-  watchlist: [
-    { entity_id: "merck", name: "Merck & Co.", type: "big_pharma", status: "developing", priority: "high", confidence: "high",
-      categories: ["deal_ma"], thesis_impact: "challenges",
-      summary: "Announced the acquisition of Verastem Oncology for $9B ($64/share) — a 71% premium to the prior close, and the largest ADC transaction since 2025. The target is a single Phase 2 asset: a KRAS-G12D-directed ADC with 41 patients dosed and no randomised data. Management framed the price as 'pipeline urgency ahead of 2028', a direct reference to the Keytruda loss-of-exclusivity cliff that removes roughly $25B of annual revenue. Financed from cash and a $4B bridge; expected to close Q1 2027 pending an FTC review that analysts widely expect to draw a second request. Two other acquirers were reportedly in the process, though neither has confirmed.",
-      research_angle: "This is the clearest evidence yet that the Keytruda LOE cliff is forcing Merck to buy clinical risk it would have refused in 2024. Our thesis said acquirers would wait for Phase 3 readouts to compress premiums; Merck just paid pre-readout money, which means scarcity of late-stage ADC assets is now the binding constraint, not capital discipline. If the next two deals price the same way, the 'patient acquirer' model is dead and target selection should be re-modelled around scarcity.",
-      sources: [ { url: "https://example.com/merck-pr", publisher: "Merck investor relations", tier: "primary", published_at: "2026-07-15" },
-                 { url: "https://example.com/endpoints-merck", publisher: "Endpoints News", tier: "trade", published_at: "2026-07-15" },
-                 { url: "https://example.com/reuters-merck", publisher: "Reuters", tier: "trade", published_at: "2026-07-15" } ] },
-    { entity_id: "hengrui", name: "Jiangsu Hengrui Pharma", type: "china_pharma", status: "concluded", priority: "high", confidence: "medium",
-      categories: ["deal_ma", "platform_tech"], thesis_impact: "confirms",
-      summary: "Out-licensed its PD-1/VEGF bispecific to Bristol Myers Squibb for $1.4B upfront against $6.1B in development and commercial milestones — the largest upfront ever paid for a Chinese-originated oncology asset. Hengrui retains full China rights and books a tiered royalty on ex-China sales. The asset is in three Phase 3 trials in China with a first readout guided for mid-2027. BMS gains a hedge against its own PD-1 franchise erosion without adding discovery headcount.",
-      research_angle: "The China licensing wave is no longer discount-priced. A $1.4B upfront from a Western acquirer for a Chinese-originated bispecific is a re-rating of the entire cohort — and it validates the wedge argument: Chinese biotechs are converting speed-to-clinic into Western capital without surrendering their home market. The interesting question is no longer whether Western pharma will buy Chinese assets, but whether it can still buy them cheaply. It cannot.",
-      sources: [ { url: "https://example.com/bms-pr", publisher: "BMS press release", tier: "primary", published_at: "2026-07-14" },
-                 { url: "https://example.com/fierce-hengrui", publisher: "Fierce Biotech", tier: "trade", published_at: "2026-07-14" } ] },
-    { entity_id: "astrazeneca", name: "AstraZeneca", type: "big_pharma", status: "developing", priority: "high", confidence: "high",
-      categories: ["platform_tech", "deal_ma"], thesis_impact: "confirms",
-      summary: "Expanded its long-running Daiichi Sankyo alliance to two further ADC targets, paying $1.2B upfront for co-development and co-commercialisation rights across the US and EU, with Daiichi retaining Japan. This is the third expansion of the same partnership in four years and takes the total committed capital past $8B. Notably, AstraZeneca took no equity and no control — it bought access to Daiichi's linker-payload chemistry, the only ADC platform with three approved products behind it.",
-      research_angle: "AstraZeneca is not buying assets, it is buying the partner — and that is the smarter version of the same scarcity trade Merck just made loudly. Locking up Daiichi's linker chemistry across more targets denies rivals the one platform with a proven clinical track record, without paying a control premium. Our thesis treats platform access as the real moat; this is the cleanest expression of it this quarter.",
-      sources: [ { url: "https://example.com/az-pr", publisher: "AstraZeneca press release", tier: "primary", published_at: "2026-07-14" },
-                 { url: "https://example.com/stat-az", publisher: "STAT", tier: "trade", published_at: "2026-07-15" } ] },
-    { entity_id: "summit", name: "Summit Therapeutics", type: "biotech", status: "developing", priority: "high", confidence: "medium",
-      categories: ["trial_readout"], thesis_impact: "neutral",
-      summary: "Guided that the pivotal overall-survival readout for ivonescimab in non-small-cell lung cancer will now land in Q4 2026 rather than Q3, attributing the slip to slower-than-modelled event accrual — which can indicate patients living longer, but which the market read as risk. Shares fell 14% on the day. The company reiterated cash runway into 2028 and made no change to trial design or powering. This is the second timeline revision in twelve months.",
-      research_angle: "A slip is not a signal, but the timing is: the readout now lands after the JPM window, which removes the single most likely catalyst for a 2026 take-out. For a company whose entire equity story is one PD-1/VEGF asset, delay is dilution risk by another name. We treat this as neutral to thesis — the class thesis is intact, the company-specific timing is worse.",
-      sources: [ { url: "https://example.com/summit-8k", publisher: "SEC 8-K", tier: "primary", published_at: "2026-07-15" },
-                 { url: "https://example.com/biopharmadive-summit", publisher: "BioPharma Dive", tier: "trade", published_at: "2026-07-15" } ] },
-    { entity_id: "akeso", name: "Akeso Biopharma", type: "china_pharma", status: "concluded", priority: "medium", confidence: "medium",
-      categories: ["trial_readout"], thesis_impact: "confirms",
-      summary: "Published updated HARMONi-2 subgroup analyses in a peer-reviewed journal, showing progression-free survival benefit concentrated in PD-L1-high patients and holding across two pre-specified subgroups. The data are incremental rather than practice-changing, but they were delivered on the guided date and survived peer review — reinforcing the class hypothesis that PD-1/VEGF bispecifics beat PD-1 monotherapy in first-line NSCLC.",
-      research_angle: "Akeso keeps doing the thing that makes the China wedge argument work: generating credible data faster and cheaper than the Western comparator, then letting a partner monetize it. The data itself is incremental; the fact that it publishes on schedule while Summit slips is the actual competitive information.",
-      sources: [ { url: "https://example.com/akeso-journal", publisher: "Journal of Clinical Oncology", tier: "primary", published_at: "2026-07-13" } ] },
-    { entity_id: "pfizer", name: "Pfizer", type: "big_pharma", status: "concluded", priority: "medium", confidence: "medium",
-      categories: ["pipeline"], thesis_impact: "neutral",
-      summary: "Quietly deprioritised two early-stage oncology programs in its quarterly pipeline update, redirecting spend toward obesity and the Seagen-derived ADC portfolio. Neither discontinued asset had reported human data. The update also reaffirmed 2026 guidance and made no mention of business development in oncology — the first quarter in six without an explicit M&A signal from management.",
-      research_angle: "Pfizer is doing the opposite of Merck: narrowing rather than buying. That is defensible given Seagen already bought it an ADC franchise, but it also means Pfizer is unlikely to be the second bidder that would validate the premium re-rating. One fewer acquirer at the table is a real datapoint for anyone modelling target competition.",
-      sources: [ { url: "https://example.com/pfizer-pipeline", publisher: "Pfizer pipeline update", tier: "primary", published_at: "2026-07-14" } ] },
-    { entity_id: "arcus", name: "Arcus Biosciences", type: "biotech", status: "concluded", priority: "low", confidence: "medium",
-      categories: ["trial_readout"], thesis_impact: "neutral",
-      summary: "Reported Phase 2 data for its adenosine-axis combination: safety was clean with no new signals, and overall response rates landed in line with prior guidance — neither a miss nor an inflection. The company maintained its cash runway guidance into H2 2027 and said it would decide on Phase 3 advancement by year-end, which effectively defers the strategic question by two quarters.",
-      research_angle: "'In line' is the worst possible outcome for a company that needs a reason to exist independently. Nothing here changes the thesis, but it moves Arcus from a possible target to a probable financing story, and we should expect the cash-runway conversation to dominate its next two cycles.",
-      sources: [ { url: "https://example.com/arcus-pr", publisher: "Arcus press release", tier: "primary", published_at: "2026-07-13" } ] }
-  ],
-  quiet_this_cycle: {
-    no_news: [ { entity_id: "roche", name: "Roche", cycles_quiet: 2 }, { entity_id: "gilead", name: "Gilead", cycles_quiet: 3 },
-               { entity_id: "daiichi", name: "Daiichi Sankyo", cycles_quiet: 1 }, { entity_id: "legend", name: "Legend Biotech", cycles_quiet: 2 } ],
-    critic_catches: [
-      { claim: "Zentalis raising $400M at a $2.1B valuation", rejected_because: "provenance_stale",
-        detail: "Every July 14–15 aggregator repeat traces to a single 12 Mar 2026 Bloomberg piece. No new primary source; the round may have closed months ago or died quietly. Publishing it as this cycle's news would have been wrong by four months.",
-        sources: [ { url: "https://example.com/bloomberg-mar", publisher: "Bloomberg", tier: "trade", published_at: "2026-03-12" } ] },
-      { claim: "Novartis in advanced talks to acquire Arcus Biosciences", rejected_because: "single_unverified_source",
-        detail: "Traced to one paywalled subscription newsletter with no named sourcing, no confirmation from either company, and no unusual options activity. Below the bar for an investor-grade digest.",
-        sources: [ { url: "https://example.com/newsletter", publisher: "Unnamed newsletter", tier: "aggregator", published_at: "2026-07-15" } ] }
-    ],
-    open_threads: [
-      { thread: "Antitrust review timeline for the Merck/Verastem deal", since: "2026-07-15", next_expected: "FTC second-request window closes ~Aug 2026" },
-      { thread: "Whether a second bidder emerges for the ADC cohort", since: "2026-07-15", next_expected: "Watch for 13D/G filings through August" }
-    ]
-  },
-  new_on_radar: [
-    { entity_id: "callio_tx", name: "Callio Therapeutics", type: "startup", priority: "medium", categories: ["funding"],
-      what_they_do: "Dual-payload ADC platform out of Basel; lead program in HER2-low breast cancer.",
-      development: "Raised $187M Series B at roughly $900M post-money, led by Forbion.",
-      why_we_care: "Dual-payload is the direct answer to ADC resistance, which our thesis names as the field's next bottleneck. A $900M post-money before the clinic is exactly the pre-readout premium inflation the Merck deal just rationalized — the private market is pricing the same scarcity the public one is.",
-      promotion_proposal: { promote_to_watchlist: true, reason: "Second dual-payload financing above $150M this quarter — the sub-sector now clears our tracking bar." },
-      sources: [ { url: "https://example.com/callio", publisher: "Fierce Biotech", tier: "trade", published_at: "2026-07-15" } ] },
-    { entity_id: "aktis", name: "Aktis Oncology", type: "startup", priority: "medium", categories: ["funding", "platform_tech"],
-      what_they_do: "Alpha-emitter radiopharmaceuticals using miniprotein targeting; lead asset in solid tumors.",
-      development: "Extended its Series C by $60M with participation from two strategic pharma investors.",
-      why_we_care: "Strategic money in a radiopharma extension round is a soft option on an acquisition. Radiopharma is the modality our thesis flags as most likely to be over-bought relative to evidence — this is the first datapoint of the cycle that tests it.",
-      promotion_proposal: { promote_to_watchlist: false, reason: "Single financing event; watch one more cycle before promoting." },
-      sources: [ { url: "https://example.com/aktis", publisher: "Endpoints News", tier: "trade", published_at: "2026-07-14" } ] },
-    { entity_id: "candid", name: "Candid Therapeutics", type: "startup", priority: "high", categories: ["deal_ma"],
-      what_they_do: "T-cell engager platform assembled by in-licensing Chinese-originated assets.",
-      development: "In-licensed two additional bispecifics from a Chengdu-based biotech for undisclosed upfronts.",
-      why_we_care: "This is the China wedge industrialized: a US company whose entire strategy is arbitraging the price gap our Hengrui angle says is closing. If Candid is still able to in-license cheaply while BMS pays $1.4B, then the re-rating is uneven — and that gap is the most actionable thing in this issue.",
-      promotion_proposal: { promote_to_watchlist: true, reason: "Directly tests the China-licensing thesis from the arbitrage side; high analytic value." },
-      sources: [ { url: "https://example.com/candid", publisher: "Endpoints News", tier: "trade", published_at: "2026-07-16" } ] }
-  ],
-  themes_and_signals: [
-    { theme: "Pre-readout premiums are back", thesis_impact: "challenges", evidence_refs: ["merck", "callio_tx"],
-      argument: "Two datapoints this cycle price clinical risk higher than 2025 comparables — one public, one private. If this holds for one more cycle, the 'patient acquirer' assumption in our thesis is dead and we should re-model target selection around asset scarcity rather than de-risking." },
-    { theme: "China is licensing up the value chain", thesis_impact: "confirms", evidence_refs: ["hengrui", "akeso", "candid"],
-      argument: "Upfronts have moved from roughly $100–300M to over $1B, and the assets are bispecifics rather than me-too small molecules. The wedge is holding — but Candid's continued cheap in-licensing suggests the re-rating is uneven, and the arbitrage window has not closed everywhere at once." },
-    { theme: "Platform access is beating asset ownership", thesis_impact: "confirms", evidence_refs: ["astrazeneca", "pfizer"],
-      argument: "AstraZeneca widened a partnership while Pfizer narrowed a pipeline; neither bought a company. The quiet story under Merck's loud one is that the disciplined players are buying access to chemistry, not control of it." }
-  ],
-  elsewhere_on_frontier: [
-    { actor: "FDA", move: "Final rule on accelerated-approval confirmatory trials takes effect; sponsors must have trials underway at approval.",
-      detail: "Three tracked oncology sponsors have pending AA applications that now require enrolled confirmatory trials, compressing timelines by an estimated 6–9 months and raising the capital needed to reach the same milestone.",
-      why_it_matters: "Raises the capital intensity of the AA shortcut — historically the main reason small oncology biotechs could stay independent. Expect more early sales, which feeds directly into the scarcity story driving premiums.",
-      sources: [ { url: "https://example.com/fda-rule", publisher: "FDA", tier: "primary", published_at: "2026-07-14" } ] },
-    { actor: "CMS", move: "Second-cycle IRA negotiation list adds two oncology small molecules.",
-      detail: "Both are past their peak-sales years, so the direct revenue impact is modest, but the signal is that oncology is no longer carved out of pricing pressure by default.",
-      why_it_matters: "The small-molecule penalty relative to biologics is now a portfolio-design input, not a policy talking point. It quietly favours ADCs and bispecifics — the same assets whose premiums are inflating.",
-      sources: [ { url: "https://example.com/cms", publisher: "CMS", tier: "primary", published_at: "2026-07-13" } ] },
-    { actor: "Isomorphic Labs", move: "Posted first oncology target-validation data from its internal pipeline.",
-      detail: "Structural predictions for two undisclosed oncology targets, with wet-lab confirmation reported by a partner. No clinical claims made.",
-      why_it_matters: "AI-native discovery entering oncology target selection is the slowest-moving but highest-variance item on this list. Nothing to trade on this cycle; everything to watch over eight.",
-      sources: [ { url: "https://example.com/isomorphic", publisher: "Isomorphic Labs", tier: "primary", published_at: "2026-07-16" } ] }
-  ],
-  thesis_updates: [
-    { change: "amended", field: "acquirer_behaviour", triggered_by: ["merck", "callio_tx"],
-      before: "Cash-rich acquirers will wait for Phase 3 readouts, compressing target premiums through 2026.",
-      after: "Acquirers are paying pre-readout premiums for scarce ADC and bispecific assets; capital discipline is subordinate to pipeline urgency ahead of 2028 LOEs." },
-    { change: "sharpened", field: "china_licensing_wave", triggered_by: ["hengrui", "candid"],
-      before: "Chinese-originated assets are systematically underpriced relative to Western equivalents.",
-      after: "The discount is closing at the top of the market (>$1B upfronts) but persists for smaller in-licensing deals — the re-rating is uneven, and the gap is the tradeable part." }
-  ],
-  critic_report: { verdict: "pass_with_advisories", retries_used: 1, blocking_findings: [],
-    advisory_findings: [
-      { kind: "thin_sourcing", where: "watchlist.hengrui", note: "Single primary source; no independent trade confirmation of the milestone structure." },
-      { kind: "coverage_gap", where: "elsewhere_on_frontier", note: "EU HTA regulation developments not covered this cycle despite being in scope." },
-      { kind: "unhedged_claim", where: "themes.pre_readout_premiums", note: "Two datapoints is thin for a class-wide claim; the argument acknowledges this but the headline does not." }
-    ] },
-  sources_and_method: {
-    beats_run: ["pharma_ma", "oncology_startups", "clinical_science", "policy_regulation", "incumbents_entrants", "backstop"],
-    beats_failed: [],
-    source_tier_counts: { primary: 14, trade: 17, aggregator: 3 },
-    paywalled_flagged: [ { claim: "Verastem board rejected an earlier $7.2B approach", publisher: "STAT+", url: "https://example.com/stat-plus", note: "Primary paywalled — assess manually." } ]
-  }
-};
-</script>
-<script>
-  const $ = (id) => document.getElementById(id);
-  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const chip = (p) => '<span class="chip p-' + esc(p) + '">' + esc(p) + '</span>';
-  const srcs = (a) => '<div class="srcs">' + a.map(s => '<a href="' + esc(s.url) + '" target="_blank" rel="noopener"><span class="tier tier-' +
-    esc(s.tier) + '">' + esc(s.tier) + '</span> ' + esc(s.publisher) + ' &middot; ' + esc(s.published_at) + '</a>').join('') + '</div>';
-  const d = ISSUE, S = d.stats;
+// Self-contained. The data layer is two same-origin fetches — issues/index.json
+// (the manifest the dropdown reads) plus the selected issues/<id>.json. There is
+// no inline sample and no external asset: serve the repo root and this renders
+// the real published issues. On file:// fetch is blocked; that is by design.
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
+// A degradation renders at the point of the absence — dormant thesis, dead beat,
+// stale calendar. These are the marker prefixes the manager/validator stamp
+// verbatim; matching them lets the renderer style an absence instead of printing
+// it as ordinary prose.
+const MARKER = /^(no thesis seeded|.*beat failed|.*coverage unavailable|conference calendar stale|.*surge disabled)/i;
+const isMarker = (t) => typeof t === "string" && MARKER.test(t.trim());
+const absence = (t) => '<div class="absence">' + esc(t) + '</div>';
+
+const chip = (p) => p ? '<span class="chip p-' + esc(p) + '">' + esc(p) + '</span>' : '';
+const srcs = (a) => (Array.isArray(a) && a.length)
+  ? '<div class="srcs">' + a.map(s => '<a href="' + esc(s.url) + '" target="_blank" rel="noopener"><span class="tier tier-' +
+      esc(s.tier) + '">' + esc(s.tier) + '</span> ' + esc(s.publisher) + ' &middot; ' + esc(s.published_at) + '</a>').join('') + '</div>'
+  : '';
+
+function showError(html) {
+  const el = $('loadError');
+  el.innerHTML = html;
+  el.hidden = false;
+  $('issueView').hidden = true;
+  $('stubView').hidden = true;
+}
+
+// ── the whole issue for a failed run: a stub, not a blank ──────────────────
+function renderStub(d) {
+  const b = d.issue || {}, run = b.run || {}, f = b.failure || {};
+  const cw = b.coverage_window || {};
+  const bf = ((d.sources_and_method || {}).beats_failed) || [];
+  $('stubView').innerHTML =
+    '<div class="failstub">' +
+    '<div class="stamp">Run failed</div>' +
+    '<h2>No issue for ' + esc(b.id) + '</h2>' +
+    '<p>The run failed at stage <b>' + esc(f.stage || 'unknown') + '</b>.<br>' + esc(f.detail || 'See the run log.') + '</p>' +
+    (cw.from ? '<p>coverage window ' + esc(cw.from) + ' &rarr; ' + esc(cw.to) + '</p>' : '') +
+    (bf.length ? '<p>beats failed: ' + bf.map(esc).join(' &middot; ') + '</p>' : '') +
+    '<p>run ' + esc(run.run_id) + ' &middot; ' + esc(b.published_at) + '</p>' +
+    '</div>';
+  $('stubView').hidden = false;
+  $('issueView').hidden = true;
+  $('loadError').hidden = true;
+}
+
+// ── slip history, inline, from the two immutable window fields ─────────────
+function slipLine(it) {
+  const first = it.first_expected_window, now = it.expected_window;
+  const n = Array.isArray(it.slip_log) ? it.slip_log.length : 0;
+  if (!first && !now) return 'window not yet set';
+  if (first && now && first !== now && n > 0) {
+    const times = n === 1 ? 'slipped once' : n === 2 ? 'slipped twice' : 'slipped ' + n + ' times';
+    return 'expected ' + esc(first) + ' &middot; ' + times + ' &middot; <span class="now">now ' + esc(now) + '</span>';
+  }
+  if (first && now && first === now) return 'expected ' + esc(now) + ' &middot; on schedule';
+  return 'expected ' + esc(now || first);
+}
+
+function renderQueue(cq) {
+  const items = (cq && Array.isArray(cq.items)) ? cq.items : [];
+  const sec = $('catalyst');
+  if (!items.length) { sec.hidden = true; return; }
+  sec.hidden = false;
+  $('catalystBody').innerHTML = items.map(it => {
+    const holders = Array.isArray(it.holders) && it.holders.length ? ' &middot; <span class="holders">' + it.holders.map(esc).join(', ') + '</span>' : '';
+    const prove = it.what_it_would_prove
+      ? (isMarker(it.what_it_would_prove) ? absence(it.what_it_would_prove) : '<div class="prove">' + esc(it.what_it_would_prove) + '</div>')
+      : '';
+    return '<div class="qitem">' +
+      '<div class="qhead"><span class="asset">' + esc(it.asset || it.id) + '</span>' +
+      '<span class="qstatus ' + esc(it.status) + '">' + esc(it.status) + '</span>' + holders + '</div>' +
+      '<div class="qcat">' + esc(it.catalyst) + '</div>' +
+      '<div class="slip">' + slipLine(it) + '</div>' +
+      prove + srcs(it.sources) + '</div>';
+  }).join('');
+}
+
+function renderBanners(d) {
+  const run = (d.issue || {}).run || {};
+  const cr = d.critic_report || {};
+  const out = [];
+
+  // Persistent stale-calendar marker — surge disabled while the calendar is unverified.
+  const findings = [].concat(cr.advisory_findings || [], (cr.validator_report || {}).findings || []);
+  if (findings.some(f => f && f.kind === 'calendar_stale')) {
+    out.push('<div class="stale">conference calendar stale &mdash; surge disabled</div>');
+  }
+
+  if (run.status === 'published_uncritiqued') {
+    const why = cr.reason ? ' The critic was unreachable (' + esc(cr.reason) + ').' : ' The critic was unreachable this cycle.';
+    out.push('<div class="banner uncritiqued"><div class="btitle">Unvetted &middot; not adversarially reviewed</div>' +
+      '<p>This digest published without the adversarial critic gate.' + why +
+      ' The facts are good and sourced; they were simply not challenged by a second model family before publishing.</p></div>');
+  }
+
+  if (run.status === 'published_with_unresolved_findings') {
+    const blocking = cr.blocking_findings || [];
+    const body = blocking.map(f => {
+      const receipt = f.source ? '<div class="where">receipt: ' + srcs([f.source]).replace(/^<div class="srcs">|<\/div>$/g, '') + '</div>' : '';
+      const reb = f.rebuttal ? '<div class="rebuttal"><span class="rlbl">Manager rebuttal</span><p>' + esc(f.rebuttal.text) + '</p>' +
+        srcs(f.rebuttal.sources) +
+        (f.rebuttal.adjudication ? '<span class="adj ' + esc(f.rebuttal.adjudication) + '">critic ' + esc(f.rebuttal.adjudication) + '</span>' : '') +
+        '</div>' : '';
+      return '<div class="bfind"><span class="where">' + esc(f.kind) + ' &middot; ' + esc(f.where) + '</span>' +
+        '<p>' + esc(f.note) + '</p>' + receipt + reb + '</div>';
+    }).join('');
+    out.push('<div class="banner unresolved"><div class="btitle">Unresolved findings &middot; published with an open dispute</div>' +
+      '<p>The critic raised findings the manager rebutted but did not resolve. Both sides are printed below with the critic&rsquo;s adjudication &mdash; a genuine disagreement between two model families, disclosed, not smoothed over.</p>' +
+      body + '</div>');
+  }
+
+  $('banners').innerHTML = out.join('');
+}
+
+function renderFull(d) {
+  const S = d.stats || {};
+  const run = (d.issue || {}).run || {};
+
+  // kicker — surge badge and beats-failed flag ride here, before any scroll.
+  const surge = run.surge;
+  const surgeBadge = surge ? '<span>&middot;</span><span class="surge">' + esc(surge.window) + ' &middot; day ' + esc(surge.day) + ' of ' + esc(surge.of) + '</span>' : '';
+  const bf = (d.sources_and_method || {}).beats_failed || [];
+  const bfFlag = bf.length ? '<span>&middot;</span><span class="kflag">beats failed: ' + bf.map(esc).join(', ') + '</span>' : '';
   $('kicker').innerHTML = 'Issue ' + esc(d.issue.id) + '<span>&middot;</span><span class="live">confidence ' + esc(d.headline.confidence) +
-    '</span><span>&middot;</span>' + esc(d.issue.coverage_window.from) + ' &rarr; ' + esc(d.issue.coverage_window.to) +
-    '<span class="sample">sample data</span>';
+    '</span><span>&middot;</span>' + esc(d.issue.coverage_window.from) + ' &rarr; ' + esc(d.issue.coverage_window.to) + surgeBadge + bfFlag;
+
+  renderBanners(d);
+
   $('heroTitle').textContent = d.headline.title;
   $('heroSummary').textContent = d.headline.summary;
   $('heroSoWhat').textContent = d.headline.so_what;
 
+  const prev = S.previous_issue;
+  const windowStat = prev
+    ? 'window <b>' + esc(prev) + '</b> &rarr; <b>' + esc(d.issue.id) + '</b>'
+    : 'run #1 &middot; <b>no prior issue</b>';
   $('statline').innerHTML = [
-    ['<b>' + S.tracked_updates + '</b> tracked updates', 0], ['<b>' + S.tracked_quiet + '</b> quiet', 0],
-    ['<b>' + S.new_on_radar + '</b> new entrants', 0], ['<b>' + S.frontier_items + '</b> frontier items', 0],
-    ['<b>' + S.sources_cited + '</b> sources', 0], ['<b>' + S.critic_catches + '</b> critic catches', 1],
-    ['window <b>' + d.stats.previous_issue + '</b> &rarr; <b>' + d.issue.id + '</b>', 0]
+    ['<b>' + (S.tracked_updates ?? 0) + '</b> tracked updates', 0], ['<b>' + (S.tracked_quiet ?? 0) + '</b> quiet', 0],
+    ['<b>' + (S.new_on_radar ?? 0) + '</b> new entrants', 0], ['<b>' + (S.frontier_items ?? 0) + '</b> frontier items', 0],
+    ['<b>' + (S.sources_cited ?? 0) + '</b> sources', 0], ['<b>' + (S.critic_catches ?? 0) + '</b> critic catches', 1],
+    [windowStat, 0]
   ].map(a => '<span class="' + (a[1] ? 'flag' : '') + '">' + a[0] + '</span>').join('');
 
-  $('bullets').innerHTML = d.tldr_bullets.map(b => '<li>' + esc(b.text) + '</li>').join('');
+  $('bullets').innerHTML = (d.tldr_bullets || []).map(b => '<li>' + esc(b.text) + '</li>').join('');
 
-  $('watchlistBody').innerHTML = d.watchlist.map(e =>
-    '<article class="entity ' + esc(e.thesis_impact) + '"><div class="ehead">' +
-    '<div class="enameline"><h3>' + esc(e.name) + '</h3><span class="slug">' + esc(e.entity_id) + '</span></div>' +
-    '<div class="etags">' + chip(e.priority) + e.categories.map(c => '<span class="cat">' + esc(c) + '</span>').join('') +
-    '<span class="meta ' + esc(e.status) + '">' + esc(e.status) + '</span><span class="meta">conf ' + esc(e.confidence) + '</span></div></div>' +
-    '<p class="summary">' + esc(e.summary) + '</p>' +
-    '<details class="angle" open><summary><b>Research Angle</b><span class="impact ' +
-    esc(e.thesis_impact) + '">' + esc(e.thesis_impact) + ' thesis</span></summary><p>' + esc(e.research_angle) + '</p></details>' +
-    srcs(e.sources) + '</article>').join('');
+  renderQueue(d.catalyst_queue);
 
-  const q = d.quiet_this_cycle;
-  $('quietBody').innerHTML =
-    '<div class="pills">' + q.no_news.map(n => '<span class="pill"><b>' + esc(n.name) + '</b> &middot; ' + n.cycles_quiet +
-      ' cycle' + (n.cycles_quiet > 1 ? 's' : '') + '</span>').join('') + '</div>' +
-    q.critic_catches.map(c => '<div class="catch"><div class="stamp">Rejected &middot; ' + esc(c.rejected_because) + '</div><div class="claim">' +
-      esc(c.claim) + '</div><div class="why">' + esc(c.detail) + '</div>' + srcs(c.sources) + '</div>').join('') +
-    '<div class="threads"><span class="lbl">Open threads &mdash; developing, no update this cycle</span>' +
-    q.open_threads.map(t => '<div class="thread"><b>' + esc(t.thread) + '</b><span class="meta">open since ' + esc(t.since) +
-      ' &middot; ' + esc(t.next_expected) + '</span></div>').join('') + '</div>';
+  // watchlist — thesis_impact is the stripe; dormant angle and dead-beat markers
+  // render at the point of the absence, never as a blank.
+  $('watchlistBody').innerHTML = (d.watchlist || []).map(e => {
+    const dormant = !e.thesis_impact || isMarker(e.research_angle);
+    const stripe = (!dormant && e.thesis_impact) ? ' ' + esc(e.thesis_impact) : '';
+    const degr = (e.degradation && e.degradation.marker) ? absence(e.degradation.marker) : '';
+    const angle = dormant
+      ? absence(isMarker(e.research_angle) ? e.research_angle : 'No thesis seeded — facts only')
+      : '<details class="angle" open><summary><b>Research Angle</b><span class="impact ' + esc(e.thesis_impact) + '">' +
+          esc(e.thesis_impact) + ' thesis</span></summary><p>' + esc(e.research_angle) + '</p></details>';
+    return '<article class="entity' + stripe + '"><div class="ehead">' +
+      '<div class="enameline"><h3>' + esc(e.name) + '</h3><span class="slug">' + esc(e.entity_id) + '</span></div>' +
+      '<div class="etags">' + chip(e.priority) + (e.categories || []).map(c => '<span class="cat">' + esc(c) + '</span>').join('') +
+      '<span class="meta ' + esc(e.status) + '">' + esc(e.status) + '</span><span class="meta">conf ' + esc(e.confidence) + '</span></div></div>' +
+      '<p class="summary">' + esc(e.summary) + '</p>' + degr + angle + srcs(e.sources) + '</article>';
+  }).join('');
 
-  $('radarBody').innerHTML = d.new_on_radar.map(r =>
-    '<article class="entity"><div class="ehead"><div class="enameline"><h3>' + esc(r.name) + '</h3><span class="slug">' + esc(r.entity_id) + '</span></div>' +
-    '<div class="etags">' + chip(r.priority) + r.categories.map(c => '<span class="cat">' + esc(c) + '</span>').join('') + '</div></div>' +
-    '<p class="summary">' + esc(r.what_they_do) + ' &mdash; ' + esc(r.development) + '</p>' +
-    '<details class="angle" open><summary><b>Why we care</b>' + (r.promotion_proposal.promote_to_watchlist ?
-      '<span class="impact confirms">promoting to watchlist</span>' : '<span class="impact neutral">watching one more cycle</span>') +
-    '</summary><p>' + esc(r.why_we_care) + '</p></details>' + srcs(r.sources) + '</article>').join('');
+  // quiet — critic catches struck through and stamped; open threads tolerate the
+  // string OR object shape the manager emits (see README).
+  const q = d.quiet_this_cycle || {};
+  const noNews = (q.no_news || []).map(n => '<span class="pill"><b>' + esc(n.name) + '</b> &middot; ' + esc(n.cycles_quiet) +
+    ' cycle' + (n.cycles_quiet > 1 ? 's' : '') + '</span>').join('');
+  const catches = (q.critic_catches || []).length
+    ? (q.critic_catches).map(c => '<div class="catch"><div class="stamp">Rejected &middot; ' + esc(c.rejected_because) + '</div><div class="claim">' +
+        esc(c.claim) + '</div><div class="why">' + esc(c.detail) + '</div>' + srcs(c.sources) + '</div>').join('')
+    : '<div class="muted">No claims rejected this cycle.</div>';
+  const threads = (q.open_threads || []).length
+    ? '<div class="threads"><span class="lbl">Open threads &mdash; developing, no update this cycle</span>' +
+        (q.open_threads).map(t => typeof t === 'string'
+          ? '<div class="thread"><b>' + esc(t) + '</b></div>'
+          : '<div class="thread"><b>' + esc(t.thread) + '</b><span class="meta">open since ' + esc(t.since) +
+            (t.next_expected ? ' &middot; ' + esc(t.next_expected) : '') + '</span></div>').join('') + '</div>'
+    : '';
+  $('quietBody').innerHTML = (noNews ? '<div class="pills">' + noNews + '</div>' : '') + catches + threads;
 
-  $('themesBody').innerHTML = d.themes_and_signals.map(t =>
+  // radar — why_we_care is thesis-gated; promotion_proposal tolerates both the
+  // spec shape (promote_to_watchlist) and the emitted shape (proposed_*).
+  $('radarBody').innerHTML = (d.new_on_radar || []).map(r => {
+    const pp = r.promotion_proposal || {};
+    let label;
+    if ('promote_to_watchlist' in pp) label = pp.promote_to_watchlist ? 'promoting to watchlist' : 'watching one more cycle';
+    else if (pp.proposed_entity_id) label = 'proposed &middot; ' + esc(pp.proposed_tier || 'watchlist') + (pp.proposed_priority ? ' &middot; ' + esc(pp.proposed_priority) : '');
+    else label = 'on our radar';
+    const why = isMarker(r.why_we_care)
+      ? absence(r.why_we_care)
+      : '<details class="angle" open><summary><b>Why we care</b><span class="impact ' +
+          (('promote_to_watchlist' in pp && pp.promote_to_watchlist) || pp.proposed_entity_id ? 'confirms' : 'neutral') + '">' + label + '</span></summary>' +
+          '<p>' + esc(r.why_we_care) + (pp.reason ? '<br><br><span class="muted">Promotion note: ' + esc(pp.reason) + '</span>' : '') + '</p></details>';
+    return '<article class="entity"><div class="ehead"><div class="enameline"><h3>' + esc(r.name) + '</h3><span class="slug">' + esc(r.entity_id) + '</span></div>' +
+      '<div class="etags">' + chip(r.priority) + (r.categories || []).map(c => '<span class="cat">' + esc(c) + '</span>').join('') + '</div></div>' +
+      '<p class="summary">' + esc(r.what_they_do) + ' &mdash; ' + esc(r.development) + '</p>' + why + srcs(r.sources) + '</article>';
+  }).join('');
+
+  $('themesBody').innerHTML = (d.themes_and_signals || []).map(t =>
     '<div class="block"><h3>' + esc(t.theme) + ' <span class="impact ' + esc(t.thesis_impact) + '">' + esc(t.thesis_impact) + '</span></h3>' +
-    '<p>' + esc(t.argument) + '</p><div class="srcs">' + t.evidence_refs.map(r => '<span class="slug">' + esc(r) + '</span>').join('') + '</div></div>').join('');
+    '<p>' + esc(t.argument) + '</p><div class="srcs">' + (t.evidence_refs || []).map(r => '<span class="slug">' + esc(r) + '</span>').join('') + '</div></div>').join('');
 
-  $('frontierBody').innerHTML = d.elsewhere_on_frontier.map(f =>
+  $('frontierBody').innerHTML = (d.elsewhere_on_frontier || []).map(f =>
     '<div class="block"><h3>' + esc(f.actor) + ' &mdash; ' + esc(f.move) + '</h3><p>' + esc(f.detail) + '</p>' +
     '<p class="why">' + esc(f.why_it_matters) + '</p>' + srcs(f.sources) + '</div>').join('');
 
-  $('thesisBody').innerHTML = d.thesis_updates.map(u =>
-    '<div class="drift"><div class="dh">' + esc(u.change) + ' &middot; ' + esc(u.field) + ' &middot; triggered by ' +
-    u.triggered_by.map(esc).join(', ') + '</div><div class="db"><span class="before">' + esc(u.before) + '</span><span class="after">' +
-    esc(u.after) + '</span></div></div>').join('');
+  const drifts = d.thesis_updates || [];
+  $('thesisBody').innerHTML = drifts.length
+    ? drifts.map(u => '<div class="drift"><div class="dh">' + esc(u.change) + ' &middot; ' + esc(u.field) + ' &middot; triggered by ' +
+        (u.triggered_by || []).map(esc).join(', ') + '</div><div class="db"><span class="before">' + esc(u.before) + '</span><span class="after">' +
+        esc(u.after) + '</span></div></div>').join('')
+    : '<div class="muted">No thesis changes this cycle.</div>';
 
-  const c = d.critic_report;
-  $('criticBody').innerHTML = '<span class="verdict">' + esc(c.verdict.replace(/_/g, ' ')) + ' &middot; ' + c.retries_used + ' retry</span>' +
-    c.blocking_findings.map(f => '<div class="finding">' + chip('high') + '<span>' + esc(f.note) + '</span></div>').join('') +
-    c.advisory_findings.map(f => '<div class="finding"><span class="cat">' + esc(f.kind) + '</span><span><b class="slug">' + esc(f.where) +
-      '</b> &mdash; ' + esc(f.note) + '</span></div>').join('');
+  const c = d.critic_report || {};
+  const blocking = (c.blocking_findings || []).map(f => '<div class="finding">' + chip('high') + '<span><b class="slug">' + esc(f.where) +
+    '</b> &mdash; ' + esc(f.note) + ' <span class="muted">(printed in full in the banner above)</span></span></div>').join('');
+  const advisory = (c.advisory_findings || []).map(f => '<div class="finding"><span class="cat">' + esc(f.kind) + '</span><span><b class="slug">' + esc(f.where) +
+    '</b> &mdash; ' + esc(f.note) + '</span></div>').join('');
+  const vf = ((c.validator_report || {}).findings || []).map(f => '<div class="finding"><span class="cat">validator &middot; ' + esc(f.kind) + '</span><span><b class="slug">' +
+    esc(f.where) + '</b> &mdash; ' + esc(f.note) + '</span></div>').join('');
+  const nothing = !blocking && !advisory && !vf ? '<div class="muted">Nothing flagged before publication.</div>' : '';
+  $('criticBody').innerHTML = '<span class="verdict">' + esc(String(c.verdict || 'not_run').replace(/_/g, ' ')) + ' &middot; ' +
+    (c.retries_used ?? 0) + ' retr' + ((c.retries_used ?? 0) === 1 ? 'y' : 'ies') + '</span>' + blocking + advisory + vf + nothing;
 
-  const m = d.sources_and_method;
-  $('method').innerHTML = 'beats: ' + m.beats_run.map(esc).join(' &middot; ') + '<br>sources: ' +
-    Object.keys(m.source_tier_counts).map(k => '<span class="tier tier-' + k + '">' + k + '</span> ' + m.source_tier_counts[k]).join(' &middot; ') +
-    '<br>' + m.paywalled_flagged.map(p => '<span style="color:var(--eosin)">paywalled &mdash; assess manually:</span> ' + esc(p.claim) +
-      ' (' + esc(p.publisher) + ')').join('<br>') +
-    '<br>models: researchers ' + esc(d.issue.run.models.researchers) + ' &middot; manager ' + esc(d.issue.run.models.manager) +
-    ' &middot; critic ' + esc(d.issue.run.models.critic) + '<br>run ' + esc(d.issue.run.run_id) + ' &middot; thesis v' + esc(d.issue.run.thesis_version) + ' &middot; published ' + esc(d.issue.published_at);
+  const m = d.sources_and_method || {};
+  const mo = run.models || {};
+  const tc = m.source_tier_counts || {};
+  $('method').innerHTML =
+    'beats run: ' + (m.beats_run || []).map(esc).join(' &middot; ') +
+    ((m.beats_failed || []).length ? '<br><span style="color:var(--challenges)">beats failed: ' + m.beats_failed.map(esc).join(' &middot; ') + '</span>' : '') +
+    '<br>sources: ' + Object.keys(tc).map(k => '<span class="tier tier-' + k + '">' + k + '</span> ' + tc[k]).join(' &middot; ') +
+    ((m.paywalled_flagged || []).length ? '<br>' + m.paywalled_flagged.map(p => '<span style="color:var(--eosin)">paywalled &mdash; assess manually:</span> ' +
+      esc(p.claim) + ' (' + esc(p.publisher) + ')').join('<br>') : '') +
+    '<br>models: researchers ' + esc(mo.researchers) + ' &middot; manager ' + esc(mo.manager) + ' &middot; critic ' + esc(mo.critic) +
+    '<br>run ' + esc(run.run_id) + ' &middot; thesis v' + esc(run.thesis_version) + ' &middot; published ' + esc(d.issue.published_at);
 
-  // tabs
-  const tabs = [...document.querySelectorAll('.tabs button')];
-  tabs.forEach(t => t.addEventListener('click', () => {
-    tabs.forEach(o => {
-      const on = o === t;
-      o.setAttribute('aria-selected', String(on));
-      $(o.getAttribute('aria-controls')).hidden = !on;
-    });
-  }));
+  bindToggleAll();
+  $('issueView').hidden = false;
+  $('stubView').hidden = true;
+  $('loadError').hidden = true;
+}
 
-  // expand/collapse all
+function render(d) {
+  if (!d.issue) { showError('<b>Malformed issue</b>The selected issue file has no <code>issue</code> block.'); return; }
+  const status = (d.issue.run || {}).status;
+  if (status === 'failed' || !d.headline) renderStub(d);
+  else renderFull(d);
+}
+
+// ── expand / collapse all watchlist angles (rebound after every render) ────
+function bindToggleAll() {
   const btn = $('toggleAll');
   const angles = () => [...document.querySelectorAll('#watchlistBody details.angle')];
   const syncBtn = () => { btn.textContent = angles().some(x => !x.open) ? 'Expand all angles' : 'Collapse all angles'; };
   angles().forEach(x => x.addEventListener('toggle', syncBtn));
   syncBtn();
-  btn.addEventListener('click', () => { const e = angles().some(x => !x.open); angles().forEach(x => { x.open = e; }); syncBtn(); });
+  btn.onclick = () => { const e = angles().some(x => !x.open); angles().forEach(x => { x.open = e; }); syncBtn(); };
+}
 
-  $('issuePicker').addEventListener('change', (e) => {
-    if (e.target.value !== d.issue.id) { alert('Prototype: only ' + d.issue.id + ' has data. Production fetches issues/<id>.json.'); e.target.value = d.issue.id; }
+// ── dropdown: newest-first, stubs included, surge weeks grouped by window ──
+function labelFor(it) {
+  if (it.status === 'failed') return it.id + ' — failed';
+  if (it.surge) return it.id + ' — day ' + it.surge.day + ' of ' + it.surge.of;
+  if (it.status === 'published_uncritiqued') return it.id + ' — unvetted';
+  if (it.status === 'published_with_unresolved_findings') return it.id + ' — disputed';
+  return it.id;
+}
+
+function buildPicker(issues) {
+  const sel = $('issuePicker');
+  sel.innerHTML = '';
+  const groups = {};
+  issues.forEach(it => {
+    const opt = document.createElement('option');
+    opt.value = it.id;
+    opt.textContent = labelFor(it);
+    if (it.surge && it.surge.window) {
+      let g = groups[it.surge.window];
+      if (!g) { g = document.createElement('optgroup'); g.label = it.surge.window; groups[it.surge.window] = g; sel.appendChild(g); }
+      g.appendChild(opt);
+    } else {
+      sel.appendChild(opt);
+    }
   });
+}
+
+async function loadIssue(id) {
+  try {
+    const res = await fetch('../issues/' + id + '.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    render(await res.json());
+  } catch (err) {
+    showError('<b>Could not load issue ' + esc(id) + '</b>Fetch failed: ' + esc(err.message) +
+      '. The file may be missing or the page is not being served over HTTP.');
+  }
+}
+
+async function boot() {
+  let manifest;
+  try {
+    const res = await fetch('../issues/index.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    manifest = await res.json();
+  } catch (err) {
+    showError('<b>Could not load issues/index.json</b>Fetch failed: ' + esc(err.message) +
+      '.<br>Serve the repo root over HTTP (e.g. <code>python -m http.server</code>) and open the dashboard from there — ' +
+      'the page reads <code>../issues/index.json</code> relative to itself and cannot fetch over <code>file://</code>.');
+    return;
+  }
+  const issues = manifest.issues || [];
+  if (!issues.length) { showError('<b>No issues yet</b>The manifest lists zero issues. Run the pipeline once to publish one.'); return; }
+  buildPicker(issues);
+  $('issuePicker').value = issues[0].id;
+  loadIssue(issues[0].id);
+  $('issuePicker').addEventListener('change', e => loadIssue(e.target.value));
+}
+
+// tabs
+const tabs = [...document.querySelectorAll('.tabs button')];
+tabs.forEach(t => t.addEventListener('click', () => {
+  tabs.forEach(o => {
+    const on = o === t;
+    o.setAttribute('aria-selected', String(on));
+    $(o.getAttribute('aria-controls')).hidden = !on;
+  });
+}));
+
+boot();
 </script>
