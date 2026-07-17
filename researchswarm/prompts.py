@@ -389,16 +389,42 @@ def _critic_findings_block(findings) -> str:
     return "\n".join(lines)
 
 
-def render_critic_retry_prompt(template: str, *, prior_draft: dict, blocking_findings) -> str:
+# The per-round directive, filled into {{round_directive}}. Retry 1 opens the
+# rebuttal channel; retry 2 (the final round) closes it — comply-only, so a
+# reaffirmed finding cannot be rebutted a second time (spec/06 rebut-once).
+_ROUND_REBUT = (
+    "- For each FRESH finding you have a choice:\n"
+    "    1. FIX it — edit the draft so the claim no longer outruns its sources. If\n"
+    "       you fix a finding by removing a claim, record it in\n"
+    "       quiet_this_cycle.critic_catches so the cut leaves a trace.\n"
+    "    2. REBUT it — if you believe the finding is wrong, attach a `rebuttal` to\n"
+    "       that finding inside critic_report.blocking_findings, of the shape\n"
+    '       {"text": "...", "sources": [ <source objects> ]}: a sourced argument,\n'
+    "       not an assertion. You may NOT silently ignore a finding.\n"
+    "- For a finding marked REAFFIRMED, the critic already overruled your rebuttal\n"
+    "  — COMPLY: fix it, do not rebut it again."
+)
+_ROUND_COMPLY = (
+    "- This is your FINAL retry: the rebuttal channel is CLOSED. COMPLY with EVERY\n"
+    "  finding below by editing the draft to fix it — the critic has had its say,\n"
+    "  and any rebuttal you file now is ignored. A finding you do not fix publishes\n"
+    "  with the dispute printed under a reader-visible banner."
+)
+
+
+def render_critic_retry_prompt(
+    template: str, *, prior_draft: dict, blocking_findings, final_round: bool
+) -> str:
     """Interpolate the critic-retry prompt. Raises if a placeholder is left.
 
     The manager receives exactly two things — its own prior draft and the critic's
-    blocking findings — and EDITS the draft: it fixes each finding, or files a
-    sourced `rebuttal` on it ([05](docs/spec/05-manager.md#the-rebuttal-channel)).
-    A finding already marked `reaffirmed` must be complied with, not rebutted
-    again. The same UnresolvedPlaceholder wall the other renderers use applies."""
+    blocking findings — and EDITS the draft ([05](docs/spec/05-manager.md#the-rebuttal-channel)).
+    `final_round` swaps the directive: retry 1 lets it fix OR file a sourced
+    rebuttal; retry 2 is comply-only, so a reaffirmed finding cannot be rebutted
+    twice. The same UnresolvedPlaceholder wall the other renderers use applies."""
     values = {
         "prior_draft_json": json.dumps(prior_draft, indent=2, ensure_ascii=False),
         "blocking_findings": _critic_findings_block(blocking_findings),
+        "round_directive": _ROUND_COMPLY if final_round else _ROUND_REBUT,
     }
     return _substitute(template, values)

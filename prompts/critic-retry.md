@@ -2,7 +2,7 @@
 
 Asset for ticket [#35](https://github.com/cmengu/Research-Swarm/issues/35). The Codex critic blocked the manager's draft: at least one finding asserts the digest would mislead a reader about a fact. This is the prompt that hands the draft back so the manager can **edit** it — either fixing the finding, or filing a **sourced rebuttal** for why the critic is wrong.
 
-Like the other prompt files, this is a document ABOUT the template with the template itself fenced inside a single ```text block. `run.py` extracts that fence; these notes stay out of the model's context. Two `{{double_brace}}` placeholders are filled at render time by `render_critic_retry_prompt`: `{{prior_draft_json}}` (the manager's own prior draft) and `{{blocking_findings}}` (exactly the critic's blocking findings, nothing advisory).
+Like the other prompt files, this is a document ABOUT the template with the template itself fenced inside a single ```text block. `run.py` extracts that fence; these notes stay out of the model's context. Three `{{double_brace}}` placeholders are filled at render time by `render_critic_retry_prompt`: `{{prior_draft_json}}` (the manager's own prior draft), `{{blocking_findings}}` (exactly the critic's blocking findings, nothing advisory), and `{{round_directive}}` (the fix-or-rebut rules on retry 1, comply-only on the final retry).
 
 ## The rules this template exists to enforce
 
@@ -36,16 +36,7 @@ it from scratch.
   access. Work with the facts already in the draft, plus what a rebuttal's own
   sources carry. If a finding cannot be fixed from what is here, soften or DELETE
   the offending claim rather than invent support.
-- For each FRESH finding you have a choice:
-    1. FIX it — edit the draft so the claim no longer outruns its sources. If you
-       fix a finding by removing a claim, record it in
-       quiet_this_cycle.critic_catches so the cut leaves a trace.
-    2. REBUT it — if you believe the finding is wrong, attach a `rebuttal` to that
-       finding inside critic_report.blocking_findings. A rebuttal is
-       {"text": "...", "sources": [ <source objects> ]} — a sourced argument, not
-       an assertion. You may NOT silently ignore a finding; do one or the other.
-- For each finding marked REAFFIRMED below, the critic has already overruled your
-  rebuttal. COMPLY: fix it. Do not rebut it a second time.
+{{round_directive}}
 - Do NOT set `adjudication` on any rebuttal. That is the critic's to set, never
   yours.
 
@@ -75,3 +66,4 @@ file rides in critic_report.blocking_findings[].rebuttal.
 |---|---|---|
 | `{{prior_draft_json}}` | the manager's prior `issue.json` draft | indented JSON, emitted verbatim so the manager edits rather than regenerates |
 | `{{blocking_findings}}` | the critic's surviving `blocking_findings` | one `- kind at where: note` line per finding; a reaffirmed finding gets a COMPLY marker; advisories are deliberately withheld — they are the record, not a to-do list |
+| `{{round_directive}}` | `final_round` (retries_used + 1 == the budget) | fix-or-sourced-rebuttal rules on retry 1; comply-only on the final retry, which closes the rebuttal channel so a reaffirmed finding cannot be rebutted twice |

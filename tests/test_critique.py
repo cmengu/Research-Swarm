@@ -249,7 +249,7 @@ class TestTheRetryLoop:
         assert len(calls) == MAX_CRITIC_RETRIES  # two manager calls, never three
         assert result.blocking_findings[0]["kind"] == "overclaim"
 
-    def test_a_withdrawn_rebuttal_publishes_clean(self, tmp_path, state, critic_template, retry_template):
+    def test_a_withdrawn_rebuttal_publishes_clean_with_both_sides(self, tmp_path, state, critic_template, retry_template):
         _seed_findings(tmp_path)
         # Pass 1 blocks; the manager rebuts; pass 2 the critic drops it → withdrawn.
         codex = _codex_runner(_blocked(), _clean())
@@ -259,6 +259,77 @@ class TestTheRetryLoop:
         assert result.verdict == "pass"
         assert result.blocking_findings == ()
         assert result.retries_used == 1
+        # The dispute does not vanish: it publishes as a non-gating advisory record
+        # carrying both sides, adjudication withdrawn.
+        withdrawn = [f for f in result.advisory_findings if f.get("rebuttal")]
+        assert len(withdrawn) == 1
+        assert withdrawn[0]["kind"] == "overclaim"
+        assert withdrawn[0]["rebuttal"]["adjudication"] == "withdrawn"
+        assert withdrawn[0]["rebuttal"]["text"]
+
+    def test_the_final_retry_is_comply_only_and_a_late_rebuttal_is_ignored(
+        self, tmp_path, state, critic_template, retry_template
+    ):
+        _seed_findings(tmp_path)
+        prompts = []
+        # retry 1: manager fails to fix (no rebuttal); retry 2: manager tries to
+        # rebut, but the channel is closed on the final round.
+        manager = _manager_runner(_draft(), _draft_rebutting("overclaim", "headline"), calls=None)
+
+        def recording(command, **kwargs):
+            prompts.append(command[command.index("-p") + 1])
+            return manager(command, **kwargs)
+
+        result = _stage(tmp_path, state, critic_template, retry_template,
+                        _codex_runner(_blocked()), manager_runner=recording)
+        assert result.status == PUBLISHED_WITH_UNRESOLVED
+        # The retry-2 prompt is comply-only; the retry-1 prompt offers the channel.
+        assert "rebuttal channel is CLOSED" in prompts[1]
+        assert "REBUT it" in prompts[0] and "rebuttal channel is CLOSED" not in prompts[0]
+        # The late rebuttal never reaches the published finding.
+        assert "rebuttal" not in result.blocking_findings[0]
+
+    def test_a_reworded_where_still_reaffirms_the_rebuttal(
+        self, tmp_path, state, critic_template, retry_template
+    ):
+        _seed_findings(tmp_path)
+        # The manager rebuts overclaim@headline; the critic re-files the same fault
+        # as overclaim@headline.summary. The sole same-kind survivor is an
+        # unambiguous re-file, so the rebuttal is reaffirmed, not lost.
+        codex = _codex_runner(_blocked("overclaim", "headline"),
+                              _blocked("overclaim", "headline.summary"))
+        manager = _manager_runner(_draft_rebutting("overclaim", "headline"), _draft())
+        result = _stage(tmp_path, state, critic_template, retry_template, codex, manager_runner=manager)
+        assert result.status == PUBLISHED_WITH_UNRESOLVED
+        survivor = result.blocking_findings[0]
+        assert survivor["where"] == "headline.summary"
+        assert survivor["rebuttal"]["adjudication"] == "reaffirmed"
+
+    def test_manager_failure_stamps_the_cause_on_the_survivors(
+        self, tmp_path, state, critic_template, retry_template
+    ):
+        _seed_findings(tmp_path)
+
+        def broken_manager(command, **kwargs):
+            return SimpleNamespace(returncode=1, stdout="boom", stderr="")
+
+        result = _stage(tmp_path, state, critic_template, retry_template,
+                        _codex_runner(_blocked()), manager_runner=broken_manager)
+        assert result.status == PUBLISHED_WITH_UNRESOLVED
+        # A reader can tell "manager crashed at retry N" from "survived retry 2".
+        assert "manager unavailable at retry 1" in result.blocking_findings[0]["note"]
+
+    def test_the_edited_sections_are_logged_for_visibility(
+        self, tmp_path, state, critic_template, retry_template, caplog
+    ):
+        import logging
+        caplog.set_level(logging.WARNING, logger="researchswarm.critique")
+        _seed_findings(tmp_path)
+        codex = _codex_runner(_blocked(), _clean())
+        manager = _manager_runner(_draft(headline={"title": "t", "so_what": "softened"}))
+        _stage(tmp_path, state, critic_template, retry_template, codex, manager_runner=manager)
+        lines = [r.getMessage() for r in caplog.records if "edited section(s)" in r.getMessage()]
+        assert lines and "headline" in lines[0]
 
     def test_a_reaffirmed_rebuttal_prints_both_sides_on_exhaustion(
         self, tmp_path, state, critic_template, retry_template

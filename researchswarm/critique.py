@@ -49,9 +49,14 @@ from researchswarm.critic import (
     PUBLISHED,
     PUBLISHED_UNCRITIQUED,
     PUBLISHED_WITH_UNRESOLVED,
-    annotate_reaffirmed,
+    REAFFIRMED,
+    WITHDRAWN,
+    attach_adjudication,
     enforce_receipt_rule,
     extract_rebuttals,
+    finding_key,
+    match_survivor_key,
+    rebuttal_record,
     run_critic,
 )
 from researchswarm.manager import ManagerFailed, run_manager
@@ -74,19 +79,21 @@ MAX_CRITIC_RETRIES = 2
 
 @dataclass(frozen=True)
 class CritiqueStageResult:
-    """What stage 5 hands publish: the status to stamp, the critic's verdict, the
-    findings that survived the loop, the retries it spent, and the (possibly
-    edited) draft the retries produced.
+    """What stage 5 hands publish: the (possibly edited) draft the retries
+    produced, the status to stamp, the critic's verdict, the findings that
+    survived the loop, and the retries it spent.
 
-    `draft` is load-bearing after this ticket: the manager EDITS the draft across
-    retries, so the artifact publish writes is the one that came OUT of the loop,
-    not the one that went in. `blocking_findings` on an exhausted run carry each
-    finding's `rebuttal` (with the critic's `reaffirmed`), so publish prints both
-    sides. `reason` is set only on not_run."""
+    `draft` is REQUIRED, and load-bearing after this ticket: the manager EDITS the
+    draft across retries, so the artifact publish writes is the one that came OUT
+    of the loop, not the one that went in — the stage always produces one, so
+    there is no None case to guard. `blocking_findings` on an exhausted run carry
+    each finding's `rebuttal` (with the critic's `reaffirmed`); `advisory_findings`
+    carry any `withdrawn` rebuttal records — both sides always printed. `reason` is
+    set only on not_run."""
 
+    draft: dict
     status: str
     verdict: str
-    draft: dict | None = None
     blocking_findings: tuple[dict, ...] = ()
     advisory_findings: tuple[dict, ...] = ()
     retries_used: int = 0
@@ -128,10 +135,16 @@ def run_critique_stage(
     previous_issue = latest_covering_issue(issues_dir).payload
     findings_corpus = json.dumps(findings_by_beat, ensure_ascii=False)
 
-    # The manager's rebuttals, accumulated across retries, keyed by (kind, where).
-    # The critic re-judges the draft that carries them; annotate_reaffirmed pairs a
-    # surviving finding back with the rebuttal the critic overruled.
-    rebuttals: dict[tuple, dict] = {}
+    # Rebuttal bookkeeping across the loop, all keyed by (kind, where):
+    #   pending    — filed on the retry just completed, awaiting THIS pass's verdict.
+    #   reaffirmed — the critic re-filed the fault; keyed by the SURVIVOR it rides on.
+    #   withdrawn  — the critic dropped the fault; terminal, non-gating records.
+    # A rebuttal is adjudicated exactly ONCE, on the pass right after it is filed —
+    # before the manager has had a chance to comply — so "the critic withdrew it"
+    # is never confused with "the manager later fixed it".
+    pending: dict[tuple, dict] = {}
+    reaffirmed: dict[tuple, dict] = {}
+    withdrawn_records: list[dict] = []
     retries_used = 0
 
     while True:
@@ -151,9 +164,9 @@ def run_critique_stage(
             # The critic is unavailable — banner-visible, not a failure. Publish the
             # draft as it stands (whatever earlier retries edited into it).
             return CritiqueStageResult(
+                draft=draft,
                 status=PUBLISHED_UNCRITIQUED,
                 verdict=NOT_RUN,
-                draft=draft,
                 reason=result.reason,
                 retries_used=retries_used,
             )
@@ -162,23 +175,52 @@ def run_critique_stage(
             kept, downgraded = enforce_receipt_rule(
                 result.blocking_findings, findings_corpus=findings_corpus, issue=draft
             )
-            kept = annotate_reaffirmed(kept, rebuttals)
-            advisory = (*result.advisory_findings, *downgraded)
+            advisory = [*result.advisory_findings, *downgraded]
         else:
             kept = ()
-            advisory = result.advisory_findings
+            advisory = list(result.advisory_findings)
+
+        # Adjudicate the rebuttals filed on the previous retry against THIS pass:
+        # re-filed (exact, or the sole same-kind survivor) → reaffirmed; else the
+        # critic dropped it → a withdrawn record. Then pair every upheld rebuttal
+        # with the finding it now rides on.
+        for key, reb in pending.items():
+            survivor = match_survivor_key(key, kept)
+            if survivor is not None:
+                reaffirmed[survivor] = reb
+            else:
+                withdrawn_records.append(rebuttal_record(key, reb, WITHDRAWN))
+        pending = {}
+        kept = tuple(
+            attach_adjudication(f, reaffirmed[finding_key(f)], REAFFIRMED)
+            if finding_key(f) in reaffirmed
+            else f
+            for f in kept
+        )
+
+        # An upheld rebuttal whose finding no longer survives (the manager complied,
+        # or the critic merged it away) still publishes as its own record — a filed
+        # rebuttal is never silently deleted.
+        survivor_keys = {finding_key(f) for f in kept}
+        orphan_reaffirmed = [
+            rebuttal_record(key, reb, REAFFIRMED)
+            for key, reb in reaffirmed.items()
+            if key not in survivor_keys
+        ]
+        terminal_advisory = (*advisory, *withdrawn_records, *orphan_reaffirmed)
 
         if not kept:
-            # Nothing blocks — either a clean verdict, or the receipt rule
-            # downgraded every blocking finding. Either way the run publishes.
+            # Nothing blocks — a clean verdict, every blocking finding downgraded by
+            # the receipt rule, or every dispute withdrawn. Either way the run
+            # publishes, the withdrawn records riding among the advisories.
             if result.verdict == BLOCKED:
                 log.info("critic blocked, but the receipt rule downgraded every finding")
             verdict = PASS_WITH_ADVISORIES if result.verdict == BLOCKED else result.verdict
             return CritiqueStageResult(
+                draft=draft,
                 status=PUBLISHED,
                 verdict=verdict,
-                draft=draft,
-                advisory_findings=advisory,
+                advisory_findings=terminal_advisory,
                 retries_used=retries_used,
             )
 
@@ -193,29 +235,34 @@ def run_critique_stage(
                 len(kept),
             )
             return CritiqueStageResult(
+                draft=draft,
                 status=PUBLISHED_WITH_UNRESOLVED,
                 verdict=BLOCKED,
-                draft=draft,
                 blocking_findings=kept,
-                advisory_findings=advisory,
+                advisory_findings=terminal_advisory,
                 retries_used=retries_used,
             )
 
         # A real block with budget remaining — hand the manager its OWN prior draft
         # plus exactly the surviving findings (advisories withheld). It edits: fix,
-        # or file a sourced rebuttal; researchers are not re-run.
+        # or (except on the final round) file a sourced rebuttal; researchers are
+        # not re-run. `final_round` closes the rebuttal channel: retry 2 is
+        # comply-only, so a reaffirmed finding cannot be rebutted a second time.
+        final_round = retries_used + 1 >= MAX_CRITIC_RETRIES
         log.warning(
-            "critic: %d blocking finding(s), retry %d/%d",
+            "critic: %d blocking finding(s), retry %d/%d%s",
             len(kept),
             retries_used + 1,
             MAX_CRITIC_RETRIES,
+            " (comply-only)" if final_round else "",
         )
         retry_prompt = render_critic_retry_prompt(
-            retry_template, prior_draft=draft, blocking_findings=kept
+            retry_template, prior_draft=draft, blocking_findings=kept, final_round=final_round
         )
         # Stage 4's record is the validator's, not the manager's to clobber on an
         # edit — carry it across the round so publish still finds it.
         validator_report = (draft.get("critic_report") or {}).get("validator_report")
+        prior_draft = draft
         try:
             manager_result = run_manager(
                 retry_prompt,
@@ -228,27 +275,56 @@ def run_critique_stage(
             # The retry manager broke, but the draft under judgment already passed
             # the validator — it is publishable. A broken model DEGRADES the run,
             # never fails it: publish the last good draft with the disputed findings
-            # printed, exactly as exhaustion would.
+            # printed. Stamp the cause on each survivor so a reader can tell "manager
+            # crashed at retry N" from "survived a full retry 2".
             log.warning(
                 "critic retry manager failed (%s) — publishing %d unresolved finding(s)",
                 exc,
                 len(kept),
             )
+            trace = f"manager unavailable at retry {retries_used + 1}: {exc}"
+            degraded = tuple(_note(f, trace) for f in kept)
             return CritiqueStageResult(
+                draft=draft,
                 status=PUBLISHED_WITH_UNRESOLVED,
                 verdict=BLOCKED,
-                draft=draft,
-                blocking_findings=kept,
-                advisory_findings=advisory,
+                blocking_findings=degraded,
+                advisory_findings=terminal_advisory,
                 retries_used=retries_used,
             )
 
         draft = manager_result.draft
         if validator_report is not None:
             draft.setdefault("critic_report", {})["validator_report"] = validator_report
-        # Record whatever rebuttals the manager filed this round, then re-persist so
-        # the draft on disk always matches the one under judgment (run.py is the
-        # sole writer, and the edited draft replaces the one it wrote).
-        rebuttals.update(extract_rebuttals(draft))
+        # Only a non-final round may file rebuttals; on the final round the channel
+        # is closed and any rebuttal the manager typed is ignored (never extracted,
+        # and publish overwrites critic_report.blocking_findings regardless).
+        if not final_round:
+            pending = extract_rebuttals(draft)
+        _log_edited_sections(prior_draft, draft, retries_used + 1)
+        # Re-persist so the draft on disk always matches the one under judgment
+        # (run.py is the sole writer; the edited draft replaces the one it wrote).
         draft_path.write_text(json.dumps(draft, indent=2) + "\n")
         retries_used += 1
+
+
+def _note(finding: dict, note: str) -> dict:
+    """A copy of `finding` with `note` appended in brackets — the audit crumb that
+    survives into the published report without mutating the original."""
+    existing = finding.get("note", "")
+    joined = f"{existing} [{note}]" if existing else f"[{note}]"
+    return {**finding, "note": joined}
+
+
+def _log_edited_sections(before: dict, after: dict, retry: int) -> None:
+    """Log which top-level sections the manager changed this round (spec/05:
+    sections that already passed must not silently mutate).
+
+    Not a gate — a legitimate fix cascades into headline/tldr, and blocking that
+    would break the retry. It is mechanical VISIBILITY: an operator reading the log
+    can see a retry that was meant to soften one claim quietly re-authored five
+    sections. `critic_report` is expected to change (the loop re-stamps it), so it
+    is excluded from the surprise set."""
+    keys = (set(before) | set(after)) - {"critic_report"}
+    changed = sorted(k for k in keys if before.get(k) != after.get(k))
+    log.warning("retry %d edited section(s): %s", retry, ", ".join(changed) or "(none)")

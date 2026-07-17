@@ -30,12 +30,16 @@ Two responsibilities live here, and they are deliberately different in kind:
     on — stays mechanical here. A `dropped_story` without a well-formed receipt is
     auto-downgraded to advisory, consuming no retry.
 
-  - `extract_rebuttals` / `annotate_reaffirmed` are the mechanical half of the
+  - `extract_rebuttals` and the adjudication join (`match_survivor_key`,
+    `attach_adjudication`, `rebuttal_record`) are the mechanical half of the
     rebuttal channel (spec/06). The MANAGER's judgment is whether to rebut; the
     CRITIC's judgment is whether to re-file the rebutted finding. The orchestrator
-    only joins the two by (kind, where): a rebuttal whose finding the critic
-    re-files is `reaffirmed`, one it drops is `withdrawn`. It never judges whether
-    a rebuttal is right — only which finding it belongs to.
+    only joins the two: a rebuttal whose finding the critic re-files is
+    `reaffirmed`, one it drops is `withdrawn`. The join is (kind, where) first, and
+    — because a critic may re-file the same fault with a reworded `where` — the
+    sole surviving finding of the same kind second. It never judges whether a
+    rebuttal is right, only which finding it belongs to, and it NEVER silently
+    deletes one: an unmatched rebuttal publishes as its own record.
 
 The RETRY LOOP itself — the manager calls, the budget, the exhaustion outcome —
 lives in critique.py (the stage), exactly as the validator's loop lives in
@@ -525,24 +529,45 @@ def extract_rebuttals(draft: dict) -> dict[tuple, dict]:
     return rebuttals
 
 
-def annotate_reaffirmed(findings, rebuttals: dict[tuple, dict]) -> tuple[dict, ...]:
-    """Attach each surviving finding's rebuttal, marked `reaffirmed` by the critic.
+def match_survivor_key(key: tuple, findings) -> tuple | None:
+    """The key of the surviving finding a rebuttal for `key` attaches to, or None.
 
-    A finding still blocking after a pass that saw its rebuttal HAS been re-filed —
-    the critic weighed the rebuttal and stood by the finding — so the rebuttal is
-    reaffirmed. Attaching it here is what puts BOTH sides in front of the manager
-    on retry 2 (comply now) and in the published report on exhaustion (both
-    printed). A finding with no tracked rebuttal passes through untouched."""
-    annotated: list[dict] = []
+    Exact (kind, where) first. Failing that, the SOLE surviving finding of the
+    same kind — the critic weighed the rebuttal and re-filed the same fault with a
+    reworded `where`, and one survivor of that kind is an unambiguous re-file. Two
+    or more of the same kind is ambiguous, and none means the fault is gone; both
+    return None, and the caller treats the rebuttal as unmatched (withdrawn) rather
+    than guess. This is the whole of the join's judgment, and it is mechanical."""
     for finding in findings:
-        rebuttal = rebuttals.get(finding_key(finding))
-        if rebuttal is None:
-            annotated.append(finding)
-        else:
-            annotated.append(
-                {**finding, "rebuttal": {**rebuttal, "adjudication": REAFFIRMED}}
-            )
-    return tuple(annotated)
+        if finding_key(finding) == key:
+            return key
+    same_kind = [finding_key(f) for f in findings if f.get("kind") == key[0]]
+    return same_kind[0] if len(same_kind) == 1 else None
+
+
+def attach_adjudication(finding: dict, rebuttal: dict, adjudication: str) -> dict:
+    """A copy of `finding` carrying the rebuttal stamped with the critic's verdict.
+
+    Both sides now travel together — in front of the manager on the next round, and
+    in the published report — which is the point of the channel."""
+    return {**finding, "rebuttal": {**rebuttal, "adjudication": adjudication}}
+
+
+def rebuttal_record(key: tuple, rebuttal: dict, adjudication: str) -> dict:
+    """A standalone critic_report entry for a rebuttal with no surviving finding.
+
+    So a filed rebuttal is NEVER silently deleted (spec/06: a genuine dispute is
+    information the reader should have). It rides as a finding-shaped record keyed
+    by the rebuttal's own (kind, where), non-gating: the fault it answered is gone
+    — the critic WITHDREW it, or the manager complied and it was reaffirmed-then-
+    fixed — so it publishes among the advisories, both sides still visible."""
+    kind, where = key
+    return {
+        "kind": kind,
+        "where": where,
+        "note": f"rebuttal {adjudication} by the critic",
+        "rebuttal": {**rebuttal, "adjudication": adjudication},
+    }
 
 
 def _within_window(published_at: str, window: dict) -> bool | None:

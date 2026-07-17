@@ -379,8 +379,9 @@ def main(argv: list[str] | None = None) -> int:
         f" ({critic.reason})" if critic.reason else "",
     )
     # The retry loop may have edited the draft (manager fixes, rebuttals): publish
-    # the draft that came OUT of stage 5, not the one that went in.
-    published_draft = critic.draft if critic.draft is not None else validation.draft
+    # the draft that came OUT of stage 5, not the one that went in. The stage always
+    # returns one, so there is no fallback.
+    published_draft = critic.draft
 
     # --- Stage 6: publish --------------------------------------------------
     # Derived stats, the immutable issue, the regenerated manifest, the state
