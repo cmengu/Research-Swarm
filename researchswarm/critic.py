@@ -30,8 +30,16 @@ Two responsibilities live here, and they are deliberately different in kind:
     on — stays mechanical here. A `dropped_story` without a well-formed receipt is
     auto-downgraded to advisory, consuming no retry.
 
-The retry loop and the rebuttal channel are ticket #35, NOT here: this module
-wires one critic pass and its verdicts.
+  - `extract_rebuttals` / `annotate_reaffirmed` are the mechanical half of the
+    rebuttal channel (spec/06). The MANAGER's judgment is whether to rebut; the
+    CRITIC's judgment is whether to re-file the rebutted finding. The orchestrator
+    only joins the two by (kind, where): a rebuttal whose finding the critic
+    re-files is `reaffirmed`, one it drops is `withdrawn`. It never judges whether
+    a rebuttal is right — only which finding it belongs to.
+
+The RETRY LOOP itself — the manager calls, the budget, the exhaustion outcome —
+lives in critique.py (the stage), exactly as the validator's loop lives in
+validation.py. This module stays the pure, mechanical, IO-free half.
 
 Spec: docs/spec/06-validator-and-critic.md (stage 2), docs/spec/07-issue-schema.md
 """
@@ -71,6 +79,15 @@ CRITIC_VERDICTS = (PASS, PASS_WITH_ADVISORIES, BLOCKED)
 PUBLISHED = "published"
 PUBLISHED_UNCRITIQUED = "published_uncritiqued"
 PUBLISHED_WITH_UNRESOLVED = "published_with_unresolved_findings"
+
+# The two adjudications the critic can pass on a manager's rebuttal (spec/06 the
+# rebuttal channel). One home, because the manager reads them (retry 2 complies
+# with every reaffirmed finding) and the publisher prints them. Set by the CRITIC,
+# never the manager: the orchestrator reads the critic's re-judgment — a rebutted
+# finding the critic RE-FILES is reaffirmed, one it drops is withdrawn — so the
+# manager cannot author its own acquittal.
+WITHDRAWN = "withdrawn"
+REAFFIRMED = "reaffirmed"
 
 # The one blocking kind the orchestrator checks mechanically (the receipt rule).
 DROPPED_STORY = "dropped_story"
@@ -447,6 +464,85 @@ def _receipt_failure(
         return "url is already cited in the issue"
 
     return None
+
+
+def finding_key(finding: dict) -> tuple:
+    """The (kind, where) pair that joins a finding across critic passes.
+
+    The rebuttal channel needs to know whether THIS pass's blocking finding is the
+    same one the manager rebutted last round. kind+where is that identity: kind is
+    the rubric category, where is the path into the issue it faults. Mechanical on
+    purpose — the orchestrator never judges whether two findings 'mean the same
+    thing', only whether they name the same fault at the same place."""
+    return (finding.get("kind"), finding.get("where"))
+
+
+def rebuttal_of(finding: dict) -> dict | None:
+    """A WELL-FORMED rebuttal attached to a finding, or None.
+
+    A rebuttal is the manager's SOURCED argument that a finding is wrong (spec/05),
+    so it counts only with non-empty `text` and at least one `sources[]` entry. An
+    unsourced or empty rebuttal is not a rebuttal — the finding reads as ignored,
+    and the critic re-files it. Mechanical, like the receipt rule: the orchestrator
+    checks the rebuttal is actionable, never whether its argument is correct."""
+    rebuttal = finding.get("rebuttal")
+    if not isinstance(rebuttal, dict):
+        return None
+    if not rebuttal.get("text"):
+        return None
+    sources = rebuttal.get("sources")
+    if not isinstance(sources, list) or not sources:
+        return None
+    return rebuttal
+
+
+def extract_rebuttals(draft: dict) -> dict[tuple, dict]:
+    """Pull the manager's well-formed rebuttals out of an edited draft.
+
+    The manager files a rebuttal by attaching it to the finding in
+    `critic_report.blocking_findings[].rebuttal` — the same field the critic reads
+    on its next pass and the publisher prints. Returns {finding_key: rebuttal} for
+    every well-formed one, dropping the `adjudication` field if the manager tried
+    to set it (that is the critic's, never the manager's). Malformed critic_report
+    shapes yield an empty map rather than raising — a manager that mangled the
+    field simply filed no rebuttal."""
+    report = draft.get("critic_report")
+    if not isinstance(report, dict):
+        return {}
+    findings = report.get("blocking_findings")
+    if not isinstance(findings, list):
+        return {}
+    rebuttals: dict[tuple, dict] = {}
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        rebuttal = rebuttal_of(finding)
+        if rebuttal is not None:
+            # Strip a manager-set adjudication: only the critic's re-judgment sets it.
+            rebuttals[finding_key(finding)] = {
+                k: v for k, v in rebuttal.items() if k != "adjudication"
+            }
+    return rebuttals
+
+
+def annotate_reaffirmed(findings, rebuttals: dict[tuple, dict]) -> tuple[dict, ...]:
+    """Attach each surviving finding's rebuttal, marked `reaffirmed` by the critic.
+
+    A finding still blocking after a pass that saw its rebuttal HAS been re-filed —
+    the critic weighed the rebuttal and stood by the finding — so the rebuttal is
+    reaffirmed. Attaching it here is what puts BOTH sides in front of the manager
+    on retry 2 (comply now) and in the published report on exhaustion (both
+    printed). A finding with no tracked rebuttal passes through untouched."""
+    annotated: list[dict] = []
+    for finding in findings:
+        rebuttal = rebuttals.get(finding_key(finding))
+        if rebuttal is None:
+            annotated.append(finding)
+        else:
+            annotated.append(
+                {**finding, "rebuttal": {**rebuttal, "adjudication": REAFFIRMED}}
+            )
+    return tuple(annotated)
 
 
 def _within_window(published_at: str, window: dict) -> bool | None:

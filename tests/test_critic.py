@@ -16,9 +16,14 @@ import pytest
 from researchswarm.critic import (
     ADVISORY_KINDS,
     BLOCKING_KINDS,
+    REAFFIRMED,
     CriticOfflineViolation,
+    annotate_reaffirmed,
     build_codex_command,
     enforce_receipt_rule,
+    extract_rebuttals,
+    finding_key,
+    rebuttal_of,
     run_critic,
 )
 
@@ -367,6 +372,65 @@ class TestReceiptRule:
         )
         assert overclaim in kept and good in kept
         assert len(kept) == 2 and len(downgraded) == 1
+
+
+# --- the rebuttal channel (mechanical half) --------------------------------
+
+
+def _good_rebuttal():
+    return {"text": "The source does support the claim.",
+            "sources": [{"url": "https://x", "publisher": "Endpoints",
+                         "tier": "trade", "published_at": "2026-07-15"}]}
+
+
+class TestRebuttalHelpers:
+    def test_finding_key_is_kind_and_where(self):
+        assert finding_key({"kind": "overclaim", "where": "headline"}) == ("overclaim", "headline")
+
+    def test_a_sourced_rebuttal_is_well_formed(self):
+        assert rebuttal_of({"rebuttal": _good_rebuttal()}) is not None
+
+    def test_a_rebuttal_without_sources_is_not_a_rebuttal(self):
+        assert rebuttal_of({"rebuttal": {"text": "trust me", "sources": []}}) is None
+
+    def test_a_rebuttal_without_text_is_not_a_rebuttal(self):
+        assert rebuttal_of({"rebuttal": {"text": "", "sources": [{"url": "x"}]}}) is None
+
+    def test_no_rebuttal_field_is_none(self):
+        assert rebuttal_of({"kind": "overclaim"}) is None
+
+    def test_extract_pulls_rebuttals_keyed_by_finding(self):
+        draft = {"critic_report": {"blocking_findings": [
+            {"kind": "overclaim", "where": "headline", "rebuttal": _good_rebuttal()},
+            {"kind": "aggregator_only", "where": "watchlist.merck"},  # no rebuttal
+        ]}}
+        rebuttals = extract_rebuttals(draft)
+        assert set(rebuttals) == {("overclaim", "headline")}
+
+    def test_extract_strips_a_manager_set_adjudication(self):
+        """The manager may not set adjudication — extraction drops it so only the
+        critic's re-judgment can supply it."""
+        reb = {**_good_rebuttal(), "adjudication": "withdrawn"}
+        draft = {"critic_report": {"blocking_findings": [
+            {"kind": "overclaim", "where": "headline", "rebuttal": reb}]}}
+        assert "adjudication" not in extract_rebuttals(draft)[("overclaim", "headline")]
+
+    def test_extract_tolerates_a_malformed_report(self):
+        assert extract_rebuttals({"critic_report": "nonsense"}) == {}
+        assert extract_rebuttals({}) == {}
+
+    def test_annotate_marks_a_re_filed_finding_reaffirmed(self):
+        rebuttals = {("overclaim", "headline"): _good_rebuttal()}
+        annotated = annotate_reaffirmed(
+            [{"kind": "overclaim", "where": "headline", "note": "still too strong"}], rebuttals
+        )
+        assert annotated[0]["rebuttal"]["adjudication"] == REAFFIRMED
+        assert annotated[0]["rebuttal"]["text"] == _good_rebuttal()["text"]
+
+    def test_annotate_leaves_an_unrebutted_finding_untouched(self):
+        finding = {"kind": "overclaim", "where": "headline", "note": "x"}
+        annotated = annotate_reaffirmed([finding], {("aggregator_only", "x"): _good_rebuttal()})
+        assert annotated == (finding,)
 
 
 def test_the_six_blocking_kinds_are_registered():

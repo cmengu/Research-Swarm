@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from researchswarm.beats import Beat
+from researchswarm.critic import REAFFIRMED
 from researchswarm.state import State
 
 # The factual fields a catalyst-queue item carries into the published snapshot.
@@ -357,5 +358,47 @@ def render_manager_retry_prompt(template: str, *, prior_draft: dict, blocking_fi
     values = {
         "prior_draft_json": json.dumps(prior_draft, indent=2, ensure_ascii=False),
         "blocking_findings": _blocking_findings_block(blocking_findings),
+    }
+    return _substitute(template, values)
+
+
+def _critic_findings_block(findings) -> str:
+    """The critic's blocking findings as retry instructions, one per finding.
+
+    Unlike the validator's findings (Finding objects with .kind/.where/.note),
+    these are the critic's dicts, and each may carry a `rebuttal` the critic has
+    already REAFFIRMED. A reaffirmed finding is marked so the manager COMPLIES
+    (retry 2) rather than rebutting a second time — the critic had final say. A
+    fresh finding is open to a fix OR a sourced rebuttal; the template states that
+    rule, this block only flags which findings have already been through it. An
+    empty list should never render (the loop only retries on a block), so it
+    surfaces as an explicit marker rather than a blank."""
+    if not findings:
+        return "(no blocking findings — nothing to fix)"
+    lines = []
+    for finding in findings:
+        lines.append(
+            f"- {finding.get('kind')} at {finding.get('where')}: {finding.get('note', '')}"
+        )
+        rebuttal = finding.get("rebuttal") or {}
+        if rebuttal.get("adjudication") == REAFFIRMED:
+            lines.append(
+                "  REAFFIRMED by the critic — it weighed your rebuttal and stood by "
+                "this finding. COMPLY now: edit the draft to fix it. Do not rebut again."
+            )
+    return "\n".join(lines)
+
+
+def render_critic_retry_prompt(template: str, *, prior_draft: dict, blocking_findings) -> str:
+    """Interpolate the critic-retry prompt. Raises if a placeholder is left.
+
+    The manager receives exactly two things — its own prior draft and the critic's
+    blocking findings — and EDITS the draft: it fixes each finding, or files a
+    sourced `rebuttal` on it ([05](docs/spec/05-manager.md#the-rebuttal-channel)).
+    A finding already marked `reaffirmed` must be complied with, not rebutted
+    again. The same UnresolvedPlaceholder wall the other renderers use applies."""
+    values = {
+        "prior_draft_json": json.dumps(prior_draft, indent=2, ensure_ascii=False),
+        "blocking_findings": _critic_findings_block(blocking_findings),
     }
     return _substitute(template, values)
