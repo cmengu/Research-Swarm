@@ -188,8 +188,13 @@ def resolve_surge(calendar: Calendar, surge: Surge | None, today: date) -> Surge
     rejects a window whose resolved span is impossibly long — a data error must
     not switch the loop to daily for a fortnight. First containing window wins;
     the six real windows do not overlap.
+
+    The `cadence` knob is honoured, not assumed: spec/02 says a surge window sets
+    `cadence = "daily"`, and v1 exposes exactly that one value, so a window fires
+    only when the knob reads `daily`. Reading it here keeps surge cadence a config
+    fact — a future non-daily surge mode extends this check rather than the caller.
     """
-    if surge is None or not surge.enabled:
+    if surge is None or not surge.enabled or surge.cadence != "daily":
         return None
     for window in calendar.windows:
         if surge.require_verified_dates and not window.verified:
@@ -476,17 +481,21 @@ def _accept_dates(window: Window, payload, *, max_surge_days: int) -> WindowVeri
 def _source_matches(reported: str, canonical: str) -> bool:
     """Did the model read the dates from the window's OWN source?
 
-    Mechanical, like the receipt rule's url-in-corpus check. Both URLs are
-    normalised (scheme, `www.`, and trailing slash stripped, lowercased) and one
-    must be a prefix of the other — the model may cite the canonical page or a
-    deeper sub-page under the same site, but a date read on a different host does
-    not clear the bar. It never judges whether the dates are RIGHT, only that they
-    came from where they were supposed to.
+    The security core of the never-write-unread-dates rule, so the match is exact
+    or a bounded extension — never fuzzy. Both URLs are normalised (scheme,
+    `www.`, trailing slash stripped, lowercased), then the REPORTED url must equal
+    the canonical source or extend it with the boundary at `/` (a deeper sub-page
+    of the same page). The boundary is what stops `asco.org.evil.example/dates`
+    from passing as `asco.org` — a bare prefix without the `/` is a different host.
+    The reverse direction is deliberately GONE: a bare homepage is not attribution
+    for dates the model claims to have read on a deeper page we named. It never
+    judges whether the dates are RIGHT, only that they came from where they were
+    supposed to.
     """
     a, b = _normalize_url(reported), _normalize_url(canonical)
     if not a or not b:
         return False
-    return a.startswith(b) or b.startswith(a)
+    return a == b or a.startswith(b + "/")
 
 
 def _normalize_url(url: str) -> str:
@@ -568,10 +577,8 @@ def write_verified_dates(path: Path, verified_at: str, dates: dict[str, dict]) -
         match = re.search(r'^\s*id\s*=\s*"([^"]+)"', part, re.MULTILINE)
         wid = match.group(1) if match else None
         if wid in dates:
-            updated = _set_field(part, "starts", dates[wid]["starts"])
-            updated = _set_field(updated, "ends", dates[wid]["ends"])
-            updated = _set_field(updated, "verified_at", verified_at)
-            if updated != part:
+            updated, ok = _apply_window_dates(part, wid, dates[wid], verified_at)
+            if ok and updated != part:
                 changed = True
                 part = updated
         new_parts.append(part)
@@ -580,13 +587,40 @@ def write_verified_dates(path: Path, verified_at: str, dates: dict[str, dict]) -
     return changed
 
 
-def _set_field(block: str, key: str, value: str) -> str:
-    """Replace one `key = "..."` value inside a window block, preserving the
-    key's own alignment and every surrounding comment. Only the quoted value
-    between the first pair of quotes on that line changes."""
-    return re.sub(
+def _apply_window_dates(block: str, wid: str, dates: dict, verified_at: str) -> tuple[str, bool]:
+    """Fill starts/ends/verified_at in one window block, or write NOTHING for it.
+
+    All three fields must be present to write any: a block missing a `starts` or
+    `ends` line would otherwise get its `verified_at` stamped alone, leaving a
+    half-written window that reads as verified while `span` degrades silently
+    downstream. On a miss the window is skipped and the gap is named in the log —
+    a partial write is exactly the quiet corruption this system refuses.
+    """
+    block, ok_starts = _set_field(block, "starts", dates["starts"])
+    block, ok_ends = _set_field(block, "ends", dates["ends"])
+    block, ok_stamp = _set_field(block, "verified_at", verified_at)
+    missing = [
+        name for name, ok in (("starts", ok_starts), ("ends", ok_ends), ("verified_at", ok_stamp))
+        if not ok
+    ]
+    if missing:
+        log.warning(
+            "calendar: window %r is missing field line(s) %s — writing no dates for it",
+            wid, ", ".join(missing),
+        )
+        return block, False
+    return block, True
+
+
+def _set_field(block: str, key: str, value: str) -> tuple[str, bool]:
+    """Replace one `key = "..."` value inside a window block, preserving the key's
+    own alignment and every surrounding comment. Returns (block, replaced): a
+    False means the field line was absent, so the caller can refuse a partial
+    write rather than stamp an incoherent window."""
+    new, count = re.subn(
         rf'(?m)^(\s*{key}\s*=\s*)"[^"]*"',
         lambda m: f'{m.group(1)}"{value}"',
         block,
         count=1,
     )
+    return new, count == 1

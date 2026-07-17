@@ -41,6 +41,7 @@ import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from researchswarm.critic import (
     BLOCKED,
@@ -64,6 +65,9 @@ from researchswarm.prompts import render_critic_prompt, render_critic_retry_prom
 from researchswarm.research import load_findings
 from researchswarm.runs import latest_covering_issue
 from researchswarm.state import State
+
+if TYPE_CHECKING:
+    from researchswarm.calendar import SurgeState
 
 log = logging.getLogger("researchswarm.critique")
 
@@ -115,7 +119,7 @@ def run_critique_stage(
     draft_path: Path,
     thesis_version,
     schema_file: Path | None = None,
-    surge=None,
+    surge: "SurgeState | None" = None,
     timeout: int = 900,
     runner=subprocess.run,
     manager_runner=subprocess.run,

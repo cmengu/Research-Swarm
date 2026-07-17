@@ -40,6 +40,7 @@ import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from researchswarm.critic import NOT_RUN, PUBLISHED_UNCRITIQUED
 from researchswarm.critique import CritiqueStageResult
@@ -48,6 +49,9 @@ from researchswarm.state import State
 from researchswarm.state_edits import apply_state_edits, write_json
 from researchswarm.stub import check_overwritable, issue_path, write_failed_stub
 from researchswarm.validator import derive_stats
+
+if TYPE_CHECKING:
+    from researchswarm.calendar import SurgeState
 
 log = logging.getLogger("researchswarm.publish")
 
@@ -105,7 +109,8 @@ def derive_full_stats(issue, issues_dir: Path) -> dict:
 
 
 def stamp_run_fields(
-    issue, stats: dict, critic: CritiqueStageResult | None = None, surge=None
+    issue, stats: dict, critic: CritiqueStageResult | None = None,
+    surge: "SurgeState | None" = None,
 ) -> None:
     """Stamp the fields the ORCHESTRATOR owns, overwriting the manager's guesses.
 
@@ -366,7 +371,7 @@ def run_publish_stage(
     run_id: str,
     now: datetime,
     critic: CritiqueStageResult | None = None,
-    surge=None,
+    surge: "SurgeState | None" = None,
     runner=subprocess.run,
 ) -> PublishResult:
     """Run stage 6's five ordered steps and return where the issue landed.
@@ -445,6 +450,13 @@ def publish_stub(
     run" holds for failed runs too. Raises PublishedIssueExists (from
     write_failed_stub) when the date already published — the caller reports the
     failure without overwriting the real issue.
+
+    A stub deliberately does NOT carry the calendar_stale marker: it never reaches
+    stage 4, where the validator files that advisory. This is a conscious narrowing
+    of spec/02's "marker in every issue" — a stub already announces its failure
+    loudly in the reader's path, so the silent-failure risk the marker exists to
+    prevent (a normal-looking digest shipping while ASCO reprices two companies)
+    lives entirely in PUBLISHED digests, and those all pass through validation.
     """
     path = write_failed_stub(
         root, run_id=run_id, now=now, window=window, stage=stage, detail=detail,

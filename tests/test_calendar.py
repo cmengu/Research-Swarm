@@ -137,6 +137,16 @@ class TestResolveSurge:
         assert resolve_surge(cal, _surge_cfg(enabled=False), date(2026, 5, 30)) is None
         assert resolve_surge(cal, None, date(2026, 5, 30)) is None
 
+    def test_the_cadence_knob_is_honoured(self):
+        """spec/02: a surge window sets cadence='daily'. The knob is read, not
+        assumed — a value other than 'daily' fires nothing."""
+        import dataclasses
+
+        cal = Calendar(valid_through=None, windows=(_verified_window(),))
+        weekly = dataclasses.replace(_surge_cfg(), cadence="weekly")
+        assert resolve_surge(cal, weekly, date(2026, 5, 30)) is None
+        assert resolve_surge(cal, _surge_cfg(), date(2026, 5, 30)) is not None
+
     def test_impossible_span_is_a_data_error_not_a_surge(self):
         """max_surge_days guards a window that resolved to an impossible length —
         it must not switch the loop to daily for a fortnight."""
@@ -313,6 +323,25 @@ class TestWriteVerifiedDates:
         path.write_text((repo_root / "config" / "calendar.toml").read_text())
         assert write_verified_dates(path, "x", {"nonexistent": {"starts": "a", "ends": "b"}}) is False
 
+    def test_a_block_missing_a_field_line_writes_nothing_and_warns(self, tmp_path, caplog):
+        """A window block without a `starts`/`ends` line must not get verified_at
+        stamped alone — that leaves a half-written window that reads as verified
+        while its span degrades silently. Refuse the write and name the gap."""
+        import logging
+
+        path = tmp_path / "calendar.toml"
+        # A block with ends + verified_at but NO starts line.
+        path.write_text(
+            '[[window]]\nid = "asco"\nends = ""\nverified_at = ""\n'
+        )
+        with caplog.at_level(logging.WARNING):
+            changed = write_verified_dates(
+                path, "2026-05-20T07:00:00", {"asco": {"starts": ASCO_STARTS, "ends": ASCO_ENDS}}
+            )
+        assert changed is False
+        assert 'verified_at = ""' in path.read_text()  # nothing stamped
+        assert "asco" in caplog.text and "starts" in caplog.text
+
 
 class TestSourceMatches:
     @pytest.mark.parametrize(
@@ -336,3 +365,13 @@ class TestSourceMatches:
     )
     def test_different_site_does_not_match(self, reported, canonical):
         assert not _source_matches(reported, canonical)
+
+    def test_prefix_without_a_host_boundary_is_rejected(self):
+        """The attack: a look-alike host that merely STARTS with the source.
+        The `/` boundary is what makes asco.org.evil.example a different host."""
+        assert not _source_matches("https://asco.org.evil.example/dates", "https://asco.org")
+
+    def test_a_bare_homepage_is_not_attribution_for_a_deeper_page(self):
+        """The dropped reverse direction: dates we told the model to read on
+        asco.org/am are not attributed by a report of the bare homepage."""
+        assert not _source_matches("https://asco.org", "https://asco.org/am")

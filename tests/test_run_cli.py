@@ -568,6 +568,33 @@ class TestSurge:
         assert "not a run day" not in result.stderr
         assert "surge:" in result.stderr
 
+    def test_stale_calendar_disables_a_live_verified_window(self, tmp_path):
+        """A rotted calendar whose previously-verified window still CONTAINS today
+        must surge nothing — behaviour matches the 'surge disabled' marker rather
+        than lying about it (spec/02 staleness table)."""
+        import run
+        from datetime import date
+        from researchswarm.cadence import load_cadence
+        from researchswarm.calendar import Calendar, Window
+
+        live = Window(
+            id="asco", name="ASCO Annual Meeting", typical_window="", note="",
+            source="https://asco.org", starts="2026-07-13", ends="2026-07-17",
+            verified_at="2026-07-10T07:00:00",
+        )
+        cadence = load_cadence(REPO_ROOT / "config" / "cadence.toml")
+
+        # A FRESH calendar surges on the 16th — the window is verified and live.
+        fresh = Calendar(valid_through=date(2027, 1, 31), windows=(live,))
+        surge, stale, _ = run._resolve_surge_and_staleness(cadence, fresh, date(2026, 7, 16), tmp_path)
+        assert surge is not None and stale is False
+
+        # Rot it (valid_through passed): no surge, and the marker fires.
+        rotted = Calendar(valid_through=date(2026, 1, 31), windows=(live,))
+        surge, stale, reason = run._resolve_surge_and_staleness(cadence, rotted, date(2026, 7, 16), tmp_path)
+        assert surge is None
+        assert stale is True and reason  # calendar_stale advisory will be filed
+
     def test_unverified_calendar_surges_nothing_and_says_so(self, fake_repo):
         """The seeded calendar ships unverified — surge fires nothing and the
         stale marker explains the gap (an honest gap beats a confident guess)."""
@@ -577,6 +604,16 @@ class TestSurge:
         # ...and a baseline day loudly reports the calendar stale.
         monday = run_cli("--today", "2026-07-13", "--root", str(fake_repo))
         assert "conference calendar stale" in monday.stderr
+
+    def test_missing_verifier_model_is_a_config_error(self, fake_repo):
+        """The verifier id has ONE home in config — a missing key fails loudly via
+        the same _config_error path the other model ids get, never a shadow default."""
+        models = fake_repo / "config" / "models.toml"
+        models.write_text(models.read_text().replace('verifier = "sonnet"', ""))
+        # A baseline run day reaches Stage 1 verification (not --dry-run).
+        result = run_cli("--today", "2026-07-16", "--root", str(fake_repo), research=True)
+        assert result.returncode == 2
+        assert "verifier is required" in result.stderr
 
     def test_published_issue_carries_run_surge(self, fake_repo, monkeypatch):
         """Inside a verified window the published issue stamps run.surge =
