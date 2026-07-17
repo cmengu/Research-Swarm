@@ -45,6 +45,7 @@ from researchswarm.runs import (
 from researchswarm.state import check_entity_refs, load_state
 from researchswarm.stub import PublishedIssueExists, write_failed_stub
 from researchswarm.synthesis import IssueIdentity, run_synthesis_stage
+from researchswarm.validation import ValidationExhausted, run_validation_stage
 
 REPO_ROOT = Path(__file__).resolve().parent
 
@@ -279,8 +280,59 @@ def main(argv: list[str] | None = None) -> int:
         result.attempts,
     )
 
-    # --- Stages 4-6 --------------------------------------------------------
-    log.info("validate → publish land in builds 05-06")
+    # --- Stage 4: validate -------------------------------------------------
+    # The free deterministic gate, before a single token of critic budget is
+    # spent. A block is handed back to the manager to EDIT (two retries, a budget
+    # separate from the critic's); exhaustion is a validation stub, not a
+    # degradation — a degradation explains an absence inside a VALID issue.
+    try:
+        retry_template = load_template(root / "prompts" / "manager-retry.md")
+    except (FileNotFoundError, ValueError) as exc:
+        return _config_error(exc)
+
+    try:
+        validation = run_validation_stage(
+            draft=result.draft,
+            draft_path=draft_path,
+            state=state,
+            issues_dir=root / "issues",
+            beats_failed=stage.beats_failed,
+            retry_template=retry_template,
+            model=models_config["manager"],
+            run_id=run_id,
+            thesis_version=state.thesis.get("version"),
+        )
+    except (ManagerFailed, ValidationExhausted) as exc:
+        # Either the retry manager died, or the budget ran out still blocking.
+        # Both mean a draft exists but cannot be published: a validation stub,
+        # with the same immutability guard as every other stub path.
+        log.error("validation failed: %s", exc)
+        try:
+            path = write_failed_stub(
+                root,
+                run_id=run_id,
+                now=now,
+                window=ctx.window,
+                stage="validation",
+                detail=str(exc),
+                thesis_version=state.thesis.get("version"),
+                beats_failed=stage.beats_failed,
+            )
+        except PublishedIssueExists as exists:
+            log.error("%s", exists)
+            return EXIT_RUN_FAILED
+        log.error("validation exhausted — published failed-run stub %s", path.relative_to(root))
+        return EXIT_RUN_FAILED
+
+    log.info(
+        "validation passed: %d retr%s, %d advisory finding(s)",
+        validation.retries_used,
+        "y" if validation.retries_used == 1 else "ies",
+        len(validation.advisory),
+    )
+
+    # --- Stages 5-6 --------------------------------------------------------
+    log.info("critique → publish land in builds 06-08")
     return EXIT_OK
 
 

@@ -43,6 +43,20 @@ class CoverageWindow:
     baseline_expired: bool = False
 
 
+@dataclass(frozen=True)
+class ContinuityMatch:
+    """The result of a backwards continuity search.
+
+    `payload` is the whole issue file of the most recent COVERING issue carrying
+    the compared field, or None if none was found. `expired` is True when the
+    search hit the 12-issue floor without a match — the caller files
+    `continuity_baseline_expired` (advisory), never an error.
+    """
+
+    payload: dict | None
+    expired: bool
+
+
 def resolve_run_id(now: datetime) -> str:
     """run_YYYYMMDD_HHMM — stable for the whole run; names the findings dir."""
     return f"run_{now:%Y%m%d_%H%M}"
@@ -59,6 +73,57 @@ def _covering_issues_newest_first(issues_dir: Path) -> list[Path]:
     )
 
 
+def find_latest_issue_with(issues_dir, predicate, *, floor: int = LOOKBACK_FLOOR) -> ContinuityMatch:
+    """Walk COVERING issues newest-first, return the first `predicate` accepts.
+
+    The one continuity primitive: the coverage window, the prior quiet counts,
+    and the validator's queue-tamper baseline all bind to *the most recent issue
+    that actually carries the thing being compared*, walking back past stubs — a
+    stub published no snapshot and covered no window, so it cannot be a join
+    point. Binding positionally instead would let a single failed run launder
+    every cross-issue invariant.
+
+    `predicate(payload) -> bool` is the "carries the thing being compared" test,
+    evaluated against the whole issue file of each COVERING issue.
+
+    The scan is bounded at `floor` issues (stubs counted, exactly as the older
+    walkers counted them): twelve issues without a match means a louder problem
+    than a broken join, and an unbounded scan would hide it behind a slow check.
+    An empty result on run #1 is tolerated — no special case, no bootstrap flag;
+    `expired` is False (there was nothing to expire), True only when the floor
+    was actually reached without a match.
+    """
+    scanned = 0
+
+    for path in _covering_issues_newest_first(Path(issues_dir)):
+        if scanned >= floor:
+            break
+        scanned += 1
+
+        try:
+            payload = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            continue  # an unreadable issue is not a join point
+
+        if payload.get("issue", {}).get("run", {}).get("status") not in COVERING_STATUSES:
+            continue
+        if predicate(payload):
+            return ContinuityMatch(payload=payload, expired=False)
+
+    return ContinuityMatch(payload=None, expired=scanned >= floor)
+
+
+def latest_covering_issue(issues_dir, *, floor: int = LOOKBACK_FLOOR) -> ContinuityMatch:
+    """The most recent issue that published and covered days, walking past stubs.
+
+    A thin, honestly-named wrapper for the callers that want the latest join
+    point itself rather than one carrying a particular field — the predicate is
+    "any covering issue", and naming it here keeps that intent legible at the
+    call site instead of an inscrutable `lambda p: True`.
+    """
+    return find_latest_issue_with(issues_dir, lambda payload: True, floor=floor)
+
+
 def resolve_coverage_window(
     issues_dir: Path,
     today: date,
@@ -66,42 +131,29 @@ def resolve_coverage_window(
 ) -> CoverageWindow:
     """Where this run's coverage starts, and what it joins to.
 
-    Walks back from the newest issue looking for one that carries a coverage
-    window, skipping stubs. Stops at LOOKBACK_FLOOR.
-
-    On run #1 (or once the floor is hit) there is no baseline to join to, and
-    the window falls back to `cold_start_days` before today. Run #1 needs no
-    protection from any of the checks this baseline feeds: it CREATES the values
-    they guard.
+    Binds `from` to the most recent issue that carries a coverage window,
+    skipping stubs. On run #1 (or once the floor is hit) there is no baseline to
+    join to, and the window falls back to `cold_start_days` before today. Run #1
+    needs no protection from any of the checks this baseline feeds: it CREATES
+    the values they guard.
     """
-    issues_dir = Path(issues_dir)
-    scanned = 0
+    match = find_latest_issue_with(
+        issues_dir,
+        lambda p: p.get("issue", {}).get("coverage_window", {}).get("to"),
+    )
+    if match.payload is not None:
+        issue = match.payload["issue"]
+        return CoverageWindow(
+            from_=date.fromisoformat(issue["coverage_window"]["to"]),
+            to=today,
+            previous_issue=issue.get("id"),
+        )
 
-    for path in _covering_issues_newest_first(issues_dir):
-        if scanned >= LOOKBACK_FLOOR:
-            break
-        scanned += 1
-
-        try:
-            issue = json.loads(path.read_text()).get("issue", {})
-        except json.JSONDecodeError:
-            continue  # an unreadable issue is not a join point
-
-        window = issue.get("coverage_window")
-        status = issue.get("run", {}).get("status")
-        if status in COVERING_STATUSES and window and window.get("to"):
-            return CoverageWindow(
-                from_=date.fromisoformat(window["to"]),
-                to=today,
-                previous_issue=issue.get("id"),
-            )
-
-    # No baseline found: run #1, or nothing but stubs within the floor.
     return CoverageWindow(
         from_=today - timedelta(days=cold_start_days),
         to=today,
         previous_issue=None,
-        baseline_expired=scanned >= LOOKBACK_FLOOR,
+        baseline_expired=match.expired,
     )
 
 
@@ -115,21 +167,13 @@ def resolve_prior_quiet(issues_dir: Path) -> dict[str, int]:
     map is the honest value on run #1: nothing to increment from, so every quiet
     entity this cycle starts at 1.
     """
-    for path in _covering_issues_newest_first(Path(issues_dir)):
-        try:
-            payload = json.loads(path.read_text())
-        except json.JSONDecodeError:
-            continue
+    match = latest_covering_issue(issues_dir)
+    if match.payload is None:
+        return {}
 
-        issue = payload.get("issue", {})
-        if issue.get("run", {}).get("status") not in COVERING_STATUSES:
-            continue
-
-        no_news = payload.get("quiet_this_cycle", {}).get("no_news", [])
-        return {
-            entry["entity_id"]: entry.get("cycles_quiet", 0)
-            for entry in no_news
-            if entry.get("entity_id")
-        }
-
-    return {}
+    no_news = match.payload.get("quiet_this_cycle", {}).get("no_news", [])
+    return {
+        entry["entity_id"]: entry.get("cycles_quiet", 0)
+        for entry in no_news
+        if entry.get("entity_id")
+    }
