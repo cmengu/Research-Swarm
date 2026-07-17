@@ -166,9 +166,35 @@ class TestCatalystQueue:
         assert "cat_dead_one" not in out
 
 
-class TestSurgeIsAbsentForNow:
+class TestSurgeCarveOut:
     def test_no_surge_block_outside_a_window(self, rendered):
-        """Surge lands in its own build. Outside a window the block is empty and
-        the carve-out says so — the placeholders still resolve."""
+        """Baseline run: the block is empty and the carve-out says there is none —
+        the placeholders still resolve to their honest values."""
         assert "No carve-outs." in rendered
         assert "surge:" not in rendered
+
+    def _surged(self, repo_root):
+        from researchswarm.calendar import SurgeState
+
+        surge = SurgeState(window="ASCO 2026", window_id="asco", day=2, of=5,
+                           starts="2026-05-29", ends="2026-06-02")
+        ctx = RunContext(run_id="r", coverage_window_from="2026-05-30",
+                         coverage_window_to="2026-05-30", surge=surge)
+        state = load_state(repo_root / "state")
+        beats = load_beats(repo_root / "config" / "beats.toml")
+        template = load_template(repo_root / "prompts" / "researcher.md")
+        beat = next(b for b in beats if b.id == "ma_dealmaking")
+        return render_researcher_prompt(template, beat, ctx, state)
+
+    def test_in_window_surge_block_names_the_conference_and_day(self, repo_root):
+        out = self._surged(repo_root)
+        assert "surge: ASCO 2026 day 2 of 5" in out
+        assert "conference window 2026-05-29 → 2026-06-02" in out
+
+    def test_in_window_carveout_lifts_the_coverage_window_gate(self, repo_root):
+        """So a researcher does not self-censor an in-window story that lands
+        outside the narrowed one-day coverage window (spec/02, spec/04)."""
+        out = self._surged(repo_root)
+        assert "Carve-out: during the current ASCO 2026 window" in out
+        assert "even if outside this run's one-day coverage window" in out
+        assert "No carve-outs." not in out

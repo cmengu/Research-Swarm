@@ -545,6 +545,132 @@ class TestCritiqueStage:
         assert issue["stats"]["critic_catches"] == 1
 
 
+def _seed_verified_window(fake_repo, window_id, starts, ends, verified_at="2026-07-10T07:00:00"):
+    """Fill in a window's dates in the fake repo's calendar.toml, exactly as a
+    prior run's verification would have — so surge resolves from real config."""
+    from researchswarm.calendar import write_verified_dates
+
+    write_verified_dates(
+        fake_repo / "config" / "calendar.toml",
+        verified_at,
+        {window_id: {"starts": starts, "ends": ends}},
+    )
+
+
+class TestSurge:
+    def test_a_verified_window_makes_a_non_run_day_a_run_day(self, fake_repo):
+        """The whole point: ASCO Monday must not read at the Tuesday rate. A
+        verified window containing today switches to daily, so Tuesday runs."""
+        # ASCO 2026-07-13 → 2026-07-17 covers Tuesday the 14th (a baseline no-op).
+        _seed_verified_window(fake_repo, "asco", "2026-07-13", "2026-07-17")
+        result = run_cli("--today", "2026-07-14", "--root", str(fake_repo))
+        assert result.returncode == 0
+        assert "not a run day" not in result.stderr
+        assert "surge:" in result.stderr
+
+    def test_unverified_calendar_surges_nothing_and_says_so(self, fake_repo):
+        """The seeded calendar ships unverified — surge fires nothing and the
+        stale marker explains the gap (an honest gap beats a confident guess)."""
+        result = run_cli("--today", "2026-07-14", "--root", str(fake_repo))
+        # Tuesday with an unverified calendar is still a no-op...
+        assert "not a run day" in result.stderr
+        # ...and a baseline day loudly reports the calendar stale.
+        monday = run_cli("--today", "2026-07-13", "--root", str(fake_repo))
+        assert "conference calendar stale" in monday.stderr
+
+    def test_published_issue_carries_run_surge(self, fake_repo, monkeypatch):
+        """Inside a verified window the published issue stamps run.surge =
+        {window, day, of}, and the manifest carries it so the dropdown can group
+        an ASCO week without opening five files."""
+        import run
+        from researchswarm.critique import CritiqueStageResult, PUBLISHED_UNCRITIQUED
+        from researchswarm.research import ResearchStage
+        from researchswarm.validation import ValidationStageResult
+
+        subprocess.run(["git", "init", "-q", str(fake_repo)], check=True)
+        subprocess.run(["git", "-C", str(fake_repo), "config", "user.email", "t@t.com"], check=True)
+        subprocess.run(["git", "-C", str(fake_repo), "config", "user.name", "T"], check=True)
+
+        # Window 2026-07-13 → 2026-07-17 (5 days); the run is Thursday the 16th → day 4.
+        _seed_verified_window(fake_repo, "asco", "2026-07-13", "2026-07-17")
+
+        draft = _valid_draft()
+        draft_path = fake_repo / "runs" / SYNTH_RUN_ID / "issue-draft.json"
+
+        def fake_synthesis(root, **kwargs):
+            draft_path.parent.mkdir(parents=True, exist_ok=True)
+            draft_path.write_text(json.dumps(draft))
+            return SimpleNamespace(draft=draft, num_turns=1, cost_usd=0.0, attempts=1), draft_path
+
+        monkeypatch.setattr(
+            run, "run_research_stage",
+            lambda *a, **k: ResearchStage(beats_run=["ma_dealmaking"], beats_failed=[]),
+        )
+        monkeypatch.setattr(run, "run_synthesis_stage", fake_synthesis)
+        monkeypatch.setattr(
+            run, "run_validation_stage",
+            lambda **k: ValidationStageResult(draft=draft, retries_used=0, advisory=()),
+        )
+        monkeypatch.setattr(
+            run, "run_critique_stage",
+            lambda *a, **k: CritiqueStageResult(
+                draft=draft, status=PUBLISHED_UNCRITIQUED, verdict="not_run", reason="stubbed"
+            ),
+        )
+
+        code = run.main(["--today", "2026-07-16", "--root", str(fake_repo)])
+        assert code == 0
+
+        issue = json.loads((fake_repo / "issues" / "2026-07-16.json").read_text())
+        assert issue["issue"]["run"]["surge"] == {
+            "window": "ASCO Annual Meeting", "day": 4, "of": 5,
+        }
+        manifest = json.loads((fake_repo / "issues" / "index.json").read_text())
+        assert manifest["issues"][0]["surge"]["window"] == "ASCO Annual Meeting"
+
+    def test_baseline_run_has_no_surge_key(self, fake_repo, monkeypatch):
+        """Absent, not null, on a baseline run — the manager is told to omit it and
+        the orchestrator owns the field, so a baseline issue never carries surge."""
+        import run
+        from researchswarm.critique import CritiqueStageResult, PUBLISHED_UNCRITIQUED
+        from researchswarm.research import ResearchStage
+        from researchswarm.validation import ValidationStageResult
+
+        subprocess.run(["git", "init", "-q", str(fake_repo)], check=True)
+        subprocess.run(["git", "-C", str(fake_repo), "config", "user.email", "t@t.com"], check=True)
+        subprocess.run(["git", "-C", str(fake_repo), "config", "user.name", "T"], check=True)
+
+        draft = _valid_draft()
+        # Even if the manager wrongly emitted a surge, the orchestrator strips it.
+        draft["issue"]["run"]["surge"] = {"window": "bogus", "day": 1, "of": 1}
+        draft_path = fake_repo / "runs" / SYNTH_RUN_ID / "issue-draft.json"
+
+        def fake_synthesis(root, **kwargs):
+            draft_path.parent.mkdir(parents=True, exist_ok=True)
+            draft_path.write_text(json.dumps(draft))
+            return SimpleNamespace(draft=draft, num_turns=1, cost_usd=0.0, attempts=1), draft_path
+
+        monkeypatch.setattr(
+            run, "run_research_stage",
+            lambda *a, **k: ResearchStage(beats_run=["ma_dealmaking"], beats_failed=[]),
+        )
+        monkeypatch.setattr(run, "run_synthesis_stage", fake_synthesis)
+        monkeypatch.setattr(
+            run, "run_validation_stage",
+            lambda **k: ValidationStageResult(draft=draft, retries_used=0, advisory=()),
+        )
+        monkeypatch.setattr(
+            run, "run_critique_stage",
+            lambda *a, **k: CritiqueStageResult(
+                draft=draft, status=PUBLISHED_UNCRITIQUED, verdict="not_run", reason="stubbed"
+            ),
+        )
+
+        run.main(["--today", "2026-07-16", "--root", str(fake_repo)])
+        issue = json.loads((fake_repo / "issues" / "2026-07-16.json").read_text())
+        assert "surge" not in issue["issue"]["run"]
+
+
 class TestFailureModes:
     def test_dangling_entity_ref_refuses_the_run(self, fake_repo):
         """The spine is what links every file. If it has forked, an issue built

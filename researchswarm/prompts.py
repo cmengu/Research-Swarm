@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from researchswarm.beats import Beat
+from researchswarm.calendar import SurgeState
 from researchswarm.critic import REAFFIRMED
 from researchswarm.state import State
 
@@ -54,6 +55,7 @@ class RunContext:
     run_id: str
     coverage_window_from: str
     coverage_window_to: str
+    surge: SurgeState | None = None
 
     @property
     def window(self) -> dict:
@@ -127,14 +129,46 @@ def _catalyst_queue_active(state: State) -> str:
     return "\n".join(lines) if lines else "- (no active catalysts)"
 
 
+def _surge_block(surge: SurgeState | None) -> str:
+    """The surge line in a researcher's run context — empty outside a window.
+
+    Inside a window it names the conference and the day, matching the placeholder
+    contract in prompts/researcher.md exactly (`- surge: … conference window …`)."""
+    if surge is None:
+        return ""
+    return (
+        f"- surge: {surge.window} day {surge.day} of {surge.of}, "
+        f"conference window {surge.starts} → {surge.ends}"
+    )
+
+
+def _window_carveout(surge: SurgeState | None) -> str:
+    """Sourcing rule 4's carve-out — so a researcher does not self-censor an
+    in-window story that lands outside the narrowed one-day coverage window.
+
+    Outside surge there is nothing to carve out. Inside, anything published within
+    the conference window is fair game even if outside this run's coverage window
+    ([04](docs/spec/04-researchers.md)) — the same reference-window shift the
+    critic's provenance_stale check gets, handed to the researcher so the two
+    never disagree about what counts as in-window."""
+    if surge is None:
+        return NO_CARVE_OUT
+    return (
+        f"Carve-out: during the current {surge.window} window, anything published "
+        f"within the conference window ({surge.starts} → {surge.ends}) is fair game "
+        "even if outside this run's one-day coverage window."
+    )
+
+
 def render_researcher_prompt(
     template: str, beat: Beat, ctx: RunContext, state: State
 ) -> str:
     """Interpolate one beat's prompt. Raises if any placeholder is left over.
 
-    surge_block and window_carveout resolve to their outside-a-window values.
-    Surge mode fills them in when it lands; the placeholders still have to
-    resolve to something now, and "no carve-outs" is the honest value.
+    surge_block and window_carveout come from ctx.surge — empty / "no carve-outs"
+    on a baseline run, the conference window and its carve-out inside a verified
+    surge window, so an in-window story that lands outside the narrowed one-day
+    coverage window is not self-censored (spec/02, spec/04).
     """
     values = {
         "beat_id": beat.id,
@@ -146,8 +180,8 @@ def render_researcher_prompt(
         "run_id": ctx.run_id,
         "coverage_window_from": ctx.coverage_window_from,
         "coverage_window_to": ctx.coverage_window_to,
-        "surge_block": "",
-        "window_carveout": NO_CARVE_OUT,
+        "surge_block": _surge_block(ctx.surge),
+        "window_carveout": _window_carveout(ctx.surge),
         "watchlist_roster": _watchlist_roster(state),
         "thesis_version": str(state.thesis.get("version", "?")),
         "thesis_slots": _thesis_slots(state),
@@ -296,6 +330,22 @@ def render_manager_prompt(
     return _substitute(template, values)
 
 
+def _surge_window_block(surge: SurgeState | None) -> str:
+    """The conference window the critic compares provenance_stale against in surge.
+
+    `run.surge` in the issue carries only {window, day, of} (the dashboard's
+    shape), so the critic cannot read the dates from the issue — it gets them here.
+    Outside surge this says so, and the critic falls back to issue.coverage_window
+    exactly as always (spec/02 the critic's bar does not move — with one fix)."""
+    if surge is None:
+        return "(no surge this cycle — compare provenance_stale against issue.coverage_window)"
+    return (
+        f"run.surge is present: {surge.window}. Compare provenance_stale against this "
+        f"CONFERENCE window — published_at from {surge.starts} to {surge.ends} inclusive "
+        "is in-window — NOT the run's narrowed one-day coverage_window."
+    )
+
+
 def render_critic_prompt(
     template: str,
     *,
@@ -304,6 +354,7 @@ def render_critic_prompt(
     previous_issue: dict | None,
     watchlist: dict,
     thesis: dict,
+    surge: SurgeState | None = None,
 ) -> str:
     """Interpolate the critic rubric with its five inputs. Raises on a leftover.
 
@@ -329,6 +380,7 @@ def render_critic_prompt(
         ),
         "watchlist_json": json.dumps(watchlist, indent=2, ensure_ascii=False),
         "thesis_json": json.dumps(thesis, indent=2, ensure_ascii=False),
+        "surge_window": _surge_window_block(surge),
     }
     return _substitute(template, values)
 

@@ -62,9 +62,11 @@ NEVER gate the line. When in doubt, advisory.
   predates the coverage window: recycled old news wearing a fresh date. Compare
   each such claim's source published_at against issue.coverage_window; if it falls
   before the window's `from`, it is stale. Exception: when run.surge is present,
-  compare against the conference window instead of the coverage window (surge
-  lands in a later build; run.surge is currently always absent, so today this is
-  always the coverage-window comparison).
+  compare against the CONFERENCE window given below under "Surge window" instead of
+  the narrowed one-day coverage_window — during ASCO a Tuesday run has a Tuesday-
+  only window, and Sunday's plenary readout is the most important story on the
+  floor and entirely legitimate to carry. This is a reference-window change, not a
+  relaxed bar: everything else about provenance_stale is identical in surge.
 - overclaim — the summary or headline asserts MORE than its cited sources support:
   a hedged "reportedly exploring" rendered as "will acquire".
 - aggregator_only — a material claim's ONLY support is tier: aggregator, with no
@@ -128,7 +130,10 @@ emit it yourself):
 - pass_with_advisories — advisories only, zero well-formed blocking findings.
 - blocked — at least one well-formed blocking finding.
 
-# The five inputs
+# The inputs
+
+The five judgment inputs, plus the surge window (dates only — the reference for
+provenance_stale when run.surge is present).
 
 ## Issue under judgment
 
@@ -149,6 +154,10 @@ emit it yourself):
 ## Thesis (impact honesty, dormant exemptions)
 
 {{thesis_json}}
+
+## Surge window (provenance_stale reference during surge)
+
+{{surge_window}}
 
 # Output (read carefully)
 
@@ -185,3 +194,4 @@ lists above.
 | `{{previous_issue_json}}` | `runs.latest_covering_issue` | the most recent issue that actually covered days, walking past stubs; `(no previous issue)` on run #1 |
 | `{{watchlist_json}}` | `state/watchlist.json` | every tracked entity, for the accounting check |
 | `{{thesis_json}}` | `state/thesis.json` | belief slots and stances, for `thesis_impact` honesty and dormant exemptions |
+| `{{surge_window}}` | `calendar.toml` + `cadence.toml` | the resolved surge window's `starts`/`ends`, or a "no surge this cycle" line; the provenance_stale reference during surge — `run.surge` in the issue carries only `{window, day, of}`, so the dates come from here |

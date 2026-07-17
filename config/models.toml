@@ -17,3 +17,10 @@
 [models]
 manager = "claude-opus-4-8"
 critic = "gpt-5-codex"
+
+# The conference-calendar verifier: a read-only web-fetch task at the researcher
+# tier (it fetches a society's own page and reports the dates), so it rides the
+# same light model. It IS a role — one call per window each cycle, no per-beat
+# axis — so its id lives here, not in beats.toml. Optional; run.py falls back to
+# "sonnet" if it is absent.
+verifier = "sonnet"

@@ -104,15 +104,24 @@ def derive_full_stats(issue, issues_dir: Path) -> dict:
     return stats
 
 
-def stamp_run_fields(issue, stats: dict, critic: CritiqueStageResult | None = None) -> None:
+def stamp_run_fields(
+    issue, stats: dict, critic: CritiqueStageResult | None = None, surge=None
+) -> None:
     """Stamp the fields the ORCHESTRATOR owns, overwriting the manager's guesses.
 
     `stats` is derived, never authored, so it replaces whatever the seam forced
-    to {}. `run.status`, `run.critic_verdict`, `run.critic_retries`, and the
-    critic_report's own verdict/findings are ALL the orchestrator's to set — a
-    critic outcome is a property of the RUN, not of the draft, so the manager's
-    authored guesses (including its zero critic_retries) are overwritten rather
-    than trusted, and #35's real retry counts cannot diverge from a stale zero.
+    to {}. `run.status`, `run.critic_verdict`, `run.critic_retries`, `run.surge`,
+    and the critic_report's own verdict/findings are ALL the orchestrator's to set
+    — a critic outcome and a surge are properties of the RUN, not of the draft, so
+    the manager's authored guesses (including its zero critic_retries) are
+    overwritten rather than trusted, and #35's real retry counts cannot diverge
+    from a stale zero.
+
+    `surge` is the resolved SurgeState or None. Its `{window, day, of}` is stamped
+    when a surge is live and REMOVED otherwise — absent, never null, on a baseline
+    run (spec/02, spec/07); the manager is told to omit it, but the orchestrator
+    owns the field, so a manager that emitted one anyway cannot leave a false surge
+    on a baseline issue.
 
     `critic` is the stage-5 CritiqueStageResult or None. None keeps the pre-critic
     default — published_uncritiqued / not_run — still correct for a run where stage
@@ -121,6 +130,10 @@ def stamp_run_fields(issue, stats: dict, critic: CritiqueStageResult | None = No
     """
     issue["stats"] = stats
     run = issue.setdefault("issue", {}).setdefault("run", {})
+    if surge is not None:
+        run["surge"] = surge.run_block
+    else:
+        run.pop("surge", None)  # absent, not null, on a baseline run
     report = issue.setdefault("critic_report", {})
     validator_report = report.get("validator_report")  # stage 4's — preserve it
 
@@ -353,6 +366,7 @@ def run_publish_stage(
     run_id: str,
     now: datetime,
     critic: CritiqueStageResult | None = None,
+    surge=None,
     runner=subprocess.run,
 ) -> PublishResult:
     """Run stage 6's five ordered steps and return where the issue landed.
@@ -375,7 +389,7 @@ def run_publish_stage(
     issues_dir = root / "issues"
 
     stats = derive_full_stats(draft, issues_dir)
-    stamp_run_fields(draft, stats, critic)
+    stamp_run_fields(draft, stats, critic, surge)
 
     # write_issue may raise BEFORE anything lands (immutability) — a clean fail.
     issue_file = write_issue(root, draft)

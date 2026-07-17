@@ -33,10 +33,18 @@ from pathlib import Path
 
 from researchswarm.beats import load_beats
 from researchswarm.cadence import is_run_day, load_cadence
+from researchswarm.calendar import (
+    load_calendar,
+    resolve_surge,
+    runs_since_verified,
+    stale_reason,
+    verify_calendar,
+    write_verified_dates,
+)
 from researchswarm.critique import run_critique_stage
 from researchswarm.manager import ManagerFailed, load_models
 from researchswarm.prompts import RunContext, load_template
-from researchswarm.publish import publish_stub, run_publish_stage
+from researchswarm.publish import git_commit_run, publish_stub, run_publish_stage
 from researchswarm.research import render_all_prompts, run_research_stage
 from researchswarm.runs import (
     LOOKBACK_FLOOR,
@@ -146,12 +154,21 @@ def main(argv: list[str] | None = None) -> int:
     # fact — versioned, git-visible, reviewable in a diff.
     try:
         cadence = load_cadence(root / "config" / "cadence.toml")
+        calendar = load_calendar(root / "config" / "calendar.toml")
     except (FileNotFoundError, ValueError) as exc:
         return _config_error(exc)
 
-    if not is_run_day(cadence, today) and not args.force:
+    # A verified conference window makes every day a run day (surge → daily),
+    # resolved from the dates ALREADY in calendar.toml — no network at the gate,
+    # so a skipped day still exits in milliseconds. Stage 1 re-verifies and may
+    # newly resolve today's window; this is the cheap pre-check that keeps a
+    # surge day from being gated out before verification runs.
+    surge = resolve_surge(calendar, cadence.surge, today)
+    if not is_run_day(cadence, today) and surge is None and not args.force:
         log.info("%s is not a run day (cadence: %s) — no-op", today, ", ".join(cadence.days))
         return EXIT_OK
+    if surge is not None:
+        log.info("surge: %s day %d of %d — daily cadence", surge.window, surge.day, surge.of)
 
     # --- Stage 1: prepare --------------------------------------------------
     run_id = resolve_run_id(now)
@@ -196,6 +213,60 @@ def main(argv: list[str] | None = None) -> int:
     else:
         log.info("no previous issue — run #1, cold-start window %s → %s", window.from_, window.to)
 
+    # --- Stage 1: calendar verification + surge ----------------------------
+    # Re-verify every window against its source, write accepted dates as a diff,
+    # and re-resolve surge from the freshened calendar. The never-write-unread-
+    # dates rule is mechanical (calendar._accept_dates): the verifier proposes,
+    # the orchestrator decides. A verifier failure NEVER crashes the run — the
+    # window stays unverified, surge stays off, and a stale calendar files its
+    # advisory below. Skipped on --dry-run, which writes nothing and calls nothing.
+    if not args.dry_run:
+        try:
+            models_config = load_models(root / "config" / "models.toml")
+        except (FileNotFoundError, ValueError) as exc:
+            return _config_error(exc)
+        max_surge_days = cadence.surge.max_surge_days if cadence.surge else 7
+        verification = verify_calendar(
+            calendar,
+            model=models_config.get("verifier", "sonnet"),
+            max_surge_days=max_surge_days,
+        )
+        if verification.updated:
+            calendar_path = root / "config" / "calendar.toml"
+            dates = {
+                v.window_id: {"starts": v.starts, "ends": v.ends}
+                for v in verification.windows
+                if v.verified
+            }
+            if write_verified_dates(calendar_path, now.isoformat(timespec="seconds"), dates):
+                # The diff is the review; the message cites the source each date was
+                # read from. A SEPARATE commit from the run's — verification is worth
+                # keeping even if this run later stubs, so it lands before the run
+                # knows its own outcome.
+                cited = ", ".join(
+                    f"{wid} ({verification.sources[wid]})" for wid in verification.updated
+                )
+                git_commit_run(
+                    root, run_id, [calendar_path], message=f"run {run_id}: verify calendar — {cited}"
+                )
+            calendar = load_calendar(calendar_path)  # reload with the fresh dates
+        surge = resolve_surge(calendar, cadence.surge, today)
+        if surge is not None:
+            log.info("surge: %s day %d of %d", surge.window, surge.day, surge.of)
+
+    # Staleness — the one failure that would otherwise be silent. A stale calendar
+    # files a calendar_stale advisory in stage 4, and the marker rides on every
+    # issue whether or not the critic runs (spec/02).
+    reason = stale_reason(
+        calendar,
+        today=today,
+        cycles_since_verified=runs_since_verified(root / "issues", calendar),
+        stale_after_cycles=cadence.surge.stale_after_cycles if cadence.surge else 8,
+    )
+    calendar_stale = reason is not None
+    if calendar_stale:
+        log.warning("conference calendar stale — surge disabled (%s)", reason)
+
     # --- Stage 2: research -------------------------------------------------
     try:
         beats = load_beats(root / "config" / "beats.toml")
@@ -214,6 +285,7 @@ def main(argv: list[str] | None = None) -> int:
         run_id=run_id,
         coverage_window_from=window.from_.isoformat(),
         coverage_window_to=window.to.isoformat(),
+        surge=surge,
     )
 
     if args.dry_run:
@@ -317,6 +389,7 @@ def main(argv: list[str] | None = None) -> int:
             model=models_config["manager"],
             run_id=run_id,
             thesis_version=state.thesis.get("version"),
+            calendar_stale=calendar_stale,
         )
     except (ManagerFailed, ValidationExhausted) as exc:
         # Either the retry manager died, or the budget ran out still blocking.
@@ -369,6 +442,7 @@ def main(argv: list[str] | None = None) -> int:
         draft_path=draft_path,
         thesis_version=state.thesis.get("version"),
         schema_file=root / "prompts" / "critic-output-schema.json",
+        surge=surge,
     )
     log.info(
         "critic: %s → %s (%d retr%s)%s",
@@ -392,7 +466,8 @@ def main(argv: list[str] | None = None) -> int:
     # guard fires here so the run reports the failure without laundering it.
     try:
         publish = run_publish_stage(
-            root, draft=published_draft, state=state, run_id=run_id, now=now, critic=critic
+            root, draft=published_draft, state=state, run_id=run_id, now=now, critic=critic,
+            surge=surge,
         )
     except PublishedIssueExists as exc:
         log.error("%s", exc)

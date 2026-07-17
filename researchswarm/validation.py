@@ -99,6 +99,7 @@ def run_validation_stage(
     model: str,
     run_id: str,
     thesis_version,
+    calendar_stale: bool = False,
     runner=subprocess.run,
 ) -> ValidationStageResult:
     """Validate the draft, retry the manager on a block, stamp and re-persist.
@@ -107,6 +108,10 @@ def run_validation_stage(
     owns the stub. A ManagerFailed during a retry propagates unchanged — run.py
     maps both to the validation stub, because either way there is a draft that
     could not be made publishable.
+
+    `calendar_stale` is the Stage-1 fact; passed straight to validate_issue so a
+    stale calendar files its advisory on this run's issue (the marker rides on
+    every issue, critic present or not).
     """
     # The queue-tamper baseline: the most recent issue CARRYING a catalyst_queue
     # snapshot, walked back past stubs. None on run #1 (tolerated — nothing to
@@ -127,6 +132,7 @@ def run_validation_stage(
             queue_baseline=queue_baseline,
             baseline_expired=baseline.expired,
             beats_failed=beats_failed,
+            calendar_stale=calendar_stale,
         )
 
         if result.passed:
