@@ -48,3 +48,11 @@ cadence = "daily"
 # An unverified or stale window surges nothing and says so, loudly.
 require_verified_dates = true
 max_surge_days = 7          # a window claiming to run longer than this is a data error
+
+# N: if no window has been verified in this many consecutive runs, the calendar
+# is declared STALE — every issue carries the marker and surge is disabled. About
+# four weeks at baseline cadence: long enough that a fortnight of quiet society
+# pages doesn't false-alarm, short enough to catch a rotted verification step
+# before the next major window. Counted per RUN, independent of surge cadence.
+# ⚑ Provisional — the number most likely to be wrong; recalibrate on real data.
+stale_after_cycles = 8

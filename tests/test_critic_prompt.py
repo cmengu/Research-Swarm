@@ -59,6 +59,21 @@ class TestFiveInputs:
     def test_thesis_is_inlined(self, template):
         assert "pharma-ma-appetite" in _render(template)
 
+    def test_no_surge_renders_the_coverage_window_fallback(self, template):
+        assert "compare provenance_stale against issue.coverage_window" in _render(template)
+
+    def test_surge_supplies_the_conference_window(self, template):
+        """run.surge in the issue carries only {window, day, of}, so the critic
+        gets the conference DATES here — the provenance_stale reference in surge."""
+        from researchswarm.calendar import SurgeState
+
+        surge = SurgeState(window="ASCO 2026", window_id="asco", day=2, of=5,
+                           starts="2026-05-29", ends="2026-06-02")
+        out = _render(template, surge=surge)
+        assert "ASCO 2026" in out
+        assert "2026-05-29 to 2026-06-02" in out
+        assert "CONFERENCE window" in out
+
 
 class TestNoPlaceholderSurvives:
     def test_a_fully_rendered_prompt_has_no_double_brace(self, template):
@@ -100,14 +115,15 @@ class TestLoadBearingRubric:
             assert kind in template
 
     def test_provenance_stale_states_the_surge_exception(self, template):
-        """spec/06: the comparison window is coverage normally, the conference
-        window during a surge. Surge doesn't exist until a later build, so the
-        rubric must state the rule CONDITIONALLY rather than hardcode one half."""
+        """spec/06: the comparison window is coverage normally, the CONFERENCE
+        window during a surge — the one reference-window change, not a relaxed bar.
+        Now that surge has landed (build 10), the rubric states the rule
+        conditionally and is handed the dates via {{surge_window}}."""
         # Fragments, because the template wraps the sentence across lines.
         assert "issue.coverage_window" in template
         assert "when run.surge is present" in template
-        assert "compare against the conference window" in template
-        assert "run.surge is currently always absent" in template
+        assert "compare against the CONFERENCE window" in template
+        assert "{{surge_window}}" in template
 
     def test_output_is_one_json_object_no_fences(self, template):
         assert "EXACTLY ONE JSON object" in template

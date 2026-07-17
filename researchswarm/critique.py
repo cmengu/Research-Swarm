@@ -41,6 +41,7 @@ import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from researchswarm.critic import (
     BLOCKED,
@@ -64,6 +65,9 @@ from researchswarm.prompts import render_critic_prompt, render_critic_retry_prom
 from researchswarm.research import load_findings
 from researchswarm.runs import latest_covering_issue
 from researchswarm.state import State
+
+if TYPE_CHECKING:
+    from researchswarm.calendar import SurgeState
 
 log = logging.getLogger("researchswarm.critique")
 
@@ -115,6 +119,7 @@ def run_critique_stage(
     draft_path: Path,
     thesis_version,
     schema_file: Path | None = None,
+    surge: "SurgeState | None" = None,
     timeout: int = 900,
     runner=subprocess.run,
     manager_runner=subprocess.run,
@@ -122,6 +127,9 @@ def run_critique_stage(
     """Run the critic, drive the retry loop, map the outcome to a run.status.
 
     `draft` is the validated issue from stage 4 (validator_report already stamped).
+    `surge` is the resolved SurgeState or None: it supplies the critic the
+    conference window that provenance_stale compares against during a surge (the
+    one reference-window change, spec/02) — the bar is otherwise unchanged.
     The previous issue joins to the most recent COVERING issue, walking past stubs
     — the same continuity primitive the coverage window uses — so a failed run does
     not blind the critic to real history; it is fetched once, since retries do not
@@ -155,6 +163,7 @@ def run_critique_stage(
             previous_issue=previous_issue,
             watchlist=state.watchlist,
             thesis=state.thesis,
+            surge=surge,
         )
         result = run_critic(
             prompt, model=model, timeout=timeout, schema_file=schema_file, runner=runner

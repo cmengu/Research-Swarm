@@ -131,15 +131,19 @@ def _trigger_quiet_cycle(degradation, *, issue, state, beats_failed) -> bool:
 
 
 def _trigger_calendar_stale(degradation, *, issue, state, beats_failed) -> bool:
-    """No conference window verified in N cycles — surge disabled.
+    """A stale calendar empties no REQUIRED section, so it exempts none.
 
-    Registered so the enforcer and the register list stay in lockstep, but its
-    trigger cannot fire yet: surge/calendar verification lands in build 10, and
-    until `verified_at` exists there is no mechanical fact to read. Returning
-    False means it grants no exemption today — an honest "not yet" rather than a
-    silent always-true that would exempt anything claiming staleness.
+    calendar_stale is a real degradation (spec/06 register) but a different KIND
+    from the other three: it disables surge and prints a marker on every issue,
+    yet nothing in the issue's required sections goes empty because of it. This
+    register maps kinds to section-emptying triggers, so calendar_stale correctly
+    grants no section exemption — it is filed as an advisory by run.py's Stage 1
+    (from the mechanical `calendar.stale_reason`), not certified here. Kept in the
+    register so the enforcer and the register list stay in lockstep, and returns
+    False so a manager could never launder an unexplained empty section behind a
+    calendar_stale marker.
     """
-    return False  # build 10 — no calendar verification exists to read yet
+    return False  # stale calendar disables surge; it empties no required section
 
 
 DEGRADATION_REGISTER = {
@@ -681,6 +685,11 @@ def _citation_urls(item):
 # ---------------------------------------------------------------------------
 
 
+# The reader-facing marker text for a stale calendar (spec/06 register). One home,
+# so the advisory the validator files and the dashboard's marker match byte-for-byte.
+CALENDAR_STALE_MARKER = "conference calendar stale — surge disabled"
+
+
 def validate_issue(
     issue,
     *,
@@ -688,6 +697,7 @@ def validate_issue(
     queue_baseline=None,
     baseline_expired=False,
     beats_failed=None,
+    calendar_stale=False,
 ):
     """Run all seven checks; return a ValidationResult, never raise.
 
@@ -704,6 +714,12 @@ def validate_issue(
     to compare against and skips, exactly as the coverage window does. Only if
     the walk hit the 12-issue floor is `continuity_baseline_expired` filed as an
     ADVISORY — rendered in the report, never blocking.
+
+    `calendar_stale` is the mechanical fact run.py computed in Stage 1
+    (calendar.stale_reason). When true, a `calendar_stale` advisory is filed here
+    — not by the model — because a stale calendar is the one failure that would
+    otherwise be SILENT (spec/02): the marker must ride on every issue whether or
+    not the Codex critic runs, so the deterministic gate is where it belongs.
     """
     if beats_failed is None:
         beats_failed = issue.get("sources_and_method", {}).get("beats_failed") or []
@@ -726,6 +742,10 @@ def validate_issue(
                 "catalyst_queue",
                 "backwards search hit the 12-issue floor without a snapshot to compare against",
             )
+        )
+    if calendar_stale:
+        advisory.append(
+            Finding("calendar_stale", "conference_calendar", CALENDAR_STALE_MARKER)
         )
 
     return ValidationResult(blocking=tuple(blocking), advisory=tuple(advisory))

@@ -375,10 +375,30 @@ class TestContinuityBaselineExpired:
         assert result.advisory == ()
 
 
+class TestCalendarStale:
+    def test_stale_calendar_files_the_advisory_never_blocks(self):
+        """The one otherwise-silent failure is filed HERE, deterministically, so
+        the marker rides on every issue whether or not the Codex critic runs."""
+        from researchswarm.validator import CALENDAR_STALE_MARKER
+
+        result = validate_issue(_issue(), state=_state("merck", "pfizer"), calendar_stale=True)
+        assert result.passed  # advisory does not block
+        advisory = [f for f in result.advisory if f.kind == "calendar_stale"]
+        assert len(advisory) == 1
+        assert advisory[0].note == CALENDAR_STALE_MARKER  # matches the dashboard marker
+
+    def test_a_fresh_calendar_files_nothing(self):
+        result = validate_issue(_issue(), state=_state("merck", "pfizer"), calendar_stale=False)
+        assert not any(f.kind == "calendar_stale" for f in result.advisory)
+
+
 class TestTheRegister:
-    def test_calendar_stale_is_registered_but_cannot_yet_earn_an_exemption(self):
-        """Registered so the list and its enforcer stay in lockstep, but its
-        trigger returns False until build 10 gives it a fact to read."""
+    def test_calendar_stale_grants_no_section_exemption(self):
+        """calendar_stale is a real degradation, but of a different KIND: it
+        disables surge and marks every issue, yet empties no required section, so
+        it correctly grants no section exemption (and a manager cannot launder an
+        empty section behind it). It is filed as an advisory by validate_issue,
+        not certified by this section-exemption register."""
         assert "calendar_stale" in DEGRADATION_REGISTER
         trigger = DEGRADATION_REGISTER["calendar_stale"]
         assert trigger({}, issue=_issue(), state=_state("merck"), beats_failed=[]) is False
