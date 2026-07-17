@@ -308,20 +308,93 @@
 // the real published issues. On file:// fetch is blocked; that is by design.
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const isBlank = (t) => t == null || String(t).trim() === "";
 
 // A degradation renders at the point of the absence — dormant thesis, dead beat,
 // stale calendar. These are the marker prefixes the manager/validator stamp
 // verbatim; matching them lets the renderer style an absence instead of printing
-// it as ordinary prose.
+// it as ordinary prose. HEURISTIC, not a contract — see the README note: a
+// reworded marker degrades to ordinary prose (text, never a blank).
 const MARKER = /^(no thesis seeded|.*beat failed|.*coverage unavailable|conference calendar stale|.*surge disabled)/i;
 const isMarker = (t) => typeof t === "string" && MARKER.test(t.trim());
 const absence = (t) => '<div class="absence">' + esc(t) + '</div>';
+
+// ── vocabulary homes: no bare run.status / finding-kind literals elsewhere ──
+// run.status (spec/07) → the dropdown suffix a reader sees before opening, which
+// banner the issue draws (spec/08), and whether the whole issue is a stub.
+const STATUS = {
+  published:                          { suffix: null,       banner: null,         stub: false },
+  published_uncritiqued:              { suffix: "unvetted", banner: "uncritiqued", stub: false },
+  published_with_unresolved_findings: { suffix: "disputed", banner: "unresolved",  stub: false },
+  failed:                             { suffix: "failed",   banner: null,         stub: true },
+};
+// Finding-kind vocabulary the reader-facing chrome keys on (spec/06 register).
+const FINDING = { calendarStale: "calendar_stale" };
+// Manifest flags are "markers the reader should see before opening" (spec/08) —
+// surfaced in the dropdown label. One home for their reader-facing wording.
+const FLAG_LABEL = { calendar_stale: "calendar stale", beats_failed: "beats failed", continuity_baseline_expired: "baseline expired" };
+
+// ── beat → the sections a dead beat leaves thin ─────────────────────────────
+// Derived from config/beats.toml charters (the "centre of the beat") + spec/04
+// ("every section the dead beat would have fed carries an inline marker"; beats
+// overlap by design, so a section is fed by several). The reader must see the
+// absence exactly where a thin section would otherwise read as a quiet world.
+const BEAT_LABEL = {
+  ma_dealmaking: "M&A & dealmaking", startup_frontier: "Startup frontier",
+  clinical_scientific: "Clinical & scientific", policy_regulation: "Policy & regulation",
+  incumbent_moves: "Incumbent moves", backstop: "Backstop sweep",
+};
+const BEAT_SECTIONS = {
+  ma_dealmaking:       ["watchlist", "quiet", "frontier"],   // deals: tracked names, names now "quiet", off-roster deals
+  startup_frontier:    ["radar"],                            // new entrants
+  clinical_scientific: ["watchlist", "quiet", "catalyst"],   // readouts: tracked names, "quiet" names, upcoming catalysts
+  policy_regulation:   ["frontier", "catalyst", "quiet"],    // FDA/CMS moves, regulatory dates, regulator entities "quiet"
+  incumbent_moves:     ["frontier", "watchlist"],            // strategic posture, tracked incumbents
+  backstop:            ["themes"],                           // the cross-cutting story nobody's query was shaped to find
+};
 
 const chip = (p) => p ? '<span class="chip p-' + esc(p) + '">' + esc(p) + '</span>' : '';
 const srcs = (a) => (Array.isArray(a) && a.length)
   ? '<div class="srcs">' + a.map(s => '<a href="' + esc(s.url) + '" target="_blank" rel="noopener"><span class="tier tier-' +
       esc(s.tier) + '">' + esc(s.tier) + '</span> ' + esc(s.publisher) + ' &middot; ' + esc(s.published_at) + '</a>').join('') + '</div>'
   : '';
+
+// Every prose dereference the page prints routes through one of these, so a
+// blank or a manager marker renders as a visible absence, never a silent gap.
+function proseP(cls, text, marker) {
+  if (isBlank(text)) return absence(marker || '— not reported this cycle');
+  if (isMarker(text)) return absence(text);
+  return '<p class="' + cls + '">' + esc(text) + '</p>';
+}
+function setProse(el, text, marker) {
+  if (isBlank(text)) el.innerHTML = absence(marker || '— not reported this cycle');
+  else if (isMarker(text)) el.innerHTML = absence(text);
+  else el.textContent = text;
+}
+
+// receipt + rebuttal render identically wherever a finding appears (banner OR
+// advisory list) — both sides always visible, incl. a withdrawn/reaffirmed chip.
+function receiptBlock(src) { return src ? '<div class="rebuttal"><span class="rlbl">Receipt</span>' + srcs([src]) + '</div>' : ''; }
+function rebuttalBlock(r) {
+  if (!r) return '';
+  return '<div class="rebuttal"><span class="rlbl">Manager rebuttal</span><p>' + esc(r.text) + '</p>' + srcs(r.sources) +
+    (r.adjudication ? '<span class="adj ' + esc(r.adjudication) + '">critic ' + esc(r.adjudication) + '</span>' : '') + '</div>';
+}
+
+// Which dead beats leave each section thin — one absence marker per beat, per
+// section it fed. Returned keyed by section body so each render prepends its own.
+function beatFailureMarkers(beatsFailed) {
+  const bySection = {};
+  (beatsFailed || []).forEach(b => {
+    const label = BEAT_LABEL[b] || b;
+    (BEAT_SECTIONS[b] || []).forEach(sec => {
+      (bySection[sec] = bySection[sec] || []).push(label + ' coverage unavailable this cycle — beat failed');
+    });
+  });
+  const out = {};
+  for (const sec in bySection) out[sec] = bySection[sec].map(absence).join('');
+  return out;
+}
 
 function showError(html) {
   const el = $('loadError');
@@ -363,23 +436,24 @@ function slipLine(it) {
   return 'expected ' + esc(now || first);
 }
 
-function renderQueue(cq) {
+function renderQueue(cq, beatMarker) {
   const items = (cq && Array.isArray(cq.items)) ? cq.items : [];
   const sec = $('catalyst');
-  if (!items.length) { sec.hidden = true; return; }
+  if (!items.length && !beatMarker) { sec.hidden = true; return; }
   sec.hidden = false;
-  $('catalystBody').innerHTML = items.map(it => {
+  const body = items.map(it => {
     const holders = Array.isArray(it.holders) && it.holders.length ? ' &middot; <span class="holders">' + it.holders.map(esc).join(', ') + '</span>' : '';
-    const prove = it.what_it_would_prove
-      ? (isMarker(it.what_it_would_prove) ? absence(it.what_it_would_prove) : '<div class="prove">' + esc(it.what_it_would_prove) + '</div>')
-      : '';
+    const prove = isBlank(it.what_it_would_prove)
+      ? ''
+      : (isMarker(it.what_it_would_prove) ? absence(it.what_it_would_prove) : '<div class="prove">' + esc(it.what_it_would_prove) + '</div>');
     return '<div class="qitem">' +
       '<div class="qhead"><span class="asset">' + esc(it.asset || it.id) + '</span>' +
       '<span class="qstatus ' + esc(it.status) + '">' + esc(it.status) + '</span>' + holders + '</div>' +
-      '<div class="qcat">' + esc(it.catalyst) + '</div>' +
+      (isBlank(it.catalyst) ? absence('— catalyst not described') : '<div class="qcat">' + esc(it.catalyst) + '</div>') +
       '<div class="slip">' + slipLine(it) + '</div>' +
       prove + srcs(it.sources) + '</div>';
   }).join('');
+  $('catalystBody').innerHTML = (beatMarker || '') + body;
 }
 
 function renderBanners(d) {
@@ -389,34 +463,147 @@ function renderBanners(d) {
 
   // Persistent stale-calendar marker — surge disabled while the calendar is unverified.
   const findings = [].concat(cr.advisory_findings || [], (cr.validator_report || {}).findings || []);
-  if (findings.some(f => f && f.kind === 'calendar_stale')) {
+  if (findings.some(f => f && f.kind === FINDING.calendarStale)) {
     out.push('<div class="stale">conference calendar stale &mdash; surge disabled</div>');
   }
 
-  if (run.status === 'published_uncritiqued') {
+  const banner = (STATUS[run.status] || {}).banner;
+  if (banner === 'uncritiqued') {
     const why = cr.reason ? ' The critic was unreachable (' + esc(cr.reason) + ').' : ' The critic was unreachable this cycle.';
     out.push('<div class="banner uncritiqued"><div class="btitle">Unvetted &middot; not adversarially reviewed</div>' +
       '<p>This digest published without the adversarial critic gate.' + why +
       ' The facts are good and sourced; they were simply not challenged by a second model family before publishing.</p></div>');
   }
-
-  if (run.status === 'published_with_unresolved_findings') {
-    const blocking = cr.blocking_findings || [];
-    const body = blocking.map(f => {
-      const receipt = f.source ? '<div class="where">receipt: ' + srcs([f.source]).replace(/^<div class="srcs">|<\/div>$/g, '') + '</div>' : '';
-      const reb = f.rebuttal ? '<div class="rebuttal"><span class="rlbl">Manager rebuttal</span><p>' + esc(f.rebuttal.text) + '</p>' +
-        srcs(f.rebuttal.sources) +
-        (f.rebuttal.adjudication ? '<span class="adj ' + esc(f.rebuttal.adjudication) + '">critic ' + esc(f.rebuttal.adjudication) + '</span>' : '') +
-        '</div>' : '';
-      return '<div class="bfind"><span class="where">' + esc(f.kind) + ' &middot; ' + esc(f.where) + '</span>' +
-        '<p>' + esc(f.note) + '</p>' + receipt + reb + '</div>';
-    }).join('');
+  if (banner === 'unresolved') {
+    const body = (cr.blocking_findings || []).map(f =>
+      '<div class="bfind"><span class="where">' + esc(f.kind) + ' &middot; ' + esc(f.where) + '</span>' +
+      '<p>' + esc(f.note) + '</p>' + receiptBlock(f.source) + rebuttalBlock(f.rebuttal) + '</div>').join('');
     out.push('<div class="banner unresolved"><div class="btitle">Unresolved findings &middot; published with an open dispute</div>' +
       '<p>The critic raised findings the manager rebutted but did not resolve. Both sides are printed below with the critic&rsquo;s adjudication &mdash; a genuine disagreement between two model families, disclosed, not smoothed over.</p>' +
       body + '</div>');
   }
 
   $('banners').innerHTML = out.join('');
+}
+
+// watchlist — thesis_impact is the stripe; dormant angle, dead-beat degradation,
+// and a dead beat that feeds this section all render at the point of the absence.
+function renderWatchlist(d, beatMarker) {
+  const body = (d.watchlist || []).map(e => {
+    const dormant = !e.thesis_impact || isMarker(e.research_angle);
+    const stripe = (!dormant && e.thesis_impact) ? ' ' + esc(e.thesis_impact) : '';
+    const degr = (e.degradation && e.degradation.marker) ? absence(e.degradation.marker) : '';
+    const angle = dormant
+      ? absence(isMarker(e.research_angle) ? e.research_angle : 'No thesis seeded — facts only')
+      : '<details class="angle" open><summary><b>Research Angle</b><span class="impact ' + esc(e.thesis_impact) + '">' +
+          esc(e.thesis_impact) + ' thesis</span></summary><p>' + esc(e.research_angle) + '</p></details>';
+    return '<article class="entity' + stripe + '"><div class="ehead">' +
+      '<div class="enameline"><h3>' + esc(e.name) + '</h3><span class="slug">' + esc(e.entity_id) + '</span></div>' +
+      '<div class="etags">' + chip(e.priority) + (e.categories || []).map(c => '<span class="cat">' + esc(c) + '</span>').join('') +
+      '<span class="meta ' + esc(e.status) + '">' + esc(e.status) + '</span><span class="meta">conf ' + esc(e.confidence) + '</span></div></div>' +
+      proseP('summary', e.summary) + degr + angle + srcs(e.sources) + '</article>';
+  }).join('');
+  $('watchlistBody').innerHTML = (beatMarker || '') + body;
+}
+
+// quiet — critic catches struck through and stamped; open threads tolerate the
+// string OR object shape the manager emits (see README).
+function renderQuiet(d, beatMarker) {
+  const q = d.quiet_this_cycle || {};
+  const noNews = (q.no_news || []).map(n => '<span class="pill"><b>' + esc(n.name) + '</b> &middot; ' + esc(n.cycles_quiet) +
+    ' cycle' + (n.cycles_quiet > 1 ? 's' : '') + '</span>').join('');
+  const catches = (q.critic_catches || []).length
+    ? (q.critic_catches).map(c => '<div class="catch"><div class="stamp">Rejected &middot; ' + esc(c.rejected_because) + '</div><div class="claim">' +
+        esc(c.claim) + '</div><div class="why">' + esc(c.detail) + '</div>' + srcs(c.sources) + '</div>').join('')
+    : '<div class="muted">No claims rejected this cycle.</div>';
+  const threads = (q.open_threads || []).length
+    ? '<div class="threads"><span class="lbl">Open threads &mdash; developing, no update this cycle</span>' +
+        (q.open_threads).map(t => typeof t === 'string'
+          ? '<div class="thread"><b>' + esc(t) + '</b></div>'
+          : '<div class="thread"><b>' + esc(t.thread) + '</b><span class="meta">open since ' + esc(t.since) +
+            (t.next_expected ? ' &middot; ' + esc(t.next_expected) : '') + '</span></div>').join('') + '</div>'
+    : '';
+  $('quietBody').innerHTML = (beatMarker || '') + (noNews ? '<div class="pills">' + noNews + '</div>' : '') + catches + threads;
+}
+
+// radar — factual fields and the thesis-gated why_we_care each fall back to a
+// visible absence; promotion_proposal tolerates spec and emitted shapes.
+function renderRadar(d, beatMarker) {
+  const body = (d.new_on_radar || []).map(r => {
+    const pp = r.promotion_proposal || {};
+    const promoting = ('promote_to_watchlist' in pp && pp.promote_to_watchlist) || !!pp.proposed_entity_id;
+    let label;
+    if ('promote_to_watchlist' in pp) label = pp.promote_to_watchlist ? 'promoting to watchlist' : 'watching one more cycle';
+    else if (pp.proposed_entity_id) label = 'proposed &middot; ' + esc(pp.proposed_tier || 'watchlist') + (pp.proposed_priority ? ' &middot; ' + esc(pp.proposed_priority) : '');
+    else label = 'on our radar';
+    const facts = [r.what_they_do, r.development].filter(x => !isBlank(x)).map(esc).join(' &mdash; ');
+    const factsHtml = facts ? '<p class="summary">' + facts + '</p>' : absence('— not reported this cycle');
+    const why = isBlank(r.why_we_care) || isMarker(r.why_we_care)
+      ? absence(isMarker(r.why_we_care) ? r.why_we_care : 'No thesis seeded — facts only') +
+          (pp.reason ? '<p class="muted">Promotion note: ' + esc(pp.reason) + '</p>' : '')
+      : '<details class="angle" open><summary><b>Why we care</b><span class="impact ' + (promoting ? 'confirms' : 'neutral') + '">' + label + '</span></summary>' +
+          '<p>' + esc(r.why_we_care) + (pp.reason ? '<br><br><span class="muted">Promotion note: ' + esc(pp.reason) + '</span>' : '') + '</p></details>';
+    return '<article class="entity"><div class="ehead"><div class="enameline"><h3>' + esc(r.name) + '</h3><span class="slug">' + esc(r.entity_id) + '</span></div>' +
+      '<div class="etags">' + chip(r.priority) + (r.categories || []).map(c => '<span class="cat">' + esc(c) + '</span>').join('') + '</div></div>' +
+      factsHtml + why + srcs(r.sources) + '</article>';
+  }).join('');
+  $('radarBody').innerHTML = (beatMarker || '') + body;
+}
+
+function renderThemes(d, beatMarker) {
+  const body = (d.themes_and_signals || []).map(t =>
+    '<div class="block"><h3>' + esc(t.theme) + ' <span class="impact ' + esc(t.thesis_impact) + '">' + esc(t.thesis_impact) + '</span></h3>' +
+    proseP('', t.argument) + '<div class="srcs">' + (t.evidence_refs || []).map(r => '<span class="slug">' + esc(r) + '</span>').join('') + '</div></div>').join('');
+  $('themesBody').innerHTML = (beatMarker || '') + body;
+}
+
+function renderFrontier(d, beatMarker) {
+  const body = (d.elsewhere_on_frontier || []).map(f =>
+    '<div class="block"><h3>' + esc(f.actor) + ' &mdash; ' + esc(f.move) + '</h3>' + proseP('', f.detail) +
+    proseP('why', f.why_it_matters) + srcs(f.sources) + '</div>').join('');
+  $('frontierBody').innerHTML = (beatMarker || '') + body;
+}
+
+function renderThesis(d) {
+  const drifts = d.thesis_updates || [];
+  $('thesisBody').innerHTML = drifts.length
+    ? drifts.map(u => '<div class="drift"><div class="dh">' + esc(u.change) + ' &middot; ' + esc(u.field) + ' &middot; triggered by ' +
+        (u.triggered_by || []).map(esc).join(', ') + '</div><div class="db"><span class="before">' + esc(u.before) + '</span><span class="after">' +
+        esc(u.after) + '</span></div></div>').join('')
+    : '<div class="muted">No thesis changes this cycle.</div>';
+}
+
+function renderCritic(d) {
+  const c = d.critic_report || {};
+  const blocking = (c.blocking_findings || []).map(f => '<div class="finding">' + chip('high') + '<span><b class="slug">' + esc(f.where) +
+    '</b> &mdash; ' + esc(f.note) + ' <span class="muted">(printed in full in the banner above)</span></span></div>').join('');
+  // Advisory findings can carry a full rebuttal record (a withdrawn/orphan
+  // dispute demoted here) — both sides render, exactly as the banner does.
+  const advisory = (c.advisory_findings || []).map(f => (f.rebuttal || f.source)
+    ? '<div class="bfind"><span class="where">' + esc(f.kind) + ' &middot; ' + esc(f.where) + '</span><p>' + esc(f.note) + '</p>' +
+        receiptBlock(f.source) + rebuttalBlock(f.rebuttal) + '</div>'
+    : '<div class="finding"><span class="cat">' + esc(f.kind) + '</span><span><b class="slug">' + esc(f.where) + '</b> &mdash; ' + esc(f.note) + '</span></div>'
+  ).join('');
+  const vf = ((c.validator_report || {}).findings || []).map(f => '<div class="finding"><span class="cat">validator &middot; ' + esc(f.kind) + '</span><span><b class="slug">' +
+    esc(f.where) + '</b> &mdash; ' + esc(f.note) + '</span></div>').join('');
+  const nothing = !blocking && !advisory && !vf ? '<div class="muted">Nothing flagged before publication.</div>' : '';
+  $('criticBody').innerHTML = '<span class="verdict">' + esc(String(c.verdict || 'not_run').replace(/_/g, ' ')) + ' &middot; ' +
+    (c.retries_used ?? 0) + ' retr' + ((c.retries_used ?? 0) === 1 ? 'y' : 'ies') + '</span>' + blocking + advisory + vf + nothing;
+}
+
+function renderMethod(d) {
+  const run = (d.issue || {}).run || {};
+  const m = d.sources_and_method || {};
+  const mo = run.models || {};
+  const tc = m.source_tier_counts || {};
+  $('method').innerHTML =
+    'beats run: ' + (m.beats_run || []).map(esc).join(' &middot; ') +
+    ((m.beats_failed || []).length ? '<br><span style="color:var(--challenges)">beats failed: ' + m.beats_failed.map(esc).join(' &middot; ') + '</span>' : '') +
+    '<br>sources: ' + Object.keys(tc).map(k => '<span class="tier tier-' + k + '">' + k + '</span> ' + tc[k]).join(' &middot; ') +
+    ((m.paywalled_flagged || []).length ? '<br>' + m.paywalled_flagged.map(p => '<span style="color:var(--eosin)">paywalled &mdash; assess manually:</span> ' +
+      esc(p.claim) + ' (' + esc(p.publisher) + ')').join('<br>') : '') +
+    '<br>models: researchers ' + esc(mo.researchers) + ' &middot; manager ' + esc(mo.manager) + ' &middot; critic ' + esc(mo.critic) +
+    '<br>run ' + esc(run.run_id) + ' &middot; thesis v' + esc(run.thesis_version) + ' &middot; published ' + esc(d.issue.published_at);
 }
 
 function renderFull(d) {
@@ -434,8 +621,8 @@ function renderFull(d) {
   renderBanners(d);
 
   $('heroTitle').textContent = d.headline.title;
-  $('heroSummary').textContent = d.headline.summary;
-  $('heroSoWhat').textContent = d.headline.so_what;
+  setProse($('heroSummary'), d.headline.summary);
+  setProse($('heroSoWhat'), d.headline.so_what);
 
   const prev = S.previous_issue;
   const windowStat = prev
@@ -448,100 +635,18 @@ function renderFull(d) {
     [windowStat, 0]
   ].map(a => '<span class="' + (a[1] ? 'flag' : '') + '">' + a[0] + '</span>').join('');
 
-  $('bullets').innerHTML = (d.tldr_bullets || []).map(b => '<li>' + esc(b.text) + '</li>').join('');
+  $('bullets').innerHTML = (d.tldr_bullets || []).map(b => '<li>' + (isBlank(b.text) ? absence('— bullet missing') : esc(b.text)) + '</li>').join('');
 
-  renderQueue(d.catalyst_queue);
-
-  // watchlist — thesis_impact is the stripe; dormant angle and dead-beat markers
-  // render at the point of the absence, never as a blank.
-  $('watchlistBody').innerHTML = (d.watchlist || []).map(e => {
-    const dormant = !e.thesis_impact || isMarker(e.research_angle);
-    const stripe = (!dormant && e.thesis_impact) ? ' ' + esc(e.thesis_impact) : '';
-    const degr = (e.degradation && e.degradation.marker) ? absence(e.degradation.marker) : '';
-    const angle = dormant
-      ? absence(isMarker(e.research_angle) ? e.research_angle : 'No thesis seeded — facts only')
-      : '<details class="angle" open><summary><b>Research Angle</b><span class="impact ' + esc(e.thesis_impact) + '">' +
-          esc(e.thesis_impact) + ' thesis</span></summary><p>' + esc(e.research_angle) + '</p></details>';
-    return '<article class="entity' + stripe + '"><div class="ehead">' +
-      '<div class="enameline"><h3>' + esc(e.name) + '</h3><span class="slug">' + esc(e.entity_id) + '</span></div>' +
-      '<div class="etags">' + chip(e.priority) + (e.categories || []).map(c => '<span class="cat">' + esc(c) + '</span>').join('') +
-      '<span class="meta ' + esc(e.status) + '">' + esc(e.status) + '</span><span class="meta">conf ' + esc(e.confidence) + '</span></div></div>' +
-      '<p class="summary">' + esc(e.summary) + '</p>' + degr + angle + srcs(e.sources) + '</article>';
-  }).join('');
-
-  // quiet — critic catches struck through and stamped; open threads tolerate the
-  // string OR object shape the manager emits (see README).
-  const q = d.quiet_this_cycle || {};
-  const noNews = (q.no_news || []).map(n => '<span class="pill"><b>' + esc(n.name) + '</b> &middot; ' + esc(n.cycles_quiet) +
-    ' cycle' + (n.cycles_quiet > 1 ? 's' : '') + '</span>').join('');
-  const catches = (q.critic_catches || []).length
-    ? (q.critic_catches).map(c => '<div class="catch"><div class="stamp">Rejected &middot; ' + esc(c.rejected_because) + '</div><div class="claim">' +
-        esc(c.claim) + '</div><div class="why">' + esc(c.detail) + '</div>' + srcs(c.sources) + '</div>').join('')
-    : '<div class="muted">No claims rejected this cycle.</div>';
-  const threads = (q.open_threads || []).length
-    ? '<div class="threads"><span class="lbl">Open threads &mdash; developing, no update this cycle</span>' +
-        (q.open_threads).map(t => typeof t === 'string'
-          ? '<div class="thread"><b>' + esc(t) + '</b></div>'
-          : '<div class="thread"><b>' + esc(t.thread) + '</b><span class="meta">open since ' + esc(t.since) +
-            (t.next_expected ? ' &middot; ' + esc(t.next_expected) : '') + '</span></div>').join('') + '</div>'
-    : '';
-  $('quietBody').innerHTML = (noNews ? '<div class="pills">' + noNews + '</div>' : '') + catches + threads;
-
-  // radar — why_we_care is thesis-gated; promotion_proposal tolerates both the
-  // spec shape (promote_to_watchlist) and the emitted shape (proposed_*).
-  $('radarBody').innerHTML = (d.new_on_radar || []).map(r => {
-    const pp = r.promotion_proposal || {};
-    let label;
-    if ('promote_to_watchlist' in pp) label = pp.promote_to_watchlist ? 'promoting to watchlist' : 'watching one more cycle';
-    else if (pp.proposed_entity_id) label = 'proposed &middot; ' + esc(pp.proposed_tier || 'watchlist') + (pp.proposed_priority ? ' &middot; ' + esc(pp.proposed_priority) : '');
-    else label = 'on our radar';
-    const why = isMarker(r.why_we_care)
-      ? absence(r.why_we_care)
-      : '<details class="angle" open><summary><b>Why we care</b><span class="impact ' +
-          (('promote_to_watchlist' in pp && pp.promote_to_watchlist) || pp.proposed_entity_id ? 'confirms' : 'neutral') + '">' + label + '</span></summary>' +
-          '<p>' + esc(r.why_we_care) + (pp.reason ? '<br><br><span class="muted">Promotion note: ' + esc(pp.reason) + '</span>' : '') + '</p></details>';
-    return '<article class="entity"><div class="ehead"><div class="enameline"><h3>' + esc(r.name) + '</h3><span class="slug">' + esc(r.entity_id) + '</span></div>' +
-      '<div class="etags">' + chip(r.priority) + (r.categories || []).map(c => '<span class="cat">' + esc(c) + '</span>').join('') + '</div></div>' +
-      '<p class="summary">' + esc(r.what_they_do) + ' &mdash; ' + esc(r.development) + '</p>' + why + srcs(r.sources) + '</article>';
-  }).join('');
-
-  $('themesBody').innerHTML = (d.themes_and_signals || []).map(t =>
-    '<div class="block"><h3>' + esc(t.theme) + ' <span class="impact ' + esc(t.thesis_impact) + '">' + esc(t.thesis_impact) + '</span></h3>' +
-    '<p>' + esc(t.argument) + '</p><div class="srcs">' + (t.evidence_refs || []).map(r => '<span class="slug">' + esc(r) + '</span>').join('') + '</div></div>').join('');
-
-  $('frontierBody').innerHTML = (d.elsewhere_on_frontier || []).map(f =>
-    '<div class="block"><h3>' + esc(f.actor) + ' &mdash; ' + esc(f.move) + '</h3><p>' + esc(f.detail) + '</p>' +
-    '<p class="why">' + esc(f.why_it_matters) + '</p>' + srcs(f.sources) + '</div>').join('');
-
-  const drifts = d.thesis_updates || [];
-  $('thesisBody').innerHTML = drifts.length
-    ? drifts.map(u => '<div class="drift"><div class="dh">' + esc(u.change) + ' &middot; ' + esc(u.field) + ' &middot; triggered by ' +
-        (u.triggered_by || []).map(esc).join(', ') + '</div><div class="db"><span class="before">' + esc(u.before) + '</span><span class="after">' +
-        esc(u.after) + '</span></div></div>').join('')
-    : '<div class="muted">No thesis changes this cycle.</div>';
-
-  const c = d.critic_report || {};
-  const blocking = (c.blocking_findings || []).map(f => '<div class="finding">' + chip('high') + '<span><b class="slug">' + esc(f.where) +
-    '</b> &mdash; ' + esc(f.note) + ' <span class="muted">(printed in full in the banner above)</span></span></div>').join('');
-  const advisory = (c.advisory_findings || []).map(f => '<div class="finding"><span class="cat">' + esc(f.kind) + '</span><span><b class="slug">' + esc(f.where) +
-    '</b> &mdash; ' + esc(f.note) + '</span></div>').join('');
-  const vf = ((c.validator_report || {}).findings || []).map(f => '<div class="finding"><span class="cat">validator &middot; ' + esc(f.kind) + '</span><span><b class="slug">' +
-    esc(f.where) + '</b> &mdash; ' + esc(f.note) + '</span></div>').join('');
-  const nothing = !blocking && !advisory && !vf ? '<div class="muted">Nothing flagged before publication.</div>' : '';
-  $('criticBody').innerHTML = '<span class="verdict">' + esc(String(c.verdict || 'not_run').replace(/_/g, ' ')) + ' &middot; ' +
-    (c.retries_used ?? 0) + ' retr' + ((c.retries_used ?? 0) === 1 ? 'y' : 'ies') + '</span>' + blocking + advisory + vf + nothing;
-
-  const m = d.sources_and_method || {};
-  const mo = run.models || {};
-  const tc = m.source_tier_counts || {};
-  $('method').innerHTML =
-    'beats run: ' + (m.beats_run || []).map(esc).join(' &middot; ') +
-    ((m.beats_failed || []).length ? '<br><span style="color:var(--challenges)">beats failed: ' + m.beats_failed.map(esc).join(' &middot; ') + '</span>' : '') +
-    '<br>sources: ' + Object.keys(tc).map(k => '<span class="tier tier-' + k + '">' + k + '</span> ' + tc[k]).join(' &middot; ') +
-    ((m.paywalled_flagged || []).length ? '<br>' + m.paywalled_flagged.map(p => '<span style="color:var(--eosin)">paywalled &mdash; assess manually:</span> ' +
-      esc(p.claim) + ' (' + esc(p.publisher) + ')').join('<br>') : '') +
-    '<br>models: researchers ' + esc(mo.researchers) + ' &middot; manager ' + esc(mo.manager) + ' &middot; critic ' + esc(mo.critic) +
-    '<br>run ' + esc(run.run_id) + ' &middot; thesis v' + esc(run.thesis_version) + ' &middot; published ' + esc(d.issue.published_at);
+  const bm = beatFailureMarkers(bf);
+  renderQueue(d.catalyst_queue, bm.catalyst);
+  renderWatchlist(d, bm.watchlist);
+  renderQuiet(d, bm.quiet);
+  renderRadar(d, bm.radar);
+  renderThemes(d, bm.themes);
+  renderFrontier(d, bm.frontier);
+  renderThesis(d);
+  renderCritic(d);
+  renderMethod(d);
 
   bindToggleAll();
   $('issueView').hidden = false;
@@ -552,7 +657,7 @@ function renderFull(d) {
 function render(d) {
   if (!d.issue) { showError('<b>Malformed issue</b>The selected issue file has no <code>issue</code> block.'); return; }
   const status = (d.issue.run || {}).status;
-  if (status === 'failed' || !d.headline) renderStub(d);
+  if ((STATUS[status] || {}).stub || !d.headline) renderStub(d);
   else renderFull(d);
 }
 
@@ -567,12 +672,15 @@ function bindToggleAll() {
 }
 
 // ── dropdown: newest-first, stubs included, surge weeks grouped by window ──
+// Label carries what the reader should see before opening (spec/08): the status
+// suffix or surge day, plus every manifest flag, all from the vocab homes above.
 function labelFor(it) {
-  if (it.status === 'failed') return it.id + ' — failed';
-  if (it.surge) return it.id + ' — day ' + it.surge.day + ' of ' + it.surge.of;
-  if (it.status === 'published_uncritiqued') return it.id + ' — unvetted';
-  if (it.status === 'published_with_unresolved_findings') return it.id + ' — disputed';
-  return it.id;
+  const st = STATUS[it.status] || {};
+  const rest = [];
+  if (it.surge) rest.push('day ' + it.surge.day + ' of ' + it.surge.of);
+  else if (st.suffix) rest.push(st.suffix);
+  if (!st.stub) (it.flags || []).forEach(f => rest.push(FLAG_LABEL[f] || f));
+  return it.id + (rest.length ? ' — ' + rest.join(' · ') : '');
 }
 
 function buildPicker(issues) {

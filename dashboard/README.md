@@ -26,6 +26,10 @@ The dashboard renders defensively where the **live manager** diverges from [`doc
 
 These are manager-side, not `publish.py`-side; reported, not silently patched.
 
+## Dormant-marker matching is a wording heuristic
+
+Dormant-thesis markers in `research_angle`, `why_we_care` and `what_it_would_prove` are **free manager text**, not a typed field — the manager writes `No thesis seeded — facts only` and omits `thesis_impact`. The dashboard recognises them with a small wording regex (`No thesis seeded…`, `… beat failed`, `… coverage unavailable`, `conference calendar stale`, `… surge disabled`). This is a heuristic, not a contract: if a marker is ever **reworded**, it stops matching and degrades to ordinary prose — it still renders (as text, never a blank), but loses the styled-absence treatment. The durable fix is a typed marker/`degradation` field the renderer can key on; until then, keep the marker wording and the regex in sync.
+
 ## Visual system
 
 Palette is **H&E stain** — the actual colors of a tumor biopsy under a microscope: hematoxylin blue-violet (`--hema`) and eosin pink-red (`--eosin`), with violet-biased neutrals. Subject-grounded rather than a generic dashboard skin.

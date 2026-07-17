@@ -124,6 +124,27 @@ def test_surge_and_dispute_shapes(surge):
     assert "calendar_stale" in kinds
 
 
+def test_advisory_finding_can_carry_a_rebuttal_both_sides_render(surge):
+    """A withdrawn/orphan rebuttal record is demoted into advisory_findings as
+    {kind, where, note, rebuttal:{text, sources, adjudication}} — the dashboard's
+    advisory path renders the full record (text + sources + adjudication chip),
+    not just kind/where/note. This pins that the fixture actually exercises it."""
+    advisory = surge["critic_report"]["advisory_findings"]
+    with_rebuttal = [f for f in advisory if f.get("rebuttal")]
+    assert with_rebuttal, "need an advisory finding carrying a rebuttal"
+    reb = with_rebuttal[0]["rebuttal"]
+    assert reb["text"] and reb["adjudication"] in {"withdrawn", "reaffirmed"}
+    assert with_rebuttal[0]["source"]                              # the receipt
+
+
+def test_radar_null_prose_is_a_visible_absence_not_a_blank(surge):
+    """A radar entry with why_we_care == null must render an absence marker, not
+    an empty details block — every prose dereference has a visible-absence
+    fallback. This pins that the fixture carries the null case."""
+    null_why = [r for r in surge["new_on_radar"] if r.get("why_we_care") is None]
+    assert null_why, "need a radar entry with why_we_care: null"
+
+
 # ── the manifest publish.py regenerates is what the dropdown reads ─────────
 
 
