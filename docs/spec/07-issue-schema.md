@@ -185,7 +185,7 @@ Unchanged shape: `{"text": "...", "entity_refs": ["..."], "priority": "high | me
 
 ## `catalyst_queue`
 
-A **read-only snapshot** of `state/programs/<id>/catalyst-queue.json`, frozen at publication. The v1 snapshot shape and its immutability invariant are **unchanged** ([03](03-state-and-governance.md#the-accountability-invariant), [06](06-validator-and-critic.md#the-validator)) — `first_expected_window` is written once and never edited; `expected_window` revisions must append to `slip_log`; `queue_tamper` blocks on violations.
+A **read-only snapshot** of `state/programs/<id>/catalyst-queue.json`, frozen at publication. The v1 snapshot shape and its immutability invariant are **unchanged** ([03](03-state-and-governance.md#the-accountability-invariant), [06](06-validator-and-critic.md#stage-1--the-validator)) — `first_expected_window` is written once and never edited; `expected_window` revisions must append to `slip_log`; `queue_tamper` blocks on violations.
 
 **What is new:** competitor discovery is now the queue's **feeder** ([competitor record #54](https://github.com/cmengu/Research-Swarm/issues/54)). A competitor's next catalyst does **not** get a separate `next_catalyst` field on the competitor record — it joins the one governed prediction surface, the queue, with `fed_by: "competitor_discovery"`. Items gain `bears_on_thesis_slot` bindings to the program's belief slots.
 

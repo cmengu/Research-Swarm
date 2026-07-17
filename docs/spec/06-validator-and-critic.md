@@ -36,15 +36,31 @@ Deterministic, runs every cycle before Codex is invoked. No judgment, no model c
 
 | Check | Test | Manager's repair |
 |---|---|---|
-| `uncited_claim` | A factual assertion in `summary`, `headline`, or `elsewhere_on_frontier` with no entry in its `sources[]`. | Add the source object, or delete the claim. |
+| `uncited_claim` | A factual assertion in `summary`, `headline`, a `read_through`, or a `house_view` item with no entry in its `sources[]`. | Add the source object, or delete the claim. |
 | `malformed_source` | A `sources[]` entry missing `url`, `publisher`, `tier`, or `published_at`, or `tier` outside `primary｜trade｜aggregator`. | Complete the source object. |
-| `dangling_entity` | An `entity_id` referenced anywhere resolving to no `watchlist.entities[].entity_id` and carrying no `proposed_entity`. Covers issues, findings and queue items alike — the cross-file join check. | Add the entity or fix the reference. |
-| `unaccounted_watchlist_entity` | A tracked entity in neither `watchlist` nor `quiet_this_cycle`. Every tracked entity is accounted for each cycle — covered, or explicitly quiet. | Move it to `quiet_this_cycle`. |
+| `dangling_entity` | An `entity_id` referenced anywhere resolving to no `state/entities/` record and carrying no `proposed_entity`. Covers issues, findings, queue items and relation edges alike — the cross-file join check. | Add the entity or fix the reference. |
+| `unaccounted_competitor` | A typed competitor in neither `competitors`/an arena nor `quiet_this_cycle`. Every typed competitor is accounted for each cycle — covered, or explicitly quiet. | Move it to `quiet_this_cycle`. |
+| `missing_read_through` | A `competitors`, arena, or `house_view` item with no `read_through`, or empty `read_through.text`, or a `relation`/`lens` outside its enum. The admission rule, made mechanical. | Add the read-through, or move the item to a blind spot / dropped-with-receipt. |
+| `untyped_competitor` | A `competitors[]` entry whose `relation` is not one of the four program-level relations, or a `platform_threat` placed in `competitors[]` instead of the house view. | Retype it, or route platform threat to the house view. |
+| `blind_spot_overflow` | `house_view.blind_spots.ranked` exceeds `cap` with no `overflow` receipt. | Emit the overflow receipt. |
+| `landscape_number_unsourced` | A `treatment_landscape` efficacy number whose `efficacy_source.tier` is not `primary`. Stricter than the general bar. | Cite a primary source, or cut the number. |
 | `empty_section` | A required section is empty **and** no declared degradation explains it. | Populate it. |
 | `derived_stats_mismatch` | `stats` disagrees with the arrays it summarizes. | Orchestrator recomputes — `stats` is derived, so this should be unreachable; if it fires, it's a bug, not an edit. |
 | `queue_tamper` | `first_expected_window` differs from the most recent snapshot carrying it; or `expected_window` changed with no new `slip_log` entry; or a status transition carries no source. | Restore the immutable value; append the missing log entry; cite the transition. |
 
 `queue_tamper` is the system's **only tamper-evidence rule**, and the only reason the catalyst queue's predictions are worth anything ([03](03-state-and-governance.md#the-accountability-invariant)).
+
+## The admission rule
+
+The pivot's central new bar, and a clean expression of [determinism before judgment](01-overview.md#3-determinism-before-judgment): **a stated read-through or it doesn't publish** ([#49](https://github.com/cmengu/Research-Swarm/issues/49), [scan model #56](https://github.com/cmengu/Research-Swarm/issues/56)). Every scanned item lands in exactly one of three places, and **nothing is silently omitted** — a ternary receipt:
+
+| Disposition | Destination | Checked by |
+|---|---|---|
+| **has a read-through** | `competitors[]`, an arena, `newly_discovered[]`, a `house_view` lens | `missing_read_through` — the field is present, `text` non-empty, enum valid |
+| **capped blind spot** | `house_view.blind_spots` (N=5 ⚑, ranked) | `blind_spot_overflow` — the cap emits a receipt, never silent |
+| **dropped with a receipt** | `quiet_this_cycle.dropped_with_receipt` | the critic's `dropped_story` receipt rule reads the source |
+
+**This is why admission is a *validator* check, not a critic check** — the open question the map named ([#49](https://github.com/cmengu/Research-Swarm/issues/49)). The *presence* of a read-through is mechanically detectable from facts the orchestrator holds, so it belongs to the free deterministic gate and passes [admission test 2](#admission-test--all-three-must-hold). The *quality* of the prose — does it argue, or merely restate? — is judgment, and stays a critic advisory (`weak_read_through`), exactly as `weak_angle` was in v1. The validator checks that the read-through is there; the critic judges whether it earns its place.
 
 **On exhaustion** (still invalid after two retries): publish a **failed-run stub** — `run.status: "failed"`, `failure.stage: "validation"`, same schema, empty sections.
 
@@ -60,7 +76,7 @@ An empty section blocks **unless** a declared degradation explains it.
 
 > **A degradation explains an absence inside a valid issue. A stub says there is no valid issue.**
 
-They sit on opposite sides of the validator: a degradation *prevents* a block; a stub is what remains *after* a block wins and cannot be resolved. Same word "failed", opposite sides of the line — a failed **beat** is a degradation (the other five still rendered a real issue); a failed **validator** is a stub (nothing renders).
+They sit on opposite sides of the validator: a degradation *prevents* a block; a stub is what remains *after* a block wins and cannot be resolved. Same word "failed", opposite sides of the line — a failed **aperture** is a degradation (the others still rendered a real issue); a failed **validator** is a stub (nothing renders).
 
 ### Admission test — all three must hold
 
@@ -74,7 +90,7 @@ They sit on opposite sides of the validator: a degradation *prevents* a block; a
 
 **At the point of the absence, in the reader's path — not only in a footer.**
 
-The reader's risk is never "not knowing something failed". It is **reading a thin section and concluding it is a fact about the world** — a quiet week for dealmaking rather than a dead M&A beat. An absence that doesn't look like an absence misleads the reader about a fact, which is the critic's own blocking bar.
+The reader's risk is never "not knowing something failed". It is **reading a thin section and concluding it is a fact about the world** — a quiet arena rather than a dead arena scan. An absence that doesn't look like an absence misleads the reader about a fact, which is the critic's own blocking bar.
 
 Machine fields (`beats_failed`, `source_tier_counts`) serve the audit trail and the critic; the inline marker serves the reader. **A degradation that cannot name where it renders has not been thought through.**
 
@@ -83,11 +99,14 @@ Machine fields (`beats_failed`, `source_tier_counts`) serve the audit trail and 
 | Degradation | Trigger (mechanical) | Renders (reader-facing, at the absence) | `kind` |
 |---|---|---|---|
 | **Unseeded thesis slot** | belief slot's `stance` is `null` | `No thesis seeded — facts only`, in place of `research_angle` / `why_we_care` | `thesis_unseeded` |
-| **Genuinely quiet cycle** | every tracked entity present in `quiet_this_cycle` | the entity listed under `quiet_this_cycle` | `quiet_cycle` |
+| **Genuinely quiet cycle** | every typed competitor present in `quiet_this_cycle` | the competitor listed under `quiet_this_cycle` | `quiet_cycle` |
 | **Stale calendar** | no window verified in N cycles, or `verified_at` absent | `conference calendar stale — surge disabled`, marker in every issue | `calendar_stale` |
-| **Failed beat** | beat present in `sources_and_method.beats_failed` | inline marker in each section the beat would have fed, e.g. *"M&A coverage unavailable this cycle — beat failed"* — **not** only the `beats_failed` entry | `beat_failed` |
+| **Failed aperture** | aperture present in `sources_and_method.apertures_degraded` with status failed | inline marker in each section the aperture would have fed, e.g. *"squamous arena coverage unavailable this cycle — scan failed"* — **not** only the `apertures_degraded` entry | `arena_scan_failed` |
+| **Dormant aperture** | an indication with no active arena scan this cycle | a no-op landscape marker on that indication | `arena_scan_dormant` |
+| **China-first partial** | a competitor whose registry feed is CDE/chictr (no clean free feed) | low-confidence marker on the competitor, e.g. *"China-first — tracked at low confidence"* | `china_feed_partial` |
+| **Stale interest list** | `config/interests.toml` `last_edited` older than the ⚑ 6-month horizon | whole-list `interest list last edited <date>` marker on the digest | `interest_list_stale` |
 
-Exemptions are **scoped to what the trigger explains**, never blanket: an unseeded slot exempts that slot's angle, not every empty angle; a failed beat exempts the sections that beat fed, not the whole issue.
+Exemptions are **scoped to what the trigger explains**, never blanket: an unseeded slot exempts that slot's read-through, not every empty one; a failed aperture exempts the sections that aperture fed, not the whole issue.
 
 **New degradations must be declared in this table to earn an exemption, and must pass all three tests. An undeclared empty section blocks.**
 
@@ -130,18 +149,18 @@ Codex (`codex exec --json`), on a ChatGPT subscription — deliberately a differ
 | Input | Why the critic needs it |
 |---|---|
 | `issues/<this>.json` | The artifact under judgment. |
-| `runs/<run_id>/findings/*.json` | Each researcher's raw output. Lets the critic catch what the **manager dropped** — the receipt rule's only source of receipts. |
-| `issues/<previous>.json` | Continuity: open threads carried forward, `cycles_quiet` honest, coverage window joins up. |
-| `state/watchlist.json` | Every tracked entity accounted for. |
-| `state/thesis.json` | Whether `thesis_impact` is honest, and which slots are dormant (exemptions). |
+| `runs/<run_id>/findings/*.json` | Each aperture's raw output. Lets the critic catch what the **manager dropped** — the receipt rule's only source of receipts. |
+| `issues/<program_id>/<previous>.json` | Continuity: open threads carried forward, `cycles_quiet` honest, coverage window joins up. |
+| `state/entities/` + `state/programs/<id>/edges.json` | Every typed competitor accounted for; whether a relation is honestly typed. |
+| `state/thesis.json` | Whether `thesis_bearing` is honest, and which slots are dormant (exemptions). |
 
-**The critic has no web access.** It cannot catch what all six researchers missed — only what the pipeline **found and then lost**. That boundary is deliberate: web access would double the run, burn subscription quota on searching rather than judging, and open a prompt-injection surface on an unattended run. It is a named gap, not an oversight.
+**The critic has no web access.** It cannot catch what all the apertures missed — only what the pipeline **found and then lost**. That boundary is deliberate: web access would double the run, burn subscription quota on searching rather than judging, and open a prompt-injection surface on an unattended run. It is a named gap, not an oversight.
 
 ### The sorting principle
 
 > **A finding blocks when a reader would be misled about a fact. Everything else is advisory.**
 
-Blocking is reserved for harm: the digest asserts something its own sources don't support. Advisory covers *true but weaker than it should be* — thin sourcing, an unargued angle, an uncovered beat. Advisories publish visibly and never halt the line; the retry loop is expensive and is spent on falsehood, not polish.
+Blocking is reserved for harm: the digest asserts something its own sources don't support. Advisory covers *true but weaker than it should be* — thin sourcing, a weak read-through, an uncovered aperture. Advisories publish visibly and never halt the line; the retry loop is expensive and is spent on falsehood, not polish.
 
 This deliberately lets the critic block on **judgment**. The objection — that an unwinnable argument deadlocks the loop — is real, and is answered by the [rebuttal channel](#the-rebuttal-channel) rather than by disarming the critic.
 
@@ -154,7 +173,8 @@ This deliberately lets the critic block on **judgment**. The objection — that 
 | `aggregator_only` | A material claim's only support is `tier: aggregator`, with no primary or trade corroboration. | Find primary/trade support, or cut. |
 | `unconfirmed_as_fact` | A finding flagged `unconfirmed: true` by its researcher is rendered as established fact, with its unconfirmed status not visible to the reader. | Render the flag, or cut the claim. |
 | `dropped_story` | A researcher found a story the manager cut, and it changes the picture. **Receipt required** — see below. | Cover it, or move the entity to `quiet_this_cycle` with the omission stated. |
-| `thesis_impact_false` | A `research_angle` declares `thesis_impact: confirms` while its own text argues the belief is wrong (or vice versa) — the self-evolution engine fed a false signal. | Correct the enum, or the text. |
+| `thesis_impact_false` | A `read_through` declares `thesis_bearing: confirms` while its own text argues the belief is wrong (or vice versa) — the self-evolution engine fed a false signal. | Correct the enum, or the text. |
+| `relation_miscast` | A competitor's `relation` contradicts its own facts — e.g. a target twin (ADC) typed as a `mechanism_twin`, so an ADC's win would be read as validating the signalling thesis. | Retype to the relation the facts support. |
 
 Two of these earn special mention:
 
@@ -185,7 +205,7 @@ Published on the issue, never gate it, never enter the retry payload.
 |---|---|
 | `thin_sourcing` | Single-source claim, no independent confirmation. |
 | `coverage_gap` | In-scope area unaddressed, no receipt to prove a specific story was dropped. |
-| `weak_angle` | Research Angle restates facts without arguing against the thesis. |
+| `weak_read_through` | A read-through restates facts without arguing what the competitor means for the program. The admission rule's quality half — the field's *presence* is a validator block, its *quality* is this advisory. |
 | `thesis_unseeded` | Angle absent because the belief slot is dormant. |
 | `paywalled_primary` | Fact rests on secondary coverage of a paywalled primary. |
 | `unverifiable_claim` | Critic doubts a cited claim but cannot show it exceeds the source — doubt, not a demonstrated falsehood. |
