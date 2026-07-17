@@ -141,6 +141,14 @@
         "text": "Same target (HER3), different MOA (an ADC delivering a payload, not blocking signalling). A HER3-DXd win validates HER3 as expressed and druggable — it does not validate HMBD-001's signalling-blockade thesis, and an ADC failure does not refute it. The live risk is arena, not biology: if the ESMO cohort is squamous, an ADC readout would reset HMBD-001's Phase 1b setting before the signalling data exists to argue against it.",
         "established_by": "run_20260620_0700"
       },
+      "failure": {
+        "tier": "indication_tier",
+        "indication": "EGFR-mutant NSCLC",
+        "status": "BLA withdrawn May 2025 (HERTHENA-Lung02 OS miss)",
+        "archived": true,
+        "note": "Indication-tier failure: demoted and archived for EGFR-NSCLC while the program-tier entity survives across ~15 other tumour types. A target twin's failure is two-tier; only the affected indication archives.",
+        "established_by": "run_20250520_0700"
+      },
       "sources": [
         {"url": "https://www.merck.com/news/patritumab-deruxtecan-biologics-license-application-for-patients-with-previously-treated-locally-advanced-or-metastatic-egfr-mutated-non-small-cell-lung-cancer-voluntarily-withdrawn/", "publisher": "Merck & Co.", "tier": "primary", "published_at": "2025-05-20"},
         {"url": "https://www.esmo.org/meeting-calendar/esmo-congress-2026/abstracts", "publisher": "ESMO", "tier": "primary", "published_at": "2026-07-17"}

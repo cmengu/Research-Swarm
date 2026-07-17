@@ -229,10 +229,20 @@ A **read-only snapshot** of `state/programs/<id>/catalyst-queue.json`, frozen at
   "categories": ["trial_readout", "regulatory"],
   "summary": "Factual, sourced.",
   "read_through": { /* REQUIRED — relation, thesis_bearing, text, established_by */ },
+  "failure": {               // OPTIONAL — present when the competitor has failed; two-tier (#54)
+    "tier": "program_tier | indication_tier",   // program-tier for mechanism/target twins; indication-tier for the affected setting
+    "indication": "EGFR-mutant NSCLC",           // present when tier == indication_tier
+    "status": "BLA withdrawn May 2025 (HERTHENA-Lung02 OS miss)",
+    "archived": true,                            // demote-and-archive, NEVER delete
+    "note": "...",
+    "established_by": "run_20250520_0700"
+  },
   "degradation": null,       // or e.g. {"kind": "china_feed_partial", "marker": "..."}
   "sources": [ /* source objects */ ]
 }
 ```
+
+**Failure is two-tier and archival, never deletion** ([competitor record #54](https://github.com/cmengu/Research-Swarm/issues/54)): a `program_tier` failure demotes the whole entity (a mechanism/target twin that dies), an `indication_tier` failure archives only the affected setting while the entity survives elsewhere — HER3-DXd's withdrawn EGFR-NSCLC BLA is `indication_tier`; the program continues across ~15 other tumour types. This is why the dashboard renders failure **inline as a demoted state, not a separate "failed programs" tab** ([dashboard IA #61](https://github.com/cmengu/Research-Swarm/issues/61), Q3) — failure is per-indication, so a top-level tab is the wrong shape.
 
 The `summary` is machine-authorable fact; the `read_through` is the manager's interpretation — the authorship split ([03 clause 4](03-state-and-governance.md#the-governance-contract)) applied field by field. Facts about the entity are lifted to the shared global layer (`state/entities/<entity_id>.json`); the `read_through` is the per-program edge ([#59](https://github.com/cmengu/Research-Swarm/issues/59)). The issue snapshots both, so a published issue cannot drift from — nor be retroactively rewritten by — a later correction to the record.
 
@@ -468,6 +478,7 @@ A major bump: the top-level noun changed. Every change traces to a resolved chil
 | `read_through` object added to every competitor / house / discovery item | added | [#49 decision 6](https://github.com/cmengu/Research-Swarm/issues/49), admission rule; typing from [#50](https://github.com/cmengu/Research-Swarm/issues/50) |
 | `watchlist` → `competitors`, typed by relation, read-through required | renamed + reshaped | [#50](https://github.com/cmengu/Research-Swarm/issues/50), [competitor record #54](https://github.com/cmengu/Research-Swarm/issues/54) |
 | `watchlist[].research_angle` / `thesis_impact` → `read_through.text` / `thesis_bearing` | renamed | [#50](https://github.com/cmengu/Research-Swarm/issues/50); the angle is now a read-through |
+| `competitors[].failure` added — two-tier, archival (demote-and-archive, never delete) | added | [competitor record #54](https://github.com/cmengu/Research-Swarm/issues/54); renders inline per [#61](https://github.com/cmengu/Research-Swarm/issues/61) Q3 |
 | `indications[]` added; indication a first-class object with an arena | added | [#50](https://github.com/cmengu/Research-Swarm/issues/50) |
 | `treatment_landscape` added per indication; efficacy numbers primary-only | added | [per-indication landscape #57](https://github.com/cmengu/Research-Swarm/issues/57) |
 | `new_on_radar` → `newly_discovered` with `proposed_relation` + `proposes_interest` | renamed + extended | [competitor discovery #53](https://github.com/cmengu/Research-Swarm/issues/53), [#55](https://github.com/cmengu/Research-Swarm/issues/55) |
