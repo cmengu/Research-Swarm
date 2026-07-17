@@ -103,3 +103,33 @@ def resolve_coverage_window(
         previous_issue=None,
         baseline_expired=scanned >= LOOKBACK_FLOOR,
     )
+
+
+def resolve_prior_quiet(issues_dir: Path) -> dict[str, int]:
+    """Prior cycles_quiet per entity, from the most recent COVERING issue.
+
+    The manager increments cycles_quiet honestly across issues; this hands it
+    the previous counts to increment from. It joins to the last issue that
+    actually covered days — walking past stubs exactly like the coverage window,
+    so a failed run does not reset every entity's quiet streak to zero. An empty
+    map is the honest value on run #1: nothing to increment from, so every quiet
+    entity this cycle starts at 1.
+    """
+    for path in _covering_issues_newest_first(Path(issues_dir)):
+        try:
+            payload = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            continue
+
+        issue = payload.get("issue", {})
+        if issue.get("run", {}).get("status") not in COVERING_STATUSES:
+            continue
+
+        no_news = payload.get("quiet_this_cycle", {}).get("no_news", [])
+        return {
+            entry["entity_id"]: entry.get("cycles_quiet", 0)
+            for entry in no_news
+            if entry.get("entity_id")
+        }
+
+    return {}

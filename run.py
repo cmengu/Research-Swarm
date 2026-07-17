@@ -33,11 +33,18 @@ from pathlib import Path
 
 from researchswarm.beats import load_beats
 from researchswarm.cadence import is_run_day, load_cadence
+from researchswarm.manager import ManagerFailed, load_models
 from researchswarm.prompts import RunContext, load_template
 from researchswarm.research import render_all_prompts, run_research_stage
-from researchswarm.runs import LOOKBACK_FLOOR, resolve_coverage_window, resolve_run_id
+from researchswarm.runs import (
+    LOOKBACK_FLOOR,
+    resolve_coverage_window,
+    resolve_prior_quiet,
+    resolve_run_id,
+)
 from researchswarm.state import check_entity_refs, load_state
 from researchswarm.stub import PublishedIssueExists, write_failed_stub
+from researchswarm.synthesis import IssueIdentity, run_synthesis_stage
 
 REPO_ROOT = Path(__file__).resolve().parent
 
@@ -216,12 +223,64 @@ def main(argv: list[str] | None = None) -> int:
     )
     if stage.beats_failed:
         # Declared degradation: the run continues, and the ids land in the
-        # issue's sources_and_method.beats_failed once the manager (build 04)
-        # authors it — with inline markers on the sections each beat fed.
+        # issue's sources_and_method.beats_failed once the manager authors it —
+        # with inline markers on the sections each beat fed.
         log.warning("beats_failed: %s", ", ".join(stage.beats_failed))
 
-    # --- Stages 3-6 --------------------------------------------------------
-    log.info("synthesize → publish land in builds 04-06")
+    # --- Stage 3: synthesize ----------------------------------------------
+    try:
+        manager_template = load_template(root / "prompts" / "manager.md")
+        models_config = load_models(root / "config" / "models.toml")
+    except (FileNotFoundError, ValueError) as exc:
+        return _config_error(exc)
+
+    prior_quiet = resolve_prior_quiet(root / "issues")
+
+    identity = IssueIdentity(ctx=ctx, issue_id=today.isoformat(), published_at=now.isoformat())
+
+    try:
+        result, draft_path = run_synthesis_stage(
+            root,
+            identity=identity,
+            state=state,
+            beats=beats,
+            stage=stage,
+            models_config=models_config,
+            manager_template=manager_template,
+            prior_quiet=prior_quiet,
+        )
+    except ManagerFailed as exc:
+        # Facts to synthesize, but no issue to publish: a synthesis stub, not a
+        # degradation. Same immutability guard as the research path — a rerun
+        # that fails must not overwrite a real issue with a stub.
+        log.error("manager failed: %s", exc)
+        try:
+            path = write_failed_stub(
+                root,
+                run_id=run_id,
+                now=now,
+                window=ctx.window,
+                stage="synthesis",
+                detail=str(exc),
+                thesis_version=state.thesis.get("version"),
+                beats_failed=stage.beats_failed,
+            )
+        except PublishedIssueExists as exists:
+            log.error("%s", exists)
+            return EXIT_RUN_FAILED
+        log.error("manager failed — published failed-run stub %s", path.relative_to(root))
+        return EXIT_RUN_FAILED
+
+    log.info(
+        "manager: draft %s (%d turn(s), $%.4f, attempt %d)",
+        draft_path.relative_to(root),
+        result.num_turns,
+        result.cost_usd,
+        result.attempts,
+    )
+
+    # --- Stages 4-6 --------------------------------------------------------
+    log.info("validate → publish land in builds 05-06")
     return EXIT_OK
 
 
