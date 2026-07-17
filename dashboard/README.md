@@ -1,6 +1,6 @@
 # Dashboard prototype
 
-Asset for ticket [#8](https://github.com/cmengu/Research-Swarm/issues/8). **All content fabricated** — this renders the sample from the schema ticket.
+Asset for the dashboard tickets [#8](https://github.com/cmengu/Research-Swarm/issues/8) (v1–v3 market-digest design) and [#61](https://github.com/cmengu/Research-Swarm/issues/61) (v4 per-program detective IA). It now renders the **v2.0.0 program-issue schema** ([#60](https://github.com/cmengu/Research-Swarm/issues/60)) — the inline data is a **verbatim copy** of [`docs/schema/sample-issue-hmbd-001-2026-07-18.json`](../docs/schema/sample-issue-hmbd-001-2026-07-18.json) (real public HMBD-001 facts; read-throughs illustrative).
 
 Run it: open `dashboard/index.html` directly, or `cd dashboard && python3 -m http.server 8899` → http://localhost:8899
 
@@ -60,7 +60,31 @@ Rendered headless in Chrome against the live server: zero page errors, both them
 - **Open threads now sit in a greyed box** with a label, separating "still developing" from the rejected-claims material above it.
 - **Summaries enriched** — each watchlist entry now carries deal structure, financing, timeline and context rather than one line.
 
+## v4 changes (18 Jul 2026, the detective IA — ticket [#61](https://github.com/cmengu/Research-Swarm/issues/61))
+
+Re-architects the IA from a market digest to a **per-program detective**, rendering the v2.0.0 schema. The design system (H&E palette, type, 48rem/74ch measure, epistemic-status visuals) is **unchanged and not reopened** — only the information architecture moved. The five-second test ("does a cold visitor know what this is for?") was the actual bug this map fixed; it drove every call below.
+
+The seven questions #61 asked, and how the prototype answers each:
+
+1. **Top-level noun → program.** A **program identity card** sits above the tabs: name · sponsor · one-line mechanism · modality/target/MOA/stage/indications. It is the five-second-test fix — a cold visitor reads "competitive dossier for the drug HMBD-001" instantly. Picker is now **two-level**: a program switcher + a per-program issue dropdown.
+2. **The double-click → progressive-disclosure dossier**, not a modal. Each competitor card has a `<details>` dossier (available data · development & BD history · next catalyst · patents) and a native **double-click** handler that toggles it. A modal was rejected: it traps focus and blocks side-by-side comparison, and progressive disclosure is what's honestly reachable in a single static file. Patents render as "not tracked in v1" (source-set [#51](https://github.com/cmengu/Research-Swarm/issues/51) ruled them out) rather than a faked panel.
+3. **Failed programs → not a tab.** Failure is per-indication and two-tier (competitor `failure` field, [#54](https://github.com/cmengu/Research-Swarm/issues/54)), so it renders **inline as a demoted/archived state** on the competitor card. HER3-DXd shows an `indication_tier` failure (EGFR-NSCLC BLA withdrawn) while the program-tier entity survives — a real two-tier example. A top-level "failed programs" tab would be the wrong shape.
+4. **Treatment landscape → inside the program**, within each first-class indication block (arena + the `indication × line × biomarker` table), and also surfaced as a standing **Treatment Landscape** tab for the cross-issue slow-state view. Efficacy numbers show their primary-source tier inline.
+5. **House view → subordinate but present.** Wrapped in a visually set-apart, lighter `#houseWrap` panel below the program content — not equal billing (which drags back to "too broad"), not a hidden footer (which buries the BD/threat signal the reader wants). Two lenses + themes + capped blind-spots.
+6. **Epistemic-status visual thesis survives intact** — the left-border `thesis_bearing` stripe (now on read-throughs), inline source tiers, struck-through `REJECTED` critic catches, before/after thesis drift. Plus new epistemic chrome: the **relation badge** (the typed "why it's a competitor"), inline **degradation markers** at the point of absence, and the interest-list **rot** status in the footer.
+7. **Five-second test — the program identity card is the answer.** The relation badge on every competitor makes "why is this here" legible without a click, which is the same complaint at the item level.
+
+**Tabs re-cast:** `This Issue` (the dated program brief) · `Competitor Set` (the standing typed roster, grouped by relation tier — mechanism/target twin, setting rival, benchmark, platform threat; discontinued entries demoted-and-archived inline) · `Treatment Landscape` (per-indication SOC, slow state). All three are **real derived views** over the same data — no "not built yet" stubs.
+
+**The read-through is the load-bearing new component**: every competitor, arena, house and discovery item renders its `read_through` block **always visible** (not behind a click) — the relation badge + the "what this means for HMBD-001" prose + the `established_by` provenance. That is the stakeholder's #1 ask ("why it's a competitor, on the page") made structural.
+
+### v4 verification
+
+Rendered headless in Chrome against the published file (`--dump-dom` + screenshot): the inline `ISSUE` is a byte-verbatim copy of the schema sample (asserted in CI-style check), JS parses, **20/20 content checks pass**, every render container populates (no renderer threw), and the program-identity/house-view layout confirmed visually in both themes. No horizontal body scroll.
+
 ## Still open (for the spec)
 
 - Rail holds nav + stats; a horizontal stats bar atop the main column is the untested alternative.
-- Issue picker needs an `issues/index.json` manifest contract.
+- Issue picker needs a per-program `issues/<program_id>/index.json` manifest contract (the noun changed; every program has its own history).
+- The interest editor is a **separate local runtime surface** ([#55](https://github.com/cmengu/Research-Swarm/issues/55)), deliberately not part of this static digest — the digest stays read-only.
+- Multi-program packaging (one digest, N programs) is deferred to [#59](https://github.com/cmengu/Research-Swarm/issues/59); the program switcher is stubbed for the single pilot program.
