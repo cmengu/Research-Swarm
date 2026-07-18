@@ -63,7 +63,7 @@ The design's whole argument: **the reader must see how much to trust each claim 
       "program_id": "hmbd-001",
       "display_name": "HMBD-001",
       "sponsor": "Hummingbird Bioscience",
-      "mechanism": "HER3 × EGFR signalling blockade",  // the five-second test
+      "mechanism": "HER3 signalling blockade",         // the five-second test
       "latest_issue": "2026-07-18",                    // null — never run
       "latest_published_at": "2026-07-18T07:41:00+08:00",
       "issue_count": 4,

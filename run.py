@@ -67,8 +67,10 @@ from researchswarm.prompts import RunContext, load_template
 from researchswarm.publish import (
     derive_full_stats,
     git_commit_run,
+    PublishResultV2,
     publish_stub,
     run_publish_stage,
+    run_publish_stage_v2,
     stamp_run_fields,
 )
 from researchswarm.research import (
@@ -251,27 +253,69 @@ def _load_state_json_v2(path: Path) -> dict:
 def _fail_run_v2(stage: str, detail: str) -> int:
     """A v2 run that died. Logs where and why, and returns EXIT_RUN_FAILED.
 
-    v1's twin publishes a failed-run stub here. v2 CANNOT yet: a stub is "the same
-    schema with empty sections, status failed, and failure.stage naming where it
-    died" (spec/09 failure handling) — it is an EMITTED per-program issue, and the
-    shape of `issues/<program_id>/<date>.json` is exactly what the open frontend-
-    contract tickets (#83/#79/#81) decide. So the v2 stub rides the same publisher
-    seam as the successful emission (see `_PUBLISHER_SEAM_NOTE`): the failure is
-    loud in the log and in the exit code, and it becomes a dashboard-visible stub
-    the moment the emission contract lands.
+    v1's twin publishes a failed-run stub here. v2 still does not, and the reason
+    has narrowed: #83 settled the three PUBLISHING shapes (issue path, manifest,
+    registry), but a stub is "the same schema with empty sections, status failed,
+    and failure.stage naming where it died" (spec/09 failure handling) — an
+    EMITTED per-program issue, which needs the v2 `program` block (spec/07
+    `program`) that `stub.write_failed_stub` does not write. That stub writer is
+    its own ticket; inventing its shape here is the thing this run is gated on not
+    doing. The failure stays loud in the log and in the exit code.
+
+    What #83 DID settle is that this costs the program its *visibility* only in the
+    dropdown, not in the switcher: the registry is a wholesale config ⋈ state join
+    with config on the left, so a program whose only run failed — or which has
+    never run at all — still appears, with `latest_issue: null`. Once the v2 stub
+    writer lands, the stub reaches the registry for free, with no special case.
     """
     log.error("run failed at %s — %s", stage, detail)
     log.error(
-        "no stub written: the v2 stub is an emitted issue, and the issue shape is "
-        "blocked on the frontend contract (#83/#79/#81)"
+        "no stub written: the v2 stub is an emitted issue carrying the v2 program "
+        "block, and that stub writer is its own ticket"
     )
     return EXIT_RUN_FAILED
 
 
-_PUBLISHER_SEAM_NOTE = (
-    "publisher not wired — issues/<program_id>/<date>.json and index.json shapes "
-    "are blocked on #83/#79/#81; pass publisher= to emit"
-)
+def _published_paths_v2(published) -> tuple[Path, ...]:
+    """Normalise whatever came back through the publisher seam into paths to stage.
+
+    The wired publisher returns a `PublishResultV2` (three files). The seam
+    contract, though, is documented as "returns the path it wrote (or None)", and
+    an injected double is entitled to honour exactly that — a test publisher that
+    writes one file and returns its path must not have to know about a result
+    object. So both are accepted: the seam keeps its narrow published contract
+    while the real implementation can hand back everything it wrote.
+    """
+    if published is None:
+        return ()
+    if isinstance(published, PublishResultV2):
+        return published.paths
+    return (Path(published),)
+
+
+def _default_publisher_v2(now: datetime):
+    """The wired publisher: `publish.run_publish_stage_v2`, bound to this run's clock.
+
+    The seam stays a seam — `publisher=` still overrides — but its DEFAULT is now
+    the real emitter rather than a warning. #83 decided the three shapes the seam
+    was blocked on (spec/08 "The program registry", "The issue manifest", "The
+    data layer"), so there is nothing left to invent and the run publishes.
+
+    The closure exists only to carry `now` across the seam's fixed signature
+    (`issue`, `program_id`, `root`, `run_id`). Threading the run's own clock is
+    what makes the issue, its manifest and the registry agree on when the run
+    happened, instead of three near-simultaneous `datetime.now()` calls.
+
+    `publish.py` is still called BY run.py and never calls git itself: the single
+    commit below stays run.py's, so the sole-writer invariant holds (spec/08).
+    """
+
+    def publisher(*, issue, program_id, root, run_id):
+        return run_publish_stage_v2(
+            root, issue=issue, program_id=program_id, run_id=run_id, now=now
+        )
+
+    return publisher
 
 
 def _main_v2(args, *, root: Path, now: datetime, publisher=None) -> int:
@@ -282,13 +326,13 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None) -> int:
     edits): `--program` chooses this whole function, so no stage has to ask which
     schema it is serving. v1 is deleted whole, as its own ticket.
 
-    `publisher` is stage 6's EMISSION seam and the deliberate end of this ticket's
-    scope. It is called as `publisher(issue=..., program_id=..., root=..., run_id=...)`
-    and returns the path it wrote (or None). Left unset, the run does everything up
-    to and including the state edits and the commit, and logs that nothing was
-    emitted — because deciding the published-issue and index shapes is what the
-    open frontend-contract tickets are FOR, and inventing one here would be the
-    thing this ticket is gated on not doing.
+    `publisher` is stage 6's EMISSION seam, called as
+    `publisher(issue=..., program_id=..., root=..., run_id=...)`. It now DEFAULTS
+    to the real emitter (`publish.run_publish_stage_v2`) rather than to a warning:
+    #83 decided the issue path, the per-program manifest and the cross-program
+    registry (spec/08), so there is nothing left to invent. The seam survives its
+    unblocking — an injected publisher still overrides — because that is what lets
+    the whole spine be tested without writing files.
     """
     today = now.date()
     config_dir = root / "config"
@@ -559,12 +603,19 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None) -> int:
     draft_path.write_text(json.dumps(issue, indent=2) + "\n")
     log.info("stats derived from the arrays: %s", stats)
 
-    issue_path = None
-    if publisher is None:
-        log.warning("%s", _PUBLISHER_SEAM_NOTE)
-    else:
-        issue_path = publisher(issue=issue, program_id=program.id, root=root, run_id=run_id)
-        log.info("published %s", Path(issue_path).relative_to(root))
+    # The three files the emission writes (spec/08): the immutable issue, its
+    # per-program manifest, and the wholesale-regenerated cross-program registry.
+    # ALL THREE are staged below — the manifest and registry are what the
+    # dashboard actually fetches, so a commit carrying only the issue would
+    # publish something no reader can reach.
+    published = (publisher or _default_publisher_v2(now))(
+        issue=issue, program_id=program.id, root=root, run_id=run_id
+    )
+    artifacts = _published_paths_v2(published)
+    log.info(
+        "published %s",
+        ", ".join(str(Path(p).relative_to(root)) for p in artifacts) or "nothing",
+    )
 
     touched = apply_state_edits_v2(
         root, issue,
@@ -586,7 +637,7 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None) -> int:
     committed = git_commit_run(
         root,
         run_id,
-        [p for p in [*touched, issue_path] if p is not None],
+        [p for p in [*touched, *artifacts] if p is not None],
         message=f"run {run_id}: {program.id} {today.isoformat()} ({critic.status})",
     )
     log.info(

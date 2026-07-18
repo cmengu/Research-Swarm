@@ -539,18 +539,22 @@ class TestTheCommit:
 
 
 # ---------------------------------------------------------------------------
-# The publisher seam — where this ticket stops
+# The publisher seam — wired to the real emitter by #83
 # ---------------------------------------------------------------------------
 
 
 class TestThePublisherSeam:
-    def test_the_run_completes_without_a_publisher_and_says_so(self, wired, caplog):
+    def test_the_run_publishes_all_three_files_by_default(self, wired):
+        """#83 unblocked the seam: an unconfigured run now emits the issue, its
+        per-program manifest, and the cross-program registry (spec/08)."""
         assert _run(wired["root"]) == run.EXIT_OK
-        assert "publisher not wired" in caplog.text
-        assert not list((wired["root"] / "issues").rglob("*.json"))
+        issues = wired["root"] / "issues"
+        assert (issues / PROGRAM / f"{TODAY}.json").exists()
+        assert (issues / PROGRAM / "index.json").exists()
+        assert (issues / "index.json").exists()
 
     def test_state_edits_and_the_commit_still_happen(self, wired):
-        """Stage 6's state half is this ticket's; only the emission is blocked."""
+        """Stage 6's state half stays run.py's — publish.py never calls git."""
         _run(wired["root"])
         assert (wired["root"] / "state" / "programs" / PROGRAM / "edges.json").exists()
         assert wired["commit"].called
