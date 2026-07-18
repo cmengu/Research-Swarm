@@ -440,6 +440,7 @@ def _run_one_dossier_scan_v2(
     prompt = render_dossier_prompt(
         template,
         aperture,
+        program_id=program_id,
         dossier=dossiers.get(entity_id),
         candidate=entities.get(entity_id) if isinstance(entities, dict) else None,
         as_of=as_of,
@@ -462,7 +463,13 @@ def _run_one_dossier_scan_v2(
     # `state_edits._dossier_degradation_v2` looks for the record's
     # `coverage.degradation` — so a capped scan lands on the page as UNMEASURED
     # rather than reading as a small company.
-    receipt = cap_receipt(aperture, findings.get("spend") if isinstance(findings, dict) else None)
+    #
+    # The spend comes from the TRANSPORT ENVELOPE (`ResearcherResult`), never from
+    # the model's payload. Spec/06 admission test 2: a degradation is only
+    # exempt-able when its trigger is mechanically detectable from facts the
+    # orchestrator holds, and a scan self-reporting the overrun it just committed
+    # is not such a fact. `num_turns`/`total_cost_usd` are ours; we parsed them.
+    receipt = cap_receipt(aperture, {"turns": result.num_turns, "usd": result.cost_usd})
     if receipt and isinstance(findings, dict):
         errors = findings.get("errors")
         findings["errors"] = (errors if isinstance(errors, list) else []) + [
@@ -744,6 +751,7 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None, runner=None) ->
             prompt = render_dossier_prompt(
                 dossier_template,
                 aperture,
+                program_id=program.id,
                 dossier=held.get(aperture.scope),
                 candidate=entities.get(aperture.scope),
                 as_of=today.isoformat(),

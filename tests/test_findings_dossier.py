@@ -537,3 +537,129 @@ class TestAdversarialShapeNeverCrashes:
             validate({"aperture": None, "dossier": {"identity": "prose"}})
         message = str(exc.value)
         assert message.count(";") >= 3
+
+
+# ---------------------------------------------------------------------------
+# The sixth crash — unhashable values at a membership test
+# ---------------------------------------------------------------------------
+
+
+UNHASHABLE = pytest.mark.parametrize(
+    "value", [{"oops": 1}, ["oops"], {"oops"}], ids=["dict", "list", "set"]
+)
+
+
+class TestUnhashableValuesAtEveryMembershipTest:
+    """`x not in frozenset` raises TypeError when x is a dict, list or set.
+
+    That is a real payload: JSON objects and arrays can appear anywhere a model
+    chooses to put them, including where an enum belongs. Before this was fixed
+    the TypeError escaped `validate_findings_v2` — whose whole contract is that
+    it raises nothing but `FindingsInvalid` — and `researcher.py` catches only
+    `(TransportInvalid, FindingsInvalid)`, so the escape SKIPPED THE RETRY LOOP
+    and killed the run. It affected every v2 aperture, not just this one.
+
+    The rule now: an unhashable value is not a member, and the caller files its
+    ordinary typed finding naming the offending value. A verdict the model can
+    act on, never a traceback.
+    """
+
+    @UNHASHABLE
+    def test_a_dossier_enum(self, value):
+        dossier = a_dossier()
+        dossier["identity"]["status"] = value
+        with pytest.raises(FindingsInvalid, match="status"):
+            validate(a_payload(dossier=dossier))
+
+    @UNHASHABLE
+    def test_a_section_enum_inside_an_array(self, value):
+        dossier = a_dossier()
+        dossier["setbacks"] = [
+            {"date": "2023-03-02", "kind": value, "provenance": provenance()}
+        ]
+        with pytest.raises(FindingsInvalid, match="kind"):
+            validate(a_payload(dossier=dossier))
+
+    @UNHASHABLE
+    def test_a_thin_section_name(self, value):
+        dossier = a_dossier()
+        dossier["coverage"] = {"thin_sections": [value]}
+        with pytest.raises(FindingsInvalid, match="not a dossier section"):
+            validate(a_payload(dossier=dossier))
+
+    @UNHASHABLE
+    def test_a_source_tier(self, value):
+        dossier = a_dossier()
+        dossier["identity"]["provenance"] = provenance(sources=[a_source(tier=value)])
+        with pytest.raises(FindingsInvalid, match="tier"):
+            validate(a_payload(dossier=dossier))
+
+    @UNHASHABLE
+    def test_a_priority_hint_on_a_finding(self, value):
+        finding = {
+            "summary": "a dated event surfaced while reading history",
+            "priority_hint": value,
+            "entity_ids": [ENTITY_ID],
+            "sources": [a_source()],
+        }
+        with pytest.raises(FindingsInvalid, match="priority_hint"):
+            validate(a_payload(findings=[finding], quiet=False))
+
+    @UNHASHABLE
+    def test_an_entity_id_on_a_finding(self, value):
+        finding = {
+            "summary": "a dated event",
+            "priority_hint": "medium",
+            "entity_ids": [value],
+            "sources": [a_source()],
+        }
+        with pytest.raises(FindingsInvalid, match="not on the roster"):
+            validate(a_payload(findings=[finding], quiet=False))
+
+    @UNHASHABLE
+    def test_through_the_public_seam(self, value):
+        """The seam is what `researcher.py` calls, so it is the surface that
+        matters — `validate_findings_v2`, dispatching on the aperture kind."""
+        dossier = a_dossier()
+        dossier["identity"]["status"] = value
+        with pytest.raises(FindingsInvalid):
+            validate_findings_v2(
+                a_payload(dossier=dossier),
+                aperture_id=APERTURE_ID,
+                program_id=PROGRAM_ID,
+                run_id=RUN_ID,
+                window={"from": "2026-07-12", "to": "2026-07-18"},
+                known_entity_ids={ENTITY_ID},
+                aperture_kind=DOSSIER_SCAN_KIND,
+            )
+
+    @UNHASHABLE
+    def test_the_crash_no_longer_masks_the_interpretation_ban(self, value):
+        """The A/B that proves D4 is closed.
+
+        The unhashable enum used to raise inside the record walk, where a blanket
+        `except Exception` turned it into "dossier: unreadable (TypeError…)" and
+        ABORTED the rest of the walk — including `_check_banned_fields`, the
+        interpretation ban that is this aperture's stated reason to exist. So a
+        payload smuggling a banned field could hide it behind one malformed enum,
+        and the retry message degraded to something no model could act on.
+
+        Both problems must now be reported, together, in one verdict.
+        """
+        dossier = a_dossier()
+        dossier["identity"]["status"] = value
+        dossier["identity"]["threat_level"] = "high"
+        with pytest.raises(FindingsInvalid) as exc:
+            validate(a_payload(dossier=dossier))
+        message = str(exc.value)
+        assert "threat_level" in message
+        assert "unreadable" not in message
+        assert "TypeError" not in message
+
+    def test_the_ban_alone_still_reports(self):
+        """The other half of the A/B: without the enum, the ban reported fine.
+        Kept beside it so the pair reads as one experiment."""
+        dossier = a_dossier()
+        dossier["identity"]["threat_level"] = "high"
+        with pytest.raises(FindingsInvalid, match="threat_level"):
+            validate(a_payload(dossier=dossier))

@@ -325,6 +325,43 @@ class TestTheV2Retry:
         with pytest.raises(ResearcherFailed, match="after 2 attempts"):
             self._run(biology, envelope({"nonsense": True}), envelope({"nonsense": True}))
 
+    # Only dict and list here: a set cannot survive JSON transport, so it is not
+    # a payload a model can send. The gate's own tests cover it directly, because
+    # a hand-built caller can still produce one.
+    @pytest.mark.parametrize("value", [{"oops": 1}, ["oops"]], ids=["dict", "list"])
+    def test_an_unhashable_enum_retries_rather_than_killing_the_run(
+        self, apertures, value
+    ):
+        """The sixth crash-in-the-gate, proven where it actually bit.
+
+        A `priority_hint` of `{"oops": 1}` made the gate raise TypeError, which is
+        not `FindingsInvalid`, so the `except (TransportInvalid, FindingsInvalid)`
+        below never caught it: no retry, no degraded aperture, a dead run. It hit
+        EVERY v2 aperture — this test uses a biology_scan deliberately, not a
+        dossier, to say so.
+
+        The correct behaviour is the ordinary one: a typed verdict, a retry
+        carrying it, and a second good attempt that succeeds.
+        """
+        broken = valid_findings("biology_scan")
+        broken["quiet"] = False
+        broken["findings"] = [{
+            "summary": "a finding",
+            "priority_hint": value,
+            "entity_ids": [],
+            "sources": [{
+                "url": "https://example.gov/x", "publisher": "FDA",
+                "tier": "primary", "published_at": "2026-07-15", "paywalled": False,
+            }],
+        }]
+        result, calls = self._run(
+            apertures[0], envelope(broken), envelope(valid_findings("biology_scan"))
+        )
+        assert result.attempts == 2
+        retry_prompt = calls[1][calls[1].index("-p") + 1]
+        assert "priority_hint" in retry_prompt
+        assert "TypeError" not in retry_prompt
+
 
 # ---------------------------------------------------------------------------
 # the stage

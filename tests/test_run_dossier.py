@@ -130,10 +130,18 @@ class FakeRunner:
     it rather than freezing the clock.
     """
 
-    def __init__(self, payload=dossier_payload, *, returncode: int = 0):
+    def __init__(
+        self, payload=dossier_payload, *, returncode: int = 0,
+        num_turns: int = 3, total_cost_usd: float = 0.21,
+    ):
         self.prompts: list[str] = []
         self.payload = payload
         self.returncode = returncode
+        # The transport envelope's own accounting. This is what the cost cap
+        # reads — the orchestrator parses it, so a capped scan is detected from
+        # a fact we hold rather than from a spend the model volunteered.
+        self.num_turns = num_turns
+        self.total_cost_usd = total_cost_usd
 
     def __call__(self, command, **kwargs):
         prompt = command[2]
@@ -143,8 +151,13 @@ class FakeRunner:
         # rendered into the extend-don't-restate block.
         match = PROMPT_RUN_ID_RE.search(prompt)
         result = json.dumps(self.payload(match.group(1) if match else "run_unknown"))
+        envelope = {
+            "result": result,
+            "num_turns": self.num_turns,
+            "total_cost_usd": self.total_cost_usd,
+        }
         return subprocess.CompletedProcess(
-            command, self.returncode, stdout=json.dumps({"result": result}), stderr=""
+            command, self.returncode, stdout=json.dumps(envelope), stderr=""
         )
 
 
@@ -425,12 +438,23 @@ class TestTheDossierNeverFailsTheRun:
     def test_a_capped_scan_degrades_with_a_receipt_on_the_record(self, wired, caplog):
         """Story 23: exceeding the cap degrades with a receipt rather than
         truncating silently, and the receipt lands where a reader will see it."""
-        runner = FakeRunner(
-            lambda run_id: dossier_payload(run_id, spend={"searches": 999, "sources": 999})
-        )
+        runner = FakeRunner(num_turns=9_999, total_cost_usd=999.0)
         assert _run(wired["root"], runner=runner) == run.EXIT_OK
         assert "cost cap exceeded" in caplog.text
         assert "dossier_scan_cost_capped" in _dossier(wired["root"])["coverage"]["degradation"]
+
+    def test_a_model_reported_spend_cannot_fire_the_cap(self, wired, caplog):
+        """The cap reads the ENVELOPE, never the payload. A scan claiming a
+        colossal spend while the transport says otherwise is not capped — a
+        degradation whose trigger is a model self-report is exactly what spec/06
+        admission test 2 refuses."""
+        runner = FakeRunner(
+            lambda run_id: dossier_payload(run_id, spend={"searches": 999, "sources": 999}),
+            num_turns=3,
+            total_cost_usd=0.21,
+        )
+        assert _run(wired["root"], runner=runner) == run.EXIT_OK
+        assert "cost cap exceeded" not in caplog.text
 
     def test_a_missing_dossier_template_costs_only_the_dossier(self, wired, caplog):
         (wired["root"] / "prompts" / "dossier-scan.md").unlink()

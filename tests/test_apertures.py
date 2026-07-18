@@ -255,24 +255,47 @@ class TestDiscoveryFeedsTheRoster:
 
 
 class TestTheCostCapReceipt:
+    """The cap fires on the TRANSPORT ENVELOPE's accounting — turns and dollars
+    the orchestrator parsed for itself — never on a `spend` the model reported.
+    Spec/06 admission test 2: a degradation is exempt-able only when its trigger
+    is mechanically detectable from facts the orchestrator holds, and the scan
+    that blew its budget is the last witness to trust about it."""
+
     def test_staying_inside_the_cap_writes_no_receipt(self):
         scan = dossier_aperture("co_akeso", DOSSIER_TRIGGER_FIRST_SIGHTING)
-        assert cap_receipt(scan, {"searches": 1, "sources": 2}) is None
+        assert cap_receipt(scan, {"turns": 1, "usd": 0.10}) is None
 
-    def test_exceeding_the_cap_degrades_with_a_receipt_naming_both_numbers(self):
+    def test_exceeding_the_turn_cap_degrades_with_a_receipt_naming_the_numbers(self):
         scan = dossier_aperture(
-            "co_akeso", DOSSIER_TRIGGER_FIRST_SIGHTING, cost_cap=CostCap(5, 5)
+            "co_akeso", DOSSIER_TRIGGER_FIRST_SIGHTING, cost_cap=CostCap(5, 5, 2.0)
         )
-        receipt = cap_receipt(scan, {"searches": 9, "sources": 1})
+        receipt = cap_receipt(scan, {"turns": 9, "usd": 0.5})
         assert receipt["degradation"] == DOSSIER_SCAN_COST_CAPPED
         assert receipt["aperture"] == "dossier_scan:co_akeso"
-        assert receipt["exceeded"] == ["searches"]
-        assert receipt["cap"] == {"searches": 5, "sources": 5}
-        assert receipt["spend"]["searches"] == 9
+        assert receipt["exceeded"] == ["turns"]
+        assert receipt["cap"]["turns"] == 5
+        assert receipt["spend"]["turns"] == 9
+
+    def test_exceeding_the_dollar_cap_degrades_too(self):
+        scan = dossier_aperture(
+            "co_akeso", DOSSIER_TRIGGER_FIRST_SIGHTING, cost_cap=CostCap(5, 5, 2.0)
+        )
+        receipt = cap_receipt(scan, {"turns": 1, "usd": 7.25})
+        assert receipt["exceeded"] == ["usd"]
+        assert receipt["spend"]["usd"] == 7.25
+
+    def test_a_model_reported_spend_can_never_fire_the_cap(self):
+        """The defect this replaced: the cap read `findings["spend"]`, which
+        nothing produced and nothing may produce. Model-authored keys are not
+        an input here at all."""
+        scan = dossier_aperture(
+            "co_akeso", DOSSIER_TRIGGER_FIRST_SIGHTING, cost_cap=CostCap(5, 5, 2.0)
+        )
+        assert cap_receipt(scan, {"searches": 9_999, "sources": 9_999}) is None
 
     def test_an_uncapped_cycle_aperture_can_never_be_capped(self):
         house = plan_apertures(_pilot())[-1]
-        assert cap_receipt(house, {"searches": 10_000}) is None
+        assert cap_receipt(house, {"turns": 10_000, "usd": 10_000.0}) is None
 
 
 class TestAdversarialShape:
@@ -371,7 +394,11 @@ class TestAdversarialShape:
 
     @pytest.mark.parametrize(
         "spend",
-        [None, "lots", ["searches"], {"searches": None}, {"searches": "9"}, 42, {}],
+        [
+            None, "lots", ["turns"], {"turns": None}, {"turns": "9"}, 42, {},
+            {"usd": None}, {"usd": "lots"}, {"usd": float("nan")},
+            {"turns": {"nested": 1}, "usd": ["deeper"]},
+        ],
     )
     def test_the_cap_receipt_never_crashes_on_a_malformed_spend(self, spend):
         scan = dossier_aperture(

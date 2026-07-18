@@ -37,6 +37,30 @@ class FindingsInvalid(ValueError):
     so one retry can fix everything rather than peeling an onion."""
 
 
+def _not_a_member(value, allowed) -> bool:
+    """`value not in allowed`, total over UNHASHABLE values.
+
+    Every membership test in this module runs over model output, and model output
+    can put a dict or a list where an enum belongs — `{"tier": {"oops": 1}}` is a
+    JSON object like any other. Plain `x not in frozenset` raises TypeError on
+    those, and that TypeError escapes `validate_findings_v2`, whose contract is
+    that it NEVER raises anything but `FindingsInvalid`. `researcher.py` catches
+    only `(TransportInvalid, FindingsInvalid)`, so the escape skips the retry loop
+    and kills the run — the crash-on-adversarial-input failure this repo has
+    shipped six times now (spec/06: a degradation must be a receipt, not a
+    traceback).
+
+    An unhashable value cannot be a member of a set of strings, so "not a member"
+    is not a fudge — it is the true answer, and the caller then files its ordinary
+    typed finding naming the offending value. The model gets an error it can act
+    on instead of the run getting a traceback.
+    """
+    try:
+        return value not in allowed
+    except TypeError:
+        return True
+
+
 def _check_source(source, where: str, problems: list[str]) -> None:
     if not isinstance(source, dict):
         problems.append(f"{where}: sources[] entries must be objects, not strings")
@@ -45,7 +69,7 @@ def _check_source(source, where: str, problems: list[str]) -> None:
         if not source.get(field):
             problems.append(f"{where}: source missing required field {field!r}")
     tier = source.get("tier")
-    if tier and tier not in SOURCE_TIERS:
+    if tier and _not_a_member(tier, SOURCE_TIERS):
         problems.append(f"{where}: source tier {tier!r} not in {sorted(SOURCE_TIERS)}")
     # paywalled must be present and boolean: it drives the paywalled_primary
     # advisory downstream, and a missing flag reads as "not paywalled" — which
@@ -71,7 +95,7 @@ def _check_finding(finding, index: int, known_entity_ids, problems: list[str]) -
         problems.append(f"{where}: summary is required")
 
     priority = finding.get("beat_priority")
-    if priority not in BEAT_PRIORITIES:
+    if _not_a_member(priority, BEAT_PRIORITIES):
         problems.append(
             f"{where}: beat_priority {priority!r} not in {sorted(BEAT_PRIORITIES)}"
         )
@@ -94,7 +118,7 @@ def _check_finding(finding, index: int, known_entity_ids, problems: list[str]) -
         problems.append(f"{where}: entity_ids must be a list")
     else:
         for entity_id in entity_ids:
-            if entity_id not in known_entity_ids:
+            if _not_a_member(entity_id, known_entity_ids):
                 problems.append(
                     f"{where}: entity_id {entity_id!r} is not on the watchlist "
                     f"(off-roster finds carry entity_ids: [] and a proposed_entity)"
@@ -253,7 +277,7 @@ def _check_finding_v2(
     # the value is still range-checked but not scope-checked.
     lens = finding.get("house_lens")
     if lens is not None:
-        if lens not in HOUSE_LENSES:
+        if _not_a_member(lens, HOUSE_LENSES):
             problems.append(f"{where}: house_lens {lens!r} not in {sorted(HOUSE_LENSES)}")
         elif aperture_kind is not None and aperture_kind != HOUSE_SWEEP_KIND:
             problems.append(
@@ -261,7 +285,7 @@ def _check_finding_v2(
             )
 
     hint = finding.get("priority_hint")
-    if hint not in PRIORITY_HINTS:
+    if _not_a_member(hint, PRIORITY_HINTS):
         problems.append(
             f"{where}: priority_hint {hint!r} not in {sorted(PRIORITY_HINTS)}"
         )
@@ -281,7 +305,7 @@ def _check_finding_v2(
         problems.append(f"{where}: entity_ids must be a list")
     else:
         for entity_id in entity_ids:
-            if entity_id not in known_entity_ids:
+            if _not_a_member(entity_id, known_entity_ids):
                 problems.append(
                     f"{where}: entity_id {entity_id!r} is not on the roster "
                     f"(off-roster finds carry entity_ids: [] and a proposed_entity)"
@@ -602,7 +626,7 @@ def _check_enums(entry, where: str, enums: dict, problems: list[str]) -> None:
         value = entry.get(field_name)
         if value is None:
             continue
-        if value not in allowed:
+        if _not_a_member(value, allowed):
             problems.append(
                 f"{where}: {field_name} {value!r} not in {sorted(allowed)}"
             )
@@ -825,7 +849,7 @@ def _check_dossier_record(dossier: dict, *, aperture_id: str, run_id: str, probl
         else:
             known = {section.name for section in DOSSIER_SECTIONS}
             for name in thin:
-                if name not in known:
+                if _not_a_member(name, known):
                     problems.append(
                         f"dossier.coverage.thin_sections: {name!r} is not a dossier section "
                         f"({sorted(known)})"

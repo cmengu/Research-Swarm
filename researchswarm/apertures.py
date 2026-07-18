@@ -107,18 +107,41 @@ class CostCap:
     History search has no natural end: "everything RemeGen ever said" is a query
     that can consume a whole run's budget. So the scan states its bound up front,
     and `cap_receipt` turns an overrun into a declared degradation instead of a
-    silent truncation. Both numbers are per-scan, not per-run.
+    silent truncation. Every number is per-scan, not per-run.
+
+    Two of the three are MECHANICALLY ENFORCED and one is prompt guidance, and the
+    split is the point (spec/06 admission test 2: a degradation earns its
+    exemption only when its trigger is detectable from facts the ORCHESTRATOR
+    holds):
+
+    * `max_turns` and `max_usd` are checked against the transport envelope, which
+      the orchestrator parses itself — `num_turns` and `total_cost_usd`. Nobody
+      has to take the model's word for either.
+    * `max_sources` is a BUDGET STATED TO THE MODEL, not a gate. How many sources
+      a scan read is only knowable from the model's own report, and a model
+      self-report can never trigger a degradation here — that is the same rule
+      that keeps a researcher from authoring its own priority, applied to
+      accounting. So it steers the prompt and is recorded on the receipt for
+      context; it never fires one.
     """
 
-    max_searches: int
+    # Named `max_turns` because a turn is what the envelope actually counts. The
+    # `max_searches` alias survives for the prompt renderer and the config that
+    # spell it that way — one number, two names, never two numbers.
+    max_turns: int
     max_sources: int
+    max_usd: float = 4.0
+
+    @property
+    def max_searches(self) -> int:
+        return self.max_turns
 
 
 # The default dossier ceiling. Generous enough to assemble a real company history
 # in one pass, small enough that one company cannot outspend the cycle's actual
 # intelligence — which is what dossier gathering is subordinate to (spec #92: "a
 # failed or dormant dossier scan degrades the run, never fails it").
-DOSSIER_COST_CAP = CostCap(max_searches=24, max_sources=40)
+DOSSIER_COST_CAP = CostCap(max_turns=24, max_sources=40, max_usd=4.0)
 
 
 @dataclass(frozen=True)
@@ -391,29 +414,44 @@ def cap_receipt(aperture: Aperture, spend: Mapping | None) -> dict | None:
     degradation id, so the register entry and the inline render can both be
     derived from it without re-deriving the decision.
 
+    `spend` IS THE TRANSPORT ENVELOPE'S ACCOUNTING, not the model's — the caller
+    passes `{"turns": envelope num_turns, "usd": envelope total_cost_usd}`. This
+    used to read a `spend` key off the model's own payload, and that made the cap
+    dead code twice over: nothing produced the key, and nothing could have been
+    allowed to. Spec/06 admission test 2 says a degradation earns its exemption
+    only when its trigger is MECHANICALLY DETECTABLE FROM FACTS THE ORCHESTRATOR
+    HOLDS, and a model self-reporting the cost of its own overrun never qualifies
+    — a scan that blew its budget is exactly the scan least likely to say so. The
+    envelope is a fact the orchestrator parses for itself, so the cap fires on
+    evidence rather than on cooperation. It is the same rule that keeps a
+    researcher from authoring its own priority, applied one level down to
+    accounting.
+
     Returns None when the scan stayed inside its cap, or when there is no cap to
-    exceed. Never raises: `spend` is reported by the scan itself, so it is
-    untrusted input, and a crash here would kill the run over an ACCOUNTING
+    exceed. Never raises: a crash here would kill the run over an ACCOUNTING
     detail after the intelligence had already been gathered.
     """
     cap = getattr(aperture, "cost_cap", None)
     if not isinstance(cap, CostCap):
         return None
-    searches = _as_int(spend.get("searches") if isinstance(spend, Mapping) else None)
-    sources = _as_int(spend.get("sources") if isinstance(spend, Mapping) else None)
+    readable = spend if isinstance(spend, Mapping) else {}
+    turns = _as_int(readable.get("turns"))
+    usd = _as_float(readable.get("usd"))
     exceeded = []
-    if searches > _as_int(cap.max_searches):
-        exceeded.append("searches")
-    if sources > _as_int(cap.max_sources):
-        exceeded.append("sources")
+    if turns > _as_int(cap.max_turns):
+        exceeded.append("turns")
+    if usd > _as_float(cap.max_usd):
+        exceeded.append("usd")
     if not exceeded:
         return None
     return {
         "aperture": getattr(aperture, "id", ""),
         "degradation": DOSSIER_SCAN_COST_CAPPED,
         "exceeded": exceeded,
-        "cap": {"searches": cap.max_searches, "sources": cap.max_sources},
-        "spend": {"searches": searches, "sources": sources},
+        # `sources` rides along on both sides as context — it is the budget the
+        # prompt stated, never a trigger, because only the model could report it.
+        "cap": {"turns": cap.max_turns, "usd": cap.max_usd, "sources": cap.max_sources},
+        "spend": {"turns": turns, "usd": usd},
     }
 
 
@@ -502,6 +540,28 @@ def _iter_strings(values: Iterable | None) -> list[str]:
     except TypeError:
         return []
     return [v for v in items if isinstance(v, str) and v.strip()]
+
+
+def _as_float(value, *, default: float = 0.0) -> float:
+    """A dollar amount out of untrusted input, defaulting rather than raising.
+
+    The envelope is machine-written, but it is still parsed JSON: a missing
+    `total_cost_usd` arrives as None, and a cap that raised on it would take the
+    run down over an accounting detail. Booleans are rejected for the same reason
+    as in `_as_int`, and nan/inf default rather than comparing surprisingly.
+    """
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, (int, float)):
+        number = float(value)
+    elif isinstance(value, str):
+        try:
+            number = float(value.strip())
+        except ValueError:
+            return default
+    else:
+        return default
+    return number if number == number and number not in (float("inf"), float("-inf")) else default
 
 
 def _as_int(value, *, default: int = 0) -> int:

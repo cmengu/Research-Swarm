@@ -3,9 +3,11 @@
 Asset for [#92](https://github.com/cmengu/Research-Swarm/issues/92) — the fourth aperture kind. biology_scan, arena_scan and house_sweep share one template ([researcher-v2](researcher-v2.md)) because they differ only in SCOPE. `dossier_scan` gets its **own** file because it differs in two load-bearing ways that are not scope:
 
 1. **Its subject is a COMPANY, not a molecule.** The other three ask what moved a program; this one asks who a rival is.
-2. **It is EXEMPT from the coverage window.** Every other aperture is bounded by the run's window. A dossier asks "what is the whole story", so the window rule — the same rule that let a seven-day window discard a $1.1B platform acquisition ([#92](https://github.com/cmengu/Research-Swarm/issues/92)) — must be switched OFF here, explicitly, in the aperture's own definition. The model has seen window-bounded instructions in every other prompt in this repo and will assume the same unless told otherwise in as many words.
+2. **It is EXEMPT from the coverage window, and it DECLARES the exemption.** Every other aperture is bounded by the run's window. A dossier asks "what is the whole story", so the window rule — the same rule that let a seven-day window discard a $1.1B platform acquisition ([#92](https://github.com/cmengu/Research-Swarm/issues/92)) — is switched OFF here, explicitly, in the aperture's own definition. The model has seen window-bounded instructions in every other prompt in this repo and will assume the same unless told otherwise in as many words. The exemption is then STATED IN THE PAYLOAD as `"coverage_window": null`, not expressed by leaving the field out: an omission is indistinguishable from a model that forgot, while a null is a declared, auditable fact. Silence is the bug this whole system is built against; a declared exemption is the point.
 
-Interpolating this as a `{{aperture_scope}}` block into the shared template was considered and rejected: the shared template hard-codes `coverage_window` in its output contract and states window rule 4 as non-negotiable. A scope block cannot repeal a rule stated above it.
+What this aperture does NOT get is a shape of its own. It rides the same v2 envelope as the other three — `aperture` / `program_id` / `run_id` / `coverage_window` / `quiet` / `findings[]` / `coverage_notes` / `errors` — and adds exactly one key, `dossier`, carrying the record. One contract governs all model output, so one gate (`validate_findings_v2`, which dispatches on the aperture kind) can hold every researcher to it. A fourth aperture inventing its own top-level object would be a fourth thing to validate and a fourth thing to get wrong.
+
+Interpolating this as a `{{aperture_scope}}` block into the shared template was considered and rejected: the shared template hard-codes a non-null `coverage_window` in its output contract and states window rule 4 as non-negotiable. A scope block cannot repeal a rule stated above it.
 
 Like every other prompt here, this is a document ABOUT the template with the template itself fenced inside a single ```text block. `run.py` extracts that fence; these notes stay out of the model's context. `{{double_brace}}` placeholders are filled at render time — **state is interpolated fresh, never baked in** (the propagation contract, [03](../docs/spec/03-state-and-governance.md)).
 
@@ -60,7 +62,14 @@ from last week are all equally in scope.
 Do not filter by date. Do not prefer recent sources because they are recent — a
 founding-thesis quote from an S-1 eight years ago is often the single most
 valuable thing you will find, because it is what later behaviour is measured
-against. Do not emit a coverage_window field; there is no window to emit.
+against.
+
+You do not filter by date — and you DO emit the field. Your payload carries
+"coverage_window": null, exactly that, always. The null is how you DECLARE that
+this aperture is window-exempt. Leaving the key out would say the same thing to a
+human and nothing at all to the system: an omission is indistinguishable from a
+scan that simply forgot a required field, while a null is a stated, auditable
+fact that this scan was not bounded. Never emit a window object here.
 
 The one place recency matters: where two sources conflict, the later PRIMARY
 source wins, and you say so.
@@ -292,83 +301,132 @@ Your ENTIRE final message is ONE JSON object and NOTHING else.
 Anything else fails validation and costs the run a second full call. Three of
 three researchers failed this on the last live run.
 
-Every field entry is an OBJECT carrying its value plus its sources — never a
-bare string — because every dossier field must be auditable back to the run and
-source that established it.
+The object is the SHARED ENVELOPE every aperture in this system emits, with the
+record you assembled nested under "dossier". Do not move the record to the top
+level and do not rename the envelope keys: one contract governs all researcher
+output, and a payload of your own design is rejected whole.
+
+Every SECTION of the record carries a "provenance" object naming this run and at
+least one source. That is what makes each fact auditable back to the run and the
+document that established it.
 
 {
-  "aperture": "dossier_scan",
-  "entity_id": "{{company_entity_id}}",
-  "kind": "company",
+  "aperture": "{{aperture_id}}",
+  "program_id": "{{program_id}}",
   "run_id": "{{run_id}}",
-  "as_of": "{{as_of}}",
-  "window_exempt": true,             // always true for this aperture
-  "quiet": false,                    // true ONLY if you established nothing at all
-  "identity": {
-    "legal_name": {"value": "...", "sources": [], "corrects": false},
-    "aliases":    {"value": ["..."], "sources": []},
-    "founded":    {"value": "YYYY-MM-DD", "sources": []},
-    "hq":         {"value": "...", "sources": []},
-    "status":     {"value": "public|private|subsidiary", "sources": []},
-    "listings":   {"value": [{"exchange": "...", "ticker": "..."}], "sources": []}
-  },
-  "origin": {
-    "founding_story":  {"value": "...", "sources": []},
-    "founders":        {"value": ["..."], "sources": []},
-    "spun_out_of":     {"value": "... or null", "sources": []},
-    "founding_thesis": {"value": "their words where quotable", "sources": []}
-  },
-  "funding": {
-    "total_raised": {"value": "...", "sources": []},
-    "rounds": [
-      {"date": "YYYY-MM-DD", "stage": "...", "amount": "...", "currency": "...",
-       "lead": "...", "investors": ["..."], "pre_money": null, "post_money": null,
-       "sources": [], "unconfirmed": false}
+  "coverage_window": null,           // ALWAYS null — you are window-exempt, declared
+  "quiet": false,                    // true ONLY if you established nothing at all,
+                                     // and then "dossier" must be null and
+                                     // "findings" empty
+  "findings": [],                    // normally empty: your product is the record.
+                                     // Emit an entry ONLY for a dated event that
+                                     // belongs to this cycle's intelligence, and
+                                     // then it needs {"summary", "priority_hint":
+                                     // "high|medium|low", "entity_ids": [roster ids
+                                     // only, else []], "sources": [...]}
+  "dossier": {
+    "entity_id": "{{company_entity_id}}",
+    "kind": "company",               // always "company" — never an asset record
+    "as_of": "{{as_of}}",            // exactly this date, format YYYY-MM-DD
+    "identity": {
+      "legal_name": "...",           // required
+      "aliases": ["..."],
+      "founded": "YYYY-MM-DD",
+      "hq": "...",
+      "status": "public",            // public | private | subsidiary — omit if unsure
+      "listings": [{"exchange": "...", "ticker": "..."}],
+      "corrects": false,             // true if this corrects a value we already hold
+      "corrected_from": null,        // the prior value, when corrects is true
+      "provenance": {"established_by": "{{run_id}}", "sources": [SOURCE]}
+    },
+    "origin": {
+      "founding_story": "...",
+      "founders": ["..."],
+      "spun_out_of": null,
+      "founding_thesis": "their words where quotable",
+      "provenance": {"established_by": "{{run_id}}", "sources": [SOURCE]}
+    },
+    "funding": {
+      "total_raised": "...",
+      "rounds": [
+        {"date": "YYYY-MM-DD", "stage": "...", "amount": "...", "currency": "...",
+         "lead": "...", "investors": ["..."], "pre_money": null, "post_money": null,
+         "unconfirmed": false}
+      ],
+      "ipo": {"date": "...", "exchange": "...", "raised": "...", "price": "..."},
+      "provenance": {"established_by": "{{run_id}}", "sources": [SOURCE]}
+    },
+    "pipeline": [
+      {"asset_entity_id": null, "indication": "...", "phase": "...",
+       "status": "...", "first_disclosed": "YYYY-MM-DD",
+       "provenance": {"established_by": "{{run_id}}", "sources": [SOURCE]}
+      }
     ],
-    "ipo": {"date": "...", "exchange": "...", "raised": "...", "price": "...",
-            "sources": []}
-  },
-  "pipeline": [
-    {"asset_entity_id": "slug or null", "indication": "...", "phase": "...",
-     "status": "...", "first_disclosed": "YYYY-MM-DD", "sources": []}
-  ],
-  "deals": [
-    {"date": "...", "type": "license|option|M&A|collab", "counterparty": "...",
-     "direction": "in|out", "upfront": "...", "milestones": "...",
-     "royalty": "...", "territory": "...", "sources": []}
-  ],
-  "people": [
-    {"name": "...", "role": "...", "since": "...", "until": null,
-     "prior": ["..."], "departure_signal": null, "sources": []}
-  ],
-  "pivots": [
-    {"date": "...", "from": "what they SAID", "to": "what they DID (null if the
-      follow-through could not be established)", "trigger": "... or null",
-     "evidence": ["..."], "outcome": "... or null", "sources": []}
-  ],
-  "setbacks": [
-    {"date": "...",
-     "kind": "clinical_hold|discontinuation|CRL|layoff|restructuring|delisting",
-     "detail": "...", "program": "...", "sources": []}
-  ],
-  "coverage": {
-    "sources_run": ["which of the five source layers you actually worked"],
-    "thin_sections": [
-      {"section": "funding", "why": "what you tried and why it failed"}
+    "deals": [
+      {"date": "...", "type": "license",        // license | option | M&A | collab
+       "direction": "in",                       // in | out
+       "counterparty": "...", "upfront": "...", "milestones": "...",
+       "royalty": "...", "territory": "...",
+       "provenance": {"established_by": "{{run_id}}", "sources": [SOURCE]}
+      }
     ],
-    "degradation": null,             // a string when capped, blocked or degraded
-    "notes": "one or two sentences of honest self-assessment"
+    "people": [
+      {"name": "...", "role": "...", "since": "...", "until": null,
+       "prior": ["..."], "departure_signal": null,
+       "provenance": {"established_by": "{{run_id}}", "sources": [SOURCE]}
+      }
+    ],
+    "pivots": [                      // REQUIRED key. [] means "we looked, found none"
+      {"date": "...", "from": "what they SAID", "to": null,
+       "trigger": null, "evidence": ["..."], "outcome": null,
+       "provenance": {"established_by": "{{run_id}}", "sources": [SOURCE]}
+      }
+    ],
+    "setbacks": [                    // REQUIRED key. [] means "we looked, found none"
+      {"date": "...",
+       "kind": "discontinuation",    // clinical_hold | discontinuation | CRL |
+                                     // layoff | restructuring | delisting
+       "detail": "...", "program": "...",
+       "provenance": {"established_by": "{{run_id}}", "sources": [SOURCE]}
+      }
+    ],
+    "coverage": {                    // REQUIRED key. No provenance: this is
+                                     // self-assessment about the scan, not a fact
+                                     // about the company
+      "sources_run": ["which of the five source layers you actually worked"],
+      "thin_sections": ["funding"],  // BARE SECTION NAMES ONLY, from: identity,
+                                     // origin, funding, pipeline, deals, people,
+                                     // pivots, setbacks, coverage. Say what you
+                                     // tried and why it failed in "notes"
+      "degradation": null,           // a string when capped, blocked or degraded
+      "notes": "honest self-assessment, including why each thin section is thin"
+    },
+    "dropped_with_receipt": [
+      {"claim": "...", "reason": "why it could not be sourced"}
+    ]
   },
-  "dropped_with_receipt": [
-    {"claim": "...", "reason": "why it could not be sourced"}
-  ],
+  "coverage_notes": {                // about the SCAN — all three keys, non-empty
+    "scope_run": "what you actually worked, e.g. 'RemeGen company history'",
+    "entities_checked": ["{{company_entity_id}}"],
+    "notes": "what you reached and what you could not"
+  },
   "errors": []                       // non-fatal problems, as strings
 }
 
-coverage is ALWAYS required, thin or full — it is what makes quiet:true
-auditable and what distinguishes a scan that found nothing from a scan that did
-not run. A source object is
-{"url","publisher","tier","published_at","paywalled"} — all five, every time.
+Where SOURCE appears above, emit a real source object:
+{"url": "...", "publisher": "...", "tier": "primary|trade|aggregator",
+ "published_at": "YYYY-MM-DD", "paywalled": false} — all five fields, every time.
+
+Rules the gate enforces, so read them once more:
+
+- Omit any SECTION you could not establish, EXCEPT pivots, setbacks and coverage,
+  which are always present (an empty list is the claim "we looked and found
+  none"; an absent key is silence, and the two are different claims).
+- A section you DO emit carries provenance with "established_by" equal to
+  "{{run_id}}" — this run, never another — and a non-empty sources list.
+- Every enum value is one of the literals listed. If you are unsure, OMIT the
+  field; a missing status is honest, "probably public" is a broken contract.
+- Values are plain scalars and lists. Do not wrap a value in an object.
 
 One JSON object. First character {, last character }.
 ```
@@ -386,6 +444,9 @@ One JSON object. First character {, last character }.
 | `{{existing_dossier}}` | the existing company record, rendered | the extend-don't-restate block; renders an explicit "(no dossier held — first scan)" when absent, so a first sighting is never ambiguous with a failed render. Thin sections from the prior record render here too — they are the refresh's highest-value targets |
 | `{{tool_turn_cap}}` | the aperture's cost cap | history search is unbounded by nature; exceeding the cap degrades with a receipt rather than truncating silently |
 
-There is deliberately **no** `{{coverage_window_from}}` / `{{coverage_window_to}}` / `{{window_carveout}}` / `{{surge_block}}` here, and no `coverage_window` field in the output contract. The absence is the point: this aperture is window-exempt, and a window placeholder rendered into it would re-import the exact rule the exemption exists to repeal.
+| `{{aperture_id}}` | the aperture (`dossier_scan:<entity_id>`) | the envelope's own id, echoed back so a crossed fan-out is caught at the seam |
+| `{{program_id}}` | the run's program | the envelope identifier ONLY — see the note below |
 
-There is also deliberately **no** `{{thesis_slots}}`, `{{interest_list}}` or `{{competitor_roster}}`. The other three apertures take those because they steer what is worth noticing for ONE program. A dossier is shared across every program, so program-relative steering must not reach it — the same reason `read_through` and `priority` stay on the relation edge ([03](../docs/spec/03-state-and-governance.md), [#92](https://github.com/cmengu/Research-Swarm/issues/92)).
+There is deliberately **no** `{{coverage_window_from}}` / `{{coverage_window_to}}` / `{{window_carveout}}` / `{{surge_block}}` here, and the `coverage_window` field in the output contract is hard-coded to `null`. A window PLACEHOLDER would re-import the exact rule the exemption exists to repeal; a literal null instead DECLARES the exemption in the payload, which is what makes it auditable. Omitting the field was the earlier design and was wrong: an omission and a forgotten field are the same bytes, and this system's whole doctrine is that silence is the bug.
+
+`{{program_id}}` is the one program-shaped value that reaches this prompt, and it is an ENVELOPE IDENTIFIER, not steering: the seam checks that a payload answers for the run's program, the same crossed-fan-out check every other aperture gets. Nothing program-RELATIVE follows it — no thesis, no interests, no roster — so the record stays shared. There is deliberately **no** `{{thesis_slots}}`, `{{interest_list}}` or `{{competitor_roster}}`. The other three apertures take those because they steer what is worth noticing for ONE program. A dossier is shared across every program, so program-relative steering must not reach it — the same reason `read_through` and `priority` stay on the relation edge ([03](../docs/spec/03-state-and-governance.md), [#92](https://github.com/cmengu/Research-Swarm/issues/92)).

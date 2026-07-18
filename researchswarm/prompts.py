@@ -649,6 +649,7 @@ def render_dossier_prompt(
     template: str,
     aperture: Aperture,
     *,
+    program_id: str,
     dossier: Any = None,
     candidate: Any = None,
     assets: Any = None,
@@ -695,6 +696,14 @@ def render_dossier_prompt(
     max_searches = getattr(cost_cap, "max_searches", None)
 
     values = {
+        # The envelope's own identifiers. A dossier rides the shared v2 envelope,
+        # so the payload must echo the aperture and the program the run fanned out
+        # for — the crossed-fan-out check every other aperture gets (spec/04).
+        # `program_id` is an IDENTIFIER here and nothing more: no thesis, interest
+        # list or roster follows it, because a dossier is shared across programs
+        # and program-relative steering must not reach it.
+        "aperture_id": _dossier_scalar(getattr(aperture, "id", None)),
+        "program_id": _dossier_scalar(program_id),
         "company_entity_id": entity_id,
         "company_name": _dossier_scalar(
             identity.get("legal_name"), candidate.get("name"), candidate.get("legal_name")

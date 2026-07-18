@@ -33,6 +33,9 @@ Spec: docs/spec/04-researchers.md, docs/spec/03-state-and-governance.md,
 
 from __future__ import annotations
 
+import json
+import re
+
 import pytest
 
 from researchswarm.apertures import (
@@ -43,6 +46,10 @@ from researchswarm.apertures import (
     plan_apertures,
 )
 from researchswarm.dossiers import build_company_dossier_record
+from researchswarm.findings import (
+    REQUIRED_TOP_LEVEL_DOSSIER,
+    validate_findings_v2,
+)
 from researchswarm.programs import load_program
 from researchswarm.prompts import (
     NO_DOSSIER_HELD,
@@ -56,6 +63,8 @@ from researchswarm.prompts import (
 RUN_ID = "run_20260719_0700"
 AS_OF = "2026-07-19"
 ENTITY_ID = "co_remegen"
+# The envelope identifier the payload echoes — an id, never steering (#92).
+PROGRAM_ID = "hmbd-001"
 
 # The manager's fields. A dossier is SHARED across programs, so these must have
 # no slot here for the same reason they have none in a researcher's contract —
@@ -130,7 +139,7 @@ def held_dossier():
 
 @pytest.fixture
 def first_scan(template, aperture, ctx):
-    return render_dossier_prompt(template, aperture, as_of=AS_OF, ctx=ctx)
+    return render_dossier_prompt(template, aperture, program_id=PROGRAM_ID, as_of=AS_OF, ctx=ctx)
 
 
 @pytest.fixture
@@ -139,6 +148,7 @@ def refresh(template, ctx, held_dossier):
         template,
         dossier_aperture(ENTITY_ID, "refresh_due"),
         dossier=held_dossier,
+        program_id=PROGRAM_ID,
         as_of=AS_OF,
         ctx=ctx,
     )
@@ -166,7 +176,7 @@ class TestRendering:
     def test_unknown_placeholder_raises_rather_than_shipping(self, aperture, ctx):
         with pytest.raises(UnresolvedPlaceholder, match="mystery"):
             render_dossier_prompt(
-                "hello {{mystery}}", aperture, as_of=AS_OF, ctx=ctx
+                "hello {{mystery}}", aperture, program_id=PROGRAM_ID, as_of=AS_OF, ctx=ctx
             )
 
     def test_names_the_company_the_run_planned_to_scan(self, first_scan):
@@ -221,16 +231,28 @@ class TestFactsOnly:
     def test_no_program_relative_steering_reaches_the_render(
         self, template, aperture, ctx, repo_root
     ):
-        """The renderer takes no program, so the pilot's stance cannot leak.
+        """The renderer takes no program RECORD, so the pilot's stance cannot leak.
+
+        The program ID does reach the render, and must: the payload rides the
+        shared v2 envelope, whose seam checks that findings answer for this run's
+        program (the crossed-fan-out check). An identifier is not steering — what
+        would make the record program-relative is the thesis, the target, the moa,
+        the interest list, and none of those are here.
 
         Asserted against the REAL committed program config rather than a
         fixture: if someone later adds a `{{thesis_slots}}` to this template and
         wires the pilot's stance in, this fails.
         """
         program = load_program(repo_root / "config", "hmbd-001")
-        rendered = render_dossier_prompt(template, aperture, as_of=AS_OF, ctx=ctx)
-        assert program.id not in rendered
+        rendered = render_dossier_prompt(
+            template, aperture, program_id=program.id, as_of=AS_OF, ctx=ctx
+        )
         assert program.target not in rendered
+        assert program.moa not in rendered
+        assert program.sponsor not in rendered
+        # The id appears exactly where the envelope needs it, and nowhere else.
+        assert rendered.count(program.id) == 1
+        assert f'"program_id": "{program.id}"' in rendered
 
     def test_the_dossier_renderer_is_not_the_researcher_renderer(self, repo_root):
         """v2-alongside-v1, and fourth-kind-alongside-the-other-three: the shared
@@ -276,6 +298,7 @@ class TestExistingDossierBlock:
             template,
             aperture,
             candidate={"name": "Akeso, Inc.", "aliases": ["康方生物"]},
+            program_id=PROGRAM_ID,
             as_of=AS_OF,
             ctx=ctx,
         )
@@ -293,6 +316,7 @@ class TestExistingDossierBlock:
             dossier_aperture(ENTITY_ID, "refresh_due"),
             dossier=held_dossier,
             candidate={"name": "Remegen (misspelled by discovery)"},
+            program_id=PROGRAM_ID,
             as_of=AS_OF,
             ctx=ctx,
         )
@@ -311,6 +335,7 @@ class TestExistingDossierBlock:
             dossier_aperture(ENTITY_ID, "refresh_due"),
             dossier=held_dossier,
             assets=["rc48_disitamab_vedotin"],
+            program_id=PROGRAM_ID,
             as_of=AS_OF,
             ctx=ctx,
         )
@@ -324,6 +349,7 @@ class TestCostCap:
         rendered = render_dossier_prompt(
             template,
             dossier_aperture(ENTITY_ID, "first_sighting", cost_cap=CostCap(7, 11)),
+            program_id=PROGRAM_ID,
             as_of=AS_OF,
             ctx=ctx,
         )
@@ -336,6 +362,7 @@ class TestCostCap:
         rendered = render_dossier_prompt(
             template,
             Aperture(id="x", kind="dossier_scan", scope=ENTITY_ID, active=True),
+            program_id=PROGRAM_ID,
             as_of=AS_OF,
             ctx=ctx,
         )
@@ -386,7 +413,7 @@ class TestAdversarialInput:
         self, template, aperture, ctx, dossier
     ):
         rendered = render_dossier_prompt(
-            template, aperture, dossier=dossier, as_of=AS_OF, ctx=ctx
+            template, aperture, program_id=PROGRAM_ID, dossier=dossier, as_of=AS_OF, ctx=ctx
         )
         assert "{{" not in rendered
         assert ENTITY_ID in rendered
@@ -398,7 +425,7 @@ class TestAdversarialInput:
         self, template, aperture, ctx, candidate
     ):
         rendered = render_dossier_prompt(
-            template, aperture, candidate=candidate, as_of=AS_OF, ctx=ctx
+            template, aperture, program_id=PROGRAM_ID, candidate=candidate, as_of=AS_OF, ctx=ctx
         )
         assert "{{" not in rendered
 
@@ -409,7 +436,7 @@ class TestAdversarialInput:
         self, template, aperture, ctx, assets
     ):
         rendered = render_dossier_prompt(
-            template, aperture, assets=assets, as_of=AS_OF, ctx=ctx
+            template, aperture, program_id=PROGRAM_ID, assets=assets, as_of=AS_OF, ctx=ctx
         )
         assert "{{" not in rendered
 
@@ -420,7 +447,7 @@ class TestAdversarialInput:
         """A blank after `as_of:` reads to a model as a rendering bug and invites
         it to invent one."""
         rendered = render_dossier_prompt(
-            template, aperture, as_of=as_of, ctx=ctx
+            template, aperture, program_id=PROGRAM_ID, as_of=as_of, ctx=ctx
         )
         assert UNKNOWN_FIELD in rendered
         assert "{{" not in rendered
@@ -431,6 +458,103 @@ class TestAdversarialInput:
         class Bare:
             pass
 
-        rendered = render_dossier_prompt(template, Bare(), as_of=AS_OF, ctx=ctx)
+        rendered = render_dossier_prompt(template, Bare(), program_id=PROGRAM_ID, as_of=AS_OF, ctx=ctx)
         assert "{{" not in rendered
         assert UNKNOWN_FIELD in rendered
+
+
+# ---------------------------------------------------------------------------
+# The prompt against the gate — the check whose absence let the two diverge
+# ---------------------------------------------------------------------------
+
+
+def _contract_object(rendered: str) -> str:
+    """The output contract's JSON object, lifted verbatim out of the prompt.
+
+    Located by brace-matching from the `"aperture"` line rather than by a slice
+    of line numbers, so editing the prompt cannot silently narrow what this test
+    reads.
+    """
+    start = rendered.index('{\n  "aperture"')
+    depth = 0
+    for index in range(start, len(rendered)):
+        char = rendered[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return rendered[start:index + 1]
+    raise AssertionError("the output contract's object never closes")
+
+
+def _strip_comments(block: str) -> str:
+    """Drop the `//` annotations. They are guidance to the model, not JSON."""
+    return "\n".join(
+        re.sub(r"\s*//.*$", "", line) for line in block.splitlines()
+    )
+
+
+class TestThePromptAndTheGateAgree:
+    """The one test that proves the feature can work at all.
+
+    A model obeying this prompt EXACTLY must be accepted by the seam it is
+    validated at. Nothing else here proves that: the gate's own tests hand-write
+    the shape the gate wants, and the prompt's tests read the prompt, so the two
+    can drift apart indefinitely while both suites stay green. That is precisely
+    what happened — the prompt emitted the dossier RECORD as the top-level object
+    and forbade `coverage_window`, which the gate requires present and null, so
+    an obedient model failed validation on ~10 counts and burned both attempts.
+
+    So this test builds a payload LITERALLY from the rendered contract — comments
+    stripped, the SOURCE stand-in filled in, nothing else touched — and runs it
+    through the real `validate_findings_v2` with the real aperture kind. If the
+    prompt and the gate ever diverge again, this fails on the next commit rather
+    than on the next live run.
+    """
+
+    def _payload(self, rendered: str) -> dict:
+        block = _strip_comments(_contract_object(rendered))
+        source = {
+            "url": "https://www.hkexnews.hk/example",
+            "publisher": "HKEXnews",
+            "tier": "primary",
+            "published_at": "2026-03-28",
+            "paywalled": False,
+        }
+        block = block.replace("[SOURCE]", json.dumps([source]))
+        return json.loads(block)
+
+    def test_the_contract_block_is_literally_valid_json(self, first_scan):
+        """Comments out, it parses. A model asked to copy a shape that is not
+        itself JSON is being asked to improvise."""
+        assert isinstance(self._payload(first_scan), dict)
+
+    def test_a_model_obeying_the_prompt_passes_the_real_gate(self, first_scan, aperture):
+        payload = self._payload(first_scan)
+        validate_findings_v2(
+            payload,
+            aperture_id=aperture.id,
+            program_id=PROGRAM_ID,
+            run_id=RUN_ID,
+            window={"from": "2026-07-12", "to": AS_OF},   # ignored: window-exempt
+            known_entity_ids={ENTITY_ID},
+            aperture_kind=aperture.kind,
+        )
+
+    def test_the_contract_declares_the_window_exemption_rather_than_omitting_it(
+        self, first_scan
+    ):
+        """`coverage_window: null` is a DECLARED fact; an absent key is
+        indistinguishable from a model that forgot one."""
+        payload = self._payload(first_scan)
+        assert "coverage_window" in payload
+        assert payload["coverage_window"] is None
+
+    def test_the_record_is_nested_under_dossier_not_at_the_top_level(self, first_scan):
+        """One envelope governs all model output — the fourth aperture adds one
+        key, it does not invent a shape."""
+        payload = self._payload(first_scan)
+        assert set(REQUIRED_TOP_LEVEL_DOSSIER) <= set(payload)
+        assert payload["dossier"]["entity_id"] == ENTITY_ID
+        assert "entity_id" not in payload
