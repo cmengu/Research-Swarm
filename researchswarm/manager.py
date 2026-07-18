@@ -43,6 +43,7 @@ DISALLOWED_TOOLS = (
 )
 
 SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION_V2 = "2.0.0"
 
 # The 14 top-level keys of issue.json v1.0.0 (docs/spec/07). The seam checks
 # presence only — the deep deterministic checks (entity accounting, dormant-slot
@@ -51,6 +52,17 @@ TOP_LEVEL_KEYS = (
     "schema_version", "issue", "headline", "stats", "tldr_bullets", "catalyst_queue",
     "watchlist", "quiet_this_cycle", "new_on_radar", "themes_and_signals",
     "elsewhere_on_frontier", "thesis_updates", "critic_report", "sources_and_method",
+)
+
+# The 15 top-level keys of issue.json v2.0.0 (docs/spec/07 top level). The noun
+# changed: watchlist → competitors, new_on_radar → newly_discovered,
+# elsewhere_on_frontier + themes_and_signals → house_view, and program +
+# indications are new. Same presence-only contract as v1 at this seam.
+TOP_LEVEL_KEYS_V2 = (
+    "schema_version", "issue", "program", "headline", "stats", "tldr_bullets",
+    "catalyst_queue", "competitors", "indications", "quiet_this_cycle",
+    "newly_discovered", "house_view", "thesis_updates", "critic_report",
+    "sources_and_method",
 )
 
 
@@ -121,20 +133,27 @@ def validate_issue_draft(draft, *, thesis_version, run_id) -> None:
     """Mechanical-shape check at the seam, or raise IssueDraftInvalid.
 
     ONLY the shape a script can be certain about: the object parses, the version
-    is right, the 14 keys are present, stats is empty, the headline carries a
-    so_what, and the run block echoes the identifiers we handed the manager. The
+    is right, the top-level keys are present, stats is empty, the headline carries
+    a so_what, and the run block echoes the identifiers we handed the manager. The
     deep checks — entity accounting, dormant-slot gating, queue tamper, the
     degradation register — are build 05's deterministic validator, and doing
     them here would duplicate judgment the wrong stage owns.
 
-    stats is the load-bearing one: an authored stats is a contract breach, not a
-    typo. The orchestrator derives every count so the bar cannot lie, and a
-    manager that filled it in has claimed a number it was told never to author.
+    Dispatches on the DRAFT's own `schema_version`: a 2.0.0 draft is held to the
+    v2 seam contract (the program block, the v2 key set), anything else to v1.
+    stats is the load-bearing invariant in both: an authored stats is a contract
+    breach, not a typo — the orchestrator derives every count so the bar cannot
+    lie, and a manager that filled it in has claimed a number it was told never
+    to author.
     """
-    problems: list[str] = []
-
     if not isinstance(draft, dict):
         raise IssueDraftInvalid("draft must be a JSON object")
+
+    if draft.get("schema_version") == SCHEMA_VERSION_V2:
+        _validate_issue_draft_v2(draft, thesis_version=thesis_version, run_id=run_id)
+        return
+
+    problems: list[str] = []
 
     if draft.get("schema_version") != SCHEMA_VERSION:
         problems.append(
@@ -149,6 +168,48 @@ def validate_issue_draft(draft, *, thesis_version, run_id) -> None:
     # it was told the orchestrator derives — the bar cannot lie.
     if draft.get("stats") != {}:
         problems.append("stats must be exactly {} — the orchestrator derives counts, never the manager")
+
+    headline = draft.get("headline")
+    if not isinstance(headline, dict):
+        problems.append("headline must be an object")
+    elif not headline.get("so_what"):
+        problems.append("headline.so_what is required and must be non-empty")
+
+    run = draft.get("issue", {}).get("run", {}) if isinstance(draft.get("issue"), dict) else {}
+    if run.get("run_id") != run_id:
+        problems.append(f"issue.run.run_id {run.get('run_id')!r} does not match this run ({run_id!r})")
+    if run.get("thesis_version") != thesis_version:
+        problems.append(
+            f"issue.run.thesis_version {run.get('thesis_version')!r} does not match {thesis_version!r}"
+        )
+
+    if problems:
+        raise IssueDraftInvalid("; ".join(problems))
+
+
+def _validate_issue_draft_v2(draft, *, thesis_version, run_id) -> None:
+    """The v2.0.0 seam contract ([07] v2). Same presence-only philosophy as v1,
+    with the noun change: the 15 v2 keys, and a `program` block (the detective's
+    subject) present with its id and its load-bearing `moa`. Everything else —
+    the read-throughs, the typed relations, coverage — is the deterministic
+    validator's job (build 05 v2), not the seam's.
+    """
+    problems: list[str] = []
+
+    for key in TOP_LEVEL_KEYS_V2:
+        if key not in draft:
+            problems.append(f"missing required top-level key {key!r}")
+
+    if draft.get("stats") != {}:
+        problems.append("stats must be exactly {} — the orchestrator derives counts, never the manager")
+
+    program = draft.get("program")
+    if not isinstance(program, dict) or not program:
+        problems.append("program block is required and must be a non-empty object")
+    else:
+        for field_name in ("id", "moa"):
+            if not program.get(field_name):
+                problems.append(f"program.{field_name} is required (the load-bearing aperture fields)")
 
     headline = draft.get("headline")
     if not isinstance(headline, dict):
