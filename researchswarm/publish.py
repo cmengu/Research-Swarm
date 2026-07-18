@@ -198,6 +198,48 @@ def write_issue(root: Path, issue) -> Path:
 # ---------------------------------------------------------------------------
 
 
+def iter_issue_files(issues_dir: Path):
+    """(stem, payload) for every readable issue in a directory, NEWEST FIRST.
+
+    The one walk over an issues directory. Three v2↔v2 call sites had grown a
+    byte-identical copy of it. The two V2 sites — `regenerate_manifest_v2` and
+    `_published_issue_files` — are routed through here, because v2↔v2 duplication
+    earns no "v1 is deleted later" exemption: both encode the same three
+    decisions, so a change to either is a silent divergence in the other.
+
+    v1's `regenerate_manifest` is the THIRD copy and is deliberately left alone.
+    Routing it through here would give frozen v1 code a new dependency, which is
+    the invariant this branch is restoring elsewhere (`_apply_promotions`); v1 is
+    deleted whole, and its copy dies with it.
+
+    The three decisions, in one home:
+
+    - **Newest-first falls out of a REVERSE FILENAME SORT.** Issue ids are ISO
+      dates, so lexical order IS chronological order for `YYYY-MM-DD` — no parse
+      can fail and silently reorder which issue the switcher calls "latest".
+    - **`index.json` is skipped.** The manifest lives in the same directory it
+      indexes; walking it would list the index as an issue.
+    - **An unreadable file is SKIPPED, not fatal** (spec/08). One corrupt byte
+      must not stop the dropdown listing every other issue — and a file that is
+      skipped is therefore also not counted, which is the honest answer:
+      `issue_count` counts issues the dashboard can actually open.
+
+    A directory that does not exist yields nothing rather than raising: a program
+    that has never published is an empty history, not an error.
+    """
+    issues_dir = Path(issues_dir)
+    if not issues_dir.exists():
+        return
+    for path in sorted(issues_dir.glob("*.json"), reverse=True):
+        if path.name == "index.json":
+            continue
+        try:
+            payload = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            continue  # an unreadable issue is not a dropdown entry
+        yield path.stem, payload
+
+
 def regenerate_manifest(issues_dir: Path, *, generated_at: str | None = None) -> Path:
     """Rewrite issues/index.json from every issue on disk, newest first.
 
@@ -638,15 +680,7 @@ def regenerate_manifest_v2(
     fail and reorder the dropdown.
     """
     issues_dir = Path(issues_dir)
-    entries = []
-    for path in sorted(issues_dir.glob("*.json"), reverse=True):
-        if path.name == "index.json":
-            continue
-        try:
-            issue = json.loads(path.read_text())
-        except json.JSONDecodeError:
-            continue  # an unreadable issue is not a dropdown entry
-        entries.append(_manifest_entry_v2(issue))
+    entries = [_manifest_entry_v2(issue) for _, issue in iter_issue_files(issues_dir)]
 
     manifest = {
         "program_id": program_id,
@@ -875,18 +909,7 @@ def _published_issue_files(issues_dir: Path) -> list[tuple[str, dict]]:
     either, which is the honest answer: `issue_count` counts issues the dashboard
     can actually open.
     """
-    issues_dir = Path(issues_dir)
-    if not issues_dir.exists():
-        return []
-    out = []
-    for path in sorted(issues_dir.glob("*.json"), reverse=True):
-        if path.name == "index.json":
-            continue
-        try:
-            out.append((path.stem, json.loads(path.read_text())))
-        except json.JSONDecodeError:
-            continue
-    return out
+    return list(iter_issue_files(issues_dir))
 
 
 # ---------------------------------------------------------------------------

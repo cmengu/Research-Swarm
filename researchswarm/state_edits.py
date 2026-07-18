@@ -368,8 +368,11 @@ def _apply_edges_v2(root: Path, issue, program_id: str, edges, run_id: str, date
 def _promotion_proposal(entry) -> dict:
     """Read `promotion_proposal` as a mapping, whatever the manager actually sent.
 
-    THREE call sites read this field, and the first live run (18 Jul 2026) proved
-    why they must not each call `.get()` on it directly: the manager emitted prose
+    The V2 call sites read this field through here — `_promotions_v2` and
+    `_log_interest_proposals_v2`. (v1's `_apply_promotions` keeps its own inline
+    guard: v1 is deleted whole and must not acquire a dependency on v2 code
+    first.) The first live run (18 Jul 2026) proved why the v2 sites must not
+    each call `.get()` on it directly: the manager emitted prose
     where [07] specifies an object, and the first site raised AttributeError
     *after* the issue was published — costing the run its git commit and leaving
     state half-applied. Fixing that one site would have left the other two armed,
@@ -590,7 +593,14 @@ def _apply_promotions(root: Path, issue, state: State, run_id: str, date: str) -
     changed = False
 
     for entry in issue.get("new_on_radar") or []:
-        proposal = _promotion_proposal(entry)
+        # v1's OWN inline guard, deliberately not the v2-era `_promotion_proposal`
+        # helper. v1 is deleted whole as its own ticket, and the discipline this
+        # branch keeps everywhere else is that v1 is never modified and — the part
+        # that was broken here — never acquires a dependency on v2 code first. A
+        # v1 function calling a v2 helper is a deletion that stops being a clean
+        # excision, so the shape coercion is spelled out locally instead.
+        raw = entry.get("promotion_proposal") if isinstance(entry, dict) else None
+        proposal = raw if isinstance(raw, dict) else {}
         if not proposal.get("promote_to_watchlist"):
             continue
         entity_id = entry.get("entity_id")
