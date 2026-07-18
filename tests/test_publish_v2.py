@@ -482,3 +482,48 @@ class TestTheFirstLiveRunsCrash:
         from researchswarm.state_edits import _promotions_v2
 
         assert list(_promotions_v2(self._issue_with_prose_proposal())) == []
+
+
+class TestTheDroppedReceiptHole:
+    """The live issue's five receipts were skipped, not checked, and it passed.
+
+    `_iter_all_sources_v2` guarded with `dropped.get("source") is not None`, so a
+    manager that emitted `{item, reason, sources}` instead of the specified
+    `{name, dropped_because, source}` produced five unreadable receipts that the
+    gate reported clean. A tolerant `.get()` on a REQUIRED field turns "the
+    manager broke the contract" into "there was nothing to check".
+    """
+
+    def _check(self, entries):
+        from researchswarm.validator import _check_malformed_dropped_receipt
+
+        problems = []
+        _check_malformed_dropped_receipt({"quiet_this_cycle": {"dropped_with_receipt": entries}}, problems)
+        return problems
+
+    def test_it_catches_the_shape_the_live_manager_actually_emitted(self):
+        problems = self._check([{"item": "X", "reason": "off-target", "sources": [{"url": "u"}]}])
+        assert len(problems) == 1
+        assert problems[0].kind == "malformed_dropped_receipt"
+        for key in ("name", "dropped_because", "source"):
+            assert key in problems[0].note
+        assert "has: item, reason, sources" in problems[0].note
+
+    def test_the_specified_shape_passes(self):
+        assert self._check([
+            {"name": "X", "dropped_because": "off-target — HER2, not HER3.", "source": {"url": "u"}}
+        ]) == []
+
+    def test_an_empty_required_value_is_as_bad_as_a_missing_one(self):
+        """A blank `dropped_because` is a receipt with no reason on it."""
+        problems = self._check([{"name": "X", "dropped_because": "", "source": {"url": "u"}}])
+        assert len(problems) == 1
+        assert "dropped_because" in problems[0].note
+
+    def test_a_non_object_entry_is_caught_not_skipped(self):
+        problems = self._check(["just a sentence"])
+        assert len(problems) == 1
+        assert "must be an object, got str" in problems[0].note
+
+    def test_no_dropped_items_is_not_a_finding(self):
+        assert self._check([]) == []

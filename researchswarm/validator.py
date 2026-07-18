@@ -1051,6 +1051,45 @@ def _check_missing_read_through(issue, problems):
             )
 
 
+def _check_malformed_dropped_receipt(issue, problems):
+    """A `dropped_with_receipt[]` entry carries `name`, `dropped_because`, `source`.
+
+    The third leg of the ternary receipt ([05]) and the input to the critic's
+    `dropped_story` rule ([06]) — so a malformed entry is not cosmetic: it is a
+    receipt that cannot be read, on an item the system claims to have judged.
+
+    Found by the first live run (18 Jul 2026). The manager emitted
+    `{item, reason, sources}` against the specified `{name, dropped_because,
+    source}`, five times, and the issue PASSED. It passed because
+    `_iter_all_sources_v2` guards with `dropped.get("source") is not None` and
+    silently skips what it cannot read — so all five receipts went unvalidated
+    and unread while the gate reported clean.
+
+    That is the failure this check exists to stop, and the guard was the cause,
+    not the symptom: a tolerant `.get()` on a required field converts "the
+    manager broke the contract" into "there was nothing to check". Where a field
+    is REQUIRED, absence must be a finding, never a skip.
+    """
+    required = ("name", "dropped_because", "source")
+    for i, entry in enumerate(issue.get("quiet_this_cycle", {}).get("dropped_with_receipt") or []):
+        where = f"quiet_this_cycle.dropped_with_receipt[{i}]"
+        if not isinstance(entry, dict):
+            problems.append(
+                Finding("malformed_dropped_receipt", where, f"must be an object, got {type(entry).__name__}")
+            )
+            continue
+        missing = [k for k in required if entry.get(k) in (None, "")]
+        if missing:
+            problems.append(
+                Finding(
+                    "malformed_dropped_receipt",
+                    where,
+                    f"missing required key(s) {', '.join(missing)} — the receipt cannot be read"
+                    f" (has: {', '.join(sorted(entry)) or 'nothing'})",
+                )
+            )
+
+
 def _check_malformed_promotion_proposal(issue, problems):
     """A `newly_discovered[].promotion_proposal` is an OBJECT, never prose.
 
@@ -1342,6 +1381,7 @@ def _validate_issue_v2(issue, *, state, queue_baseline, baseline_expired, calend
     _check_missing_read_through(issue, blocking)
     _check_untyped_competitor(issue, blocking)
     _check_malformed_promotion_proposal(issue, blocking)
+    _check_malformed_dropped_receipt(issue, blocking)
     _check_blind_spot_overflow(issue, blocking)
     _check_landscape_number_unsourced(issue, blocking)
 
