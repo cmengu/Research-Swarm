@@ -1,0 +1,55 @@
+# The program instance — one detective per drug (spec/03 "config/programs/<id>.toml").
+#
+# HUMAN-OWNED, like cadence and interests. The system may PROPOSE edits to the
+# aperture as findings, but run.py NEVER writes this file (governance clause 4:
+# the aperture is one of the two config surfaces that are never machine-written).
+# Adding a program is exactly one new file like this one — cost scales with
+# apertures, not program count (spec/09 scaling).
+#
+# The pilot is HMBD-001: Hummingbird Bioscience's anti-HER3 IgG1 signalling
+# antibody. Facts grounded in docs/spec/07-issue-schema.md (the program block)
+# and docs/research/program-detective-source-set-2026.md.
+
+[program]
+id = "hmbd-001"
+name = "HMBD-001"
+sponsor = "Hummingbird Bioscience"
+modality = "anti-HER3 IgG1 signalling antibody"
+target = "HER3 (ERBB3)"
+
+# LOAD-BEARING SCAN FIELD, not description (spec/03, #50). `moa` is what separates
+# a target_twin (same target, different MOA — HER3-DXd is an ADC) from a
+# mechanism_twin (same target AND MOA). An ADC win validates HER3 as a target,
+# not HMBD-001's signalling-blockade thesis — a distinction the whole competitor
+# model turns on, so it lives in config and drives the biology scan.
+moa = "signalling_blockade"
+
+# Cold-start typing (spec/03 "Discovery, promotion, and the edge", #53). These
+# entities are typed onto the program by writing a relation edge at run time;
+# this list is the seed the promotion path reads before any discovery has run.
+# It is NOT the migrated v1 roster — that migration is a deferred HITL curation
+# session (spec/03 "Migrating the seeded roster"), not a compilation ruling.
+seed_competitors = ["asset_her3_dxd", "asset_ivonescimab"]
+
+# Indications are FIRST-CLASS objects (spec/03, #50): line is a property of a
+# benchmark, not of an indication, so an indication holds an arena (its setting
+# rivals + SOC), not a line. `role` = active_arena (an arena scan runs this
+# cycle) | priority_indication (tracked; arena scan event-triggered).
+[[indication]]
+id = "squamous-nsclc"
+role = "active_arena"
+
+[[indication]]
+id = "nrg1-fusion-solid-tumors"
+role = "priority_indication"
+
+[cadence]
+# ⚑ per-program dial (spec/02 baseline cadence). Oncology SOC moves in years, so
+# a program's baseline is monthly, not the market-digest's twice-weekly. The
+# knob turns cadence only — never scan depth or admission (those are the interest
+# list's, spec/03 #55).
+baseline = "monthly"
+
+# ⚑ How far back run #1 reaches when there is no previous issue to join to.
+# Applies once in a program's life (and again only if 12 consecutive issues stub).
+cold_start_lookback_days = 7

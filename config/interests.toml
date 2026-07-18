@@ -1,0 +1,32 @@
+# The interest list — THE ONE STEERING WHEEL (spec/03 "the interest list", #55).
+#
+# HUMAN-OWNED. run.py NEVER writes this file (governance clause 4). The loop may
+# PROPOSE refine / prune / add as findings (a theme proposes a new interest, a
+# non-engaged interest proposes a prune), but the human confirms and owns every
+# write, on a separate guided runtime surface — NOT the static digest, which
+# stays read-only. The system never auto-writes and never auto-scans the aperture.
+#
+# Weight is a STEERING INSTRUCTION, not a filter dial. An interest is an enum
+# tier + a free-text note injected into the manager prompt: the note steers
+# attention, interpretation and the admission bar; the tier is only a sort key
+# and a default bar (tags, not scores). The knob turns admission + steering +
+# sort — never scan depth (the house layer is swept cheaply every run) and never
+# cadence (that is the per-program dial).
+#
+# These seed interests are illustrative, grounded in the pivot source-set doc;
+# they are the OWNER's to edit. `version` bumps on every owner edit, and the next
+# cycle argues the new list with no carry-over (the propagation contract). A
+# `last_edited` older than the 6-month rot default renders a whole-list stale
+# marker on the digest (interest_list_stale, spec/06 register).
+
+version = 1
+last_edited = "2026-07-18"
+last_edited_by = "owner"
+
+[[interest]]
+tier = "strong"          # strong | watching — a sort key + default admission bar, not a score
+note = "HER3-DXd encroachment into the squamous setting — the arena-overlap risk that resets HMBD-001's Phase 1b bar before its signalling data exists."
+
+[[interest]]
+tier = "watching"
+note = "China-first HER3 assets (SDP0505 and successors) despite the feed blind spot — the rank-1 blind spot the free-feed detective sees latest."
