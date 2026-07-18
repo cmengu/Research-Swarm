@@ -23,7 +23,7 @@ from pathlib import Path
 
 from researchswarm.beats import Beat
 from researchswarm.manager import ManagerResult, run_manager
-from researchswarm.prompts import RunContext, render_manager_prompt
+from researchswarm.prompts import RunContext, render_manager_prompt, render_manager_prompt_v2
 from researchswarm.research import ResearchStage, load_findings
 from researchswarm.state import State
 
@@ -86,6 +86,88 @@ def run_synthesis_stage(
         prompt,
         model=models_config["manager"],
         thesis_version=state.thesis.get("version"),
+        run_id=run_id,
+        runner=runner,
+    )
+
+    draft_path = root / "runs" / run_id / "issue-draft.json"
+    draft_path.parent.mkdir(parents=True, exist_ok=True)
+    draft_path.write_text(json.dumps(result.draft, indent=2) + "\n")
+    return result, draft_path
+
+
+def run_synthesis_stage_v2(
+    root: Path,
+    *,
+    identity: IssueIdentity,
+    program,
+    interests,
+    apertures,
+    findings_by_aperture: dict[str, dict],
+    apertures_degraded: list[str],
+    thesis: dict,
+    catalyst_queue: dict,
+    edges,
+    entities: dict,
+    prior_quiet: dict[str, int],
+    models_config: dict,
+    manager_template: str,
+    runner=subprocess.run,
+) -> tuple[ManagerResult, Path]:
+    """The v2 synthesis stage — render the per-program manager prompt, call the
+    manager, write the draft. The v2 twin of `run_synthesis_stage`, wiring the
+    v2 renderer ([05]/[07]) into the same stage machinery.
+
+    Deliberately thin and dispatch-free: run.py's v2 orchestration chooses this
+    over the v1 stage, so the two never branch inside one function. Two shape
+    differences from v1 flow from the state split ([03]):
+
+    - The inputs are the program CONFIG (`program`, `interests`, `apertures`) plus
+      the split v2 STATE (`thesis`, per-program `catalyst_queue`, `edges`,
+      `entities`) — not a single flat `State`.
+    - Findings arrive **in memory** as `findings_by_aperture`, not loaded from
+      disk here. Aperture ids carry a colon (`arena_scan:<indication>`), an unsafe
+      filename character, so the on-disk naming is the research stage's call to
+      make; this stage stays agnostic to it and takes the corpus the caller holds.
+
+    `run_manager` is shared unchanged — it validates the draft at the seam via
+    `validate_issue_draft`, which dispatches on the draft's own schema_version, so
+    a v2 draft is held to the v2 seam contract with no change here. The models
+    block records what argued the issue; the researchers' id defaults to the v2
+    researcher model when models.toml does not pin one (it is a per-role id only
+    for the two single-agent roles).
+    """
+    run_id = identity.ctx.run_id
+    models = {
+        "researchers": models_config.get("researchers", "claude-sonnet-5"),
+        "manager": models_config["manager"],
+        "critic": models_config.get("critic"),
+    }
+    prompt = render_manager_prompt_v2(
+        manager_template,
+        program=program,
+        interests=interests,
+        apertures=apertures,
+        findings_by_aperture=findings_by_aperture,
+        apertures_degraded=apertures_degraded,
+        thesis=thesis,
+        catalyst_queue=catalyst_queue,
+        edges=edges,
+        entities=entities,
+        prior_quiet=prior_quiet,
+        run_id=run_id,
+        issue_id=identity.issue_id,
+        published_at=identity.published_at,
+        coverage_window_from=identity.ctx.coverage_window_from,
+        coverage_window_to=identity.ctx.coverage_window_to,
+        thesis_version=thesis.get("version"),
+        interest_list_version=interests.version,
+        models=models,
+    )
+    result = run_manager(
+        prompt,
+        model=models_config["manager"],
+        thesis_version=thesis.get("version"),
         run_id=run_id,
         runner=runner,
     )
