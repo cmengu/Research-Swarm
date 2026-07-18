@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "program_id": "hmbd-001",
+  "seeded_at": "2026-07-18",
+  "last_recut_at": null,
+  "_comment": "Per-program catalyst queue (spec/03). Shape and the accountability invariant are unchanged from v1: first_expected_window is written once and never edited; expected_window revisions must append to slip_log; queue_tamper (blocking) enforces both. Items carry fed_by (competitor_discovery|scheduled|manual) and bears_on_thesis_slot. Seeded empty: run #1 has null windows and creates the baseline later continuity checks compare against.",
+  "queue": [],
+  "drift_log": []
+}

@@ -1,0 +1,6 @@
+{
+  "program_id": "hmbd-001",
+  "_comment": "Per-program relation edges: (program_id x entity_id) -> relation + read_through (spec/03). One entry per typed competitor. The shared FACT about an entity lives once in state/entities/<entity_id>.json; the READ-THROUGH (what that fact means for THIS program) lives here. Seeded empty: entities are typed onto the program at run time via the promotion path (config seed_competitors, then house-sweep discovery). Populating this from the v1 roster is a deferred HITL curation session, not a compile step (spec/03 'Migrating the seeded roster').",
+  "edges": [],
+  "drift_log": []
+}
