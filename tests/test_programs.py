@@ -97,9 +97,22 @@ class TestTheSeedStateLayer:
     def test_the_pilot_edges_seed_empty(self):
         assert load_edges(STATE, "hmbd-001") == []
 
-    def test_the_entities_layer_seeds_empty(self):
-        # only the .gitkeep is present; no records materialized yet
-        assert load_entities(STATE) == {}
+    def test_every_entity_record_on_disk_cites_its_provenance(self):
+        """Was `test_the_entities_layer_seeds_empty`, which held only until the
+        first real run — 18 Jul 2026 published one, and the run wrote the first
+        two records. Asserting the live repo stays pristine would have meant
+        deleting real output to keep a test green, so this asserts the property
+        that actually has to hold as the layer grows: every fact names the run
+        that established it ([03] — corrections append, provenance travels).
+
+        The empty case is not lost: the loaders are proven against a temp
+        fixture in TestTheStateLayerOncePopulated, which is where a seeded-state
+        assertion belongs anyway.
+        """
+        for entity_id, record in load_entities(STATE).items():
+            assert record.get("first_seen"), f"{entity_id} has no first_seen"
+            for field, fact in (record.get("facts") or {}).items():
+                assert fact.get("established_by"), f"{entity_id}.{field} cites no run"
 
     def test_roster_at_seed_is_exactly_the_seed_competitors(self):
         program = load_program(CONFIG, "hmbd-001")

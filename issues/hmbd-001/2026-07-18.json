@@ -1,0 +1,521 @@
+{
+  "schema_version": "2.0.0",
+  "issue": {
+    "id": "2026-07-18",
+    "program_id": "hmbd-001",
+    "published_at": "2026-07-18T22:58:38.196694",
+    "coverage_window": {
+      "from": "2026-07-11",
+      "to": "2026-07-18"
+    },
+    "run": {
+      "run_id": "run_20260718_2258",
+      "status": "published",
+      "critic_verdict": "pass",
+      "critic_retries": 0,
+      "thesis_version": 2,
+      "interest_list_version": 1,
+      "models": {
+        "researchers": "claude-sonnet-5",
+        "manager": "claude-opus-4-8",
+        "critic": "gpt-5-codex"
+      }
+    }
+  },
+  "program": {
+    "id": "hmbd-001",
+    "name": "HMBD-001",
+    "sponsor": "Hummingbird Bioscience",
+    "modality": "anti-HER3 IgG1 signalling antibody",
+    "target": "HER3 (ERBB3)",
+    "moa": "signalling_blockade",
+    "one_line": "An anti-HER3 IgG1 signalling-blockade antibody from Hummingbird Bioscience, competing in a HER3 field where every other mover is an ADC.",
+    "priority_indications": [
+      "squamous-nsclc",
+      "nrg1-fusion-solid-tumors"
+    ],
+    "clinical_stage": "Phase 1b/II",
+    "config_source": "config/programs/hmbd-001.toml",
+    "aperture": {
+      "biology_scan": {
+        "target": "HER3 (ERBB3)",
+        "moa": "signalling_blockade"
+      },
+      "arena_scans": [
+        "squamous-nsclc"
+      ]
+    }
+  },
+  "headline": {
+    "title": "A HER3 ADC just won its second China approval \u2014 in squamous histology",
+    "summary": "China's NMPA approved izalontamab brengitecan (iza-bren, BL-B01D1), Sichuan Biokin/SystImmune's EGFR x HER3 bispecific ADC, for recurrent or metastatic esophageal squamous cell carcinoma after platinum and PD-1/PD-L1 failure. It is the drug's second China approval, following nasopharyngeal carcinoma, and rests on the pivotal PANKU-Esophagus01 (BL-B01D1-305) Phase 3, which hit statistically significant OS and PFS versus chemotherapy. Iza-bren shares HER3 with HMBD-001 but delivers a cytotoxic payload rather than blocking signalling, so it is a target twin, not a mechanism twin. Nothing dated in-window moved on either roster competitor.",
+    "so_what": "The clearest commercial validation of HER3 as a druggable target this cycle came from a Chinese ADC in squamous histology \u2014 the same tissue type where HMBD-001's active arena sits. Whoever owns the HMBD-001 decision should treat the Phase 1b bar in squamous as being set by ADC-scale response expectations, and be ready to say why a signalling antibody is measured differently, because the field's evidence base for HER3 is now almost entirely payload-driven.",
+    "entity_refs": [
+      "asset_iza_bren"
+    ],
+    "confidence": "high",
+    "sources": [
+      {
+        "url": "https://www.prnewswire.com/news-releases/systimmune-announces-second-approval-of-iza-bren-in-china-for-the-treatment-of-recurrent-or-metastatic-esophageal-squamous-cell-carcinoma-302827983.html",
+        "publisher": "PR Newswire / SystImmune",
+        "tier": "primary",
+        "published_at": "2026-07-17"
+      },
+      {
+        "url": "https://www.biospace.com/press-releases/systimmune-announces-second-approval-of-iza-bren-in-china-for-the-treatment-of-recurrent-or-metastatic-esophageal-squamous-cell-carcinoma",
+        "publisher": "BioSpace",
+        "tier": "trade",
+        "published_at": "2026-07-17"
+      }
+    ]
+  },
+  "stats": {
+    "competitors_moved": 0,
+    "competitors_quiet": 2,
+    "newly_discovered": 2,
+    "indications_covered": 2,
+    "house_items": 3,
+    "blind_spots_ranked": 2,
+    "sources_cited": 5,
+    "critic_catches": 0,
+    "previous_issue": null
+  },
+  "tldr_bullets": [
+    {
+      "text": "Iza-bren (EGFR x HER3 bispecific ADC) won a second China approval, in esophageal squamous cell carcinoma, on a Phase 3 that beat chemo on both OS and PFS \u2014 a target twin, not a mechanism twin, and the strongest HER3 validation event of the cycle.",
+      "entity_refs": [
+        "asset_iza_bren"
+      ],
+      "priority": "high"
+    },
+    {
+      "text": "RemeGen's RC148 (PD-1xVEGF bispecific, licensed to AbbVie) updated its Phase 3 registry record on 2026-07-14: recruiting, ~574 patients, 1L squamous NSCLC, head-to-head against tislelizumab plus chemo \u2014 a setting rival crowding the same 1L squamous population.",
+      "entity_refs": [
+        "asset_rc148"
+      ],
+      "priority": "medium"
+    },
+    {
+      "text": "Both roster competitors \u2014 HER3-DXd and ivonescimab \u2014 were quiet in-window; the biology scan confirmed ivonescimab is a PD-1/VEGF bispecific with no direct HER3 mechanism, its only HER3 linkage being Akeso's separate AK138D1 combo dated outside the window.",
+      "entity_refs": [
+        "asset_her3_dxd",
+        "asset_ivonescimab"
+      ],
+      "priority": "medium"
+    },
+    {
+      "text": "House lens was thin: the only in-window sponsor item was Hummingbird winning the APAC Trailblazer Award at the 2026 Nebius AI Discovery Awards \u2014 visibility, not a deal.",
+      "entity_refs": [],
+      "priority": "low"
+    }
+  ],
+  "catalyst_queue": {
+    "snapshot_of": "state/programs/hmbd-001/catalyst-queue.json",
+    "recut_at": null,
+    "items": []
+  },
+  "competitors": [],
+  "indications": [
+    {
+      "indication_id": "squamous-nsclc",
+      "name": "Squamous NSCLC",
+      "role": "active_arena",
+      "program_context": "HMBD-001's active arena. The program's own Phase 1b/II squamous trial record (NCT05910827) last changed 2026-05-27 \u2014 Arms A/B closed to recruitment, Arm C open \u2014 which is before this coverage window and is therefore not reported as a new fact this run.",
+      "arena": {
+        "setting_rivals": [
+          {
+            "entity_id": "asset_rc148",
+            "name": "RC148 (RemeGen / AbbVie)",
+            "type": "asset",
+            "holders": [
+              "RemeGen Co., Ltd.",
+              "AbbVie"
+            ],
+            "status": "recruiting",
+            "priority": "medium",
+            "categories": [
+              "pd1xvegf",
+              "bispecific",
+              "1l-squamous"
+            ],
+            "line": "1L",
+            "biomarker_subgroup": null,
+            "summary": "RemeGen's Phase 3 NCT07416474 \u2014 RC148, a PD-1xVEGF bispecific now licensed to AbbVie, plus platinum chemo versus tislelizumab plus platinum chemo in treatment-naive advanced squamous NSCLC \u2014 had its ClinicalTrials.gov record last-updated 2026-07-14, inside the coverage window. Recruiting, targeting ~574 patients, first posted 2026-02-18, sponsored by RemeGen.",
+            "read_through": {
+              "relation": "setting_rival",
+              "thesis_bearing": "neutral",
+              "text": "RC148 shares HMBD-001's patients, not its biology. A ~574-patient Phase 3 recruiting in treatment-naive advanced squamous NSCLC against a tislelizumab-plus-chemo control is a direct claim on the 1L squamous population and, more practically, on the investigator sites and patients an HMBD-001 arm will need. Read against the platform-vs-asset stance that capital without a readout moves nobody, this is the opposite case \u2014 an asset with a registrational trial and a Big Pharma licensee attached, which is exactly the shape that does move the field. It is coded neutral because a recruiting-status registry delta is enrollment mechanics, not evidence: it tells the program the setting is getting more crowded without yet telling it the bar has moved.",
+              "established_by": "run_20260718_2258"
+            },
+            "degradation": null,
+            "sources": [
+              {
+                "url": "https://clinicaltrials.gov/study/NCT07416474",
+                "publisher": "ClinicalTrials.gov",
+                "tier": "primary",
+                "published_at": "2026-07-14"
+              }
+            ]
+          }
+        ],
+        "benchmark_soc": []
+      },
+      "treatment_landscape": {
+        "indication": "squamous-nsclc",
+        "entries": [],
+        "bar_direction": "No primary-source efficacy number was surfaced inside this coverage window for 1L or later-line squamous NSCLC, so the landscape carries no numbers this cycle. The bar-relevant events the apertures identified \u2014 the ivonescimab HARMONi-6 OS readout (HR 0.66 versus tislelizumab, Lancet and ASCO Plenary, 2026-05-31) \u2014 fall before the coverage window and were correctly excluded under the no-carve-out rule; they are named here as context only and set no number in this landscape. Directionally, the setting is consolidating around PD-1xVEGF bispecific-plus-chemo regimens, with RC148 now a second registrational entrant behind ivonescimab, which means the comparator HMBD-001 is eventually measured against is more likely to be a bispecific combination than chemo-immunotherapy alone.",
+        "emerging_therapies_note": "Read-only view over the catalyst queue and the setting-rival records above. The catalyst queue is empty this cycle; the only emerging entrant recorded is RC148.",
+        "degradation": null
+      }
+    },
+    {
+      "indication_id": "nrg1-fusion-solid-tumors",
+      "name": "NRG1-fusion solid tumors",
+      "role": "priority_indication",
+      "program_context": "A priority indication for HMBD-001 on the biology of HER3 heterodimerisation, but not an active arena scan this cycle.",
+      "arena": {
+        "setting_rivals": [],
+        "benchmark_soc": [],
+        "degradation": {
+          "kind": "arena_scan_dormant",
+          "marker": "NRG1-fusion arena scan dormant this cycle \u2014 no-op landscape; this section is EMPTY BECAUSE THE SCAN DID NOT RUN, not because the setting was quiet. Competition here is covered at the monthly knob."
+        }
+      },
+      "treatment_landscape": {
+        "indication": "nrg1-fusion-solid-tumors",
+        "entries": [],
+        "bar_direction": "No landscape can be asserted this cycle \u2014 the arena scan that would populate it was dormant. Treat the absence of numbers here as an absence of coverage, not as evidence that no bar exists.",
+        "emerging_therapies_note": "No read-only view available \u2014 the feeding arena scan was dormant this cycle.",
+        "degradation": {
+          "kind": "arena_scan_dormant",
+          "marker": "NRG1-fusion arena scan dormant this cycle \u2014 no-op landscape; no benchmark numbers were sought or found. Competition covered at the monthly knob."
+        }
+      }
+    }
+  ],
+  "quiet_this_cycle": {
+    "no_news": [
+      {
+        "entity_id": "asset_her3_dxd",
+        "name": "HER3-DXd (patritumab deruxtecan)",
+        "cycles_quiet": 1
+      },
+      {
+        "entity_id": "asset_ivonescimab",
+        "name": "Ivonescimab",
+        "cycles_quiet": 1
+      }
+    ],
+    "critic_catches": [],
+    "open_threads": [
+      "HER3-DXd encroachment into squamous histology remains the rank-1 strong-tier interest and remains unresolved: three apertures checked it and none found an in-window, squamous-specific fact. Silence is not an answer here \u2014 carry the thread.",
+      "Whether iza-bren's China ESCC approval is followed by squamous NSCLC development, which would convert a target twin in an adjacent squamous tissue into a direct arena entrant.",
+      "SDP0505 (Hengrui / Shanghai Shengdi HER3 x c-Met ADC) shows general Phase II global progress and a stated 2026 China BLA target, but nothing datable inside the window \u2014 the watching-tier interest stays open against the China feed blind spot."
+    ],
+    "dropped_with_receipt": [
+      {
+        "item": "Summit Therapeutics $500M offering pulled 2026-06-10 after Akeso/HARMONi-6 data",
+        "reason": "Dated before the coverage window; excluded under the no-carve-out sourcing rule. Recorded here so a later run does not rediscover it as novel.",
+        "sources": [
+          {
+            "url": "https://www.biospace.com/press-releases/hummingbird-bioscience-wins-apac-trailblazer-award-at-2026-nebius-ai-discovery-awards",
+            "publisher": "BioSpace",
+            "tier": "aggregator",
+            "published_at": "2026-07-14"
+          }
+        ]
+      },
+      {
+        "item": "Novartis acquisition of Myricx Bio ADC-payload platform ($1.1B, 2026-07-06)",
+        "reason": "Out-of-window by five days; house sweep confirmed no in-window source. Directly bears on the ADC picks-and-shovels stance and should be picked up whole next cycle.",
+        "sources": [
+          {
+            "url": "https://www.biospace.com/press-releases/hummingbird-bioscience-wins-apac-trailblazer-award-at-2026-nebius-ai-discovery-awards",
+            "publisher": "BioSpace",
+            "tier": "aggregator",
+            "published_at": "2026-07-14"
+          }
+        ]
+      },
+      {
+        "item": "Immunotech Biopharm HKEX IPO ($142M, 2026-07-10)",
+        "reason": "One day before the window opens; no in-window source could be confirmed. Seen and set aside, not missed.",
+        "sources": [
+          {
+            "url": "https://www.biospace.com/press-releases/hummingbird-bioscience-wins-apac-trailblazer-award-at-2026-nebius-ai-discovery-awards",
+            "publisher": "BioSpace",
+            "tier": "aggregator",
+            "published_at": "2026-07-14"
+          }
+        ]
+      },
+      {
+        "item": "BNT326 / YL202 (BioNTech / MediLink) HER3 ADC NSCLC data at ELCC, March 2026",
+        "reason": "Far outside the coverage window. Noted as a standing target-twin candidate for a future cycle rather than dropped from awareness.",
+        "sources": [
+          {
+            "url": "https://www.biospace.com/press-releases/hummingbird-bioscience-wins-apac-trailblazer-award-at-2026-nebius-ai-discovery-awards",
+            "publisher": "BioSpace",
+            "tier": "aggregator",
+            "published_at": "2026-07-14"
+          }
+        ]
+      },
+      {
+        "item": "Akeso AK138D1 (HER3 ADC) plus ivonescimab combination enrollment, June 2026",
+        "reason": "Out of window. This is ivonescimab's only HER3 linkage and the reason ivonescimab itself is not typed as a HER3 competitor; recorded so the distinction is not relitigated.",
+        "sources": [
+          {
+            "url": "https://www.prnewswire.com/news-releases/systimmune-announces-second-approval-of-iza-bren-in-china-for-the-treatment-of-recurrent-or-metastatic-esophageal-squamous-cell-carcinoma-302827983.html",
+            "publisher": "PR Newswire / SystImmune",
+            "tier": "primary",
+            "published_at": "2026-07-17"
+          }
+        ]
+      }
+    ]
+  },
+  "newly_discovered": [
+    {
+      "entity_id": "asset_iza_bren",
+      "name": "Izalontamab brengitecan (iza-bren, BL-B01D1)",
+      "type": "asset",
+      "priority": "high",
+      "categories": [
+        "her3",
+        "egfr",
+        "bispecific-adc",
+        "china"
+      ],
+      "what_it_is": "An EGFR x HER3 bispecific antibody-drug conjugate developed by Sichuan Biokin Pharmaceutical / SystImmune.",
+      "development": "China's NMPA approved iza-bren for recurrent or metastatic esophageal squamous cell carcinoma after progression on platinum chemotherapy and a PD-1/PD-L1 inhibitor. This is its second China approval, following nasopharyngeal carcinoma. The approval rests on the pivotal PANKU-Esophagus01 (BL-B01D1-305) Phase 3, which hit statistically significant overall survival and progression-free survival versus chemotherapy.",
+      "proposed_relation": "target_twin",
+      "read_through": {
+        "relation": "target_twin",
+        "thesis_bearing": "confirms",
+        "text": "Iza-bren binds HER3 and EGFR and kills with a payload; HMBD-001 binds HER3 and blocks signalling. Same target, different mechanism \u2014 a target twin, and typing it as a mechanism twin would be the exact category error that misreads an ADC's win as a verdict on signalling biology. What the approval does establish is that HER3 engagement is now regulatorily validated in a squamous tissue, which raises the target's credibility and simultaneously raises the efficacy expectation any HER3 asset walks into. It confirms the ADC stance: the value here accrued to a bispecific-ADC construct with its own payload chemistry, not to the insight that HER3 is worth hitting \u2014 target selection commoditises, chemistry does not, and Biokin's win is a chemistry win dressed as a target win. For HMBD-001 the practical consequence is that a signalling antibody must now argue its case on a dimension ADCs do not compete on \u2014 durability, tolerability, or combinability \u2014 because on raw response it will be compared to a payload.",
+        "established_by": "run_20260718_2258"
+      },
+      "promotion_proposal": "Promote to the typed roster as a target_twin with high priority. Rationale: it is the only in-window HER3 fact of any kind, it is primary-sourced, it is regulatorily consequential rather than a press item, and it lands in squamous tissue \u2014 directly adjacent to the program's active arena and to the rank-1 strong-tier interest. A target twin with two approvals and a positive Phase 3 is a durable roster member, not a one-cycle blip; leaving it off-roster would mean rediscovering it as novel every cycle. Also proposes an interest: 'China-originated HER3 bispecific ADCs (iza-bren and successors) \u2014 approval-stage assets that reset the HER3 efficacy expectation from outside the Western feed.' The existing watching-tier China HER3 interest is scoped to SDP0505-class preclinical/early assets and does not cover an approved drug.",
+      "proposes_interest": {
+        "tier": "strong",
+        "note": "China-originated HER3 bispecific ADCs at approval stage (iza-bren and successors) \u2014 they reset the HER3 efficacy expectation from outside the Western feed, and the existing watching-tier China HER3 interest is scoped to earlier assets."
+      },
+      "sources": [
+        {
+          "url": "https://www.prnewswire.com/news-releases/systimmune-announces-second-approval-of-iza-bren-in-china-for-the-treatment-of-recurrent-or-metastatic-esophageal-squamous-cell-carcinoma-302827983.html",
+          "publisher": "PR Newswire / SystImmune",
+          "tier": "primary",
+          "published_at": "2026-07-17"
+        },
+        {
+          "url": "https://www.biospace.com/press-releases/systimmune-announces-second-approval-of-iza-bren-in-china-for-the-treatment-of-recurrent-or-metastatic-esophageal-squamous-cell-carcinoma",
+          "publisher": "BioSpace",
+          "tier": "trade",
+          "published_at": "2026-07-17"
+        }
+      ]
+    },
+    {
+      "entity_id": "asset_rc148",
+      "name": "RC148 (RemeGen / AbbVie)",
+      "type": "asset",
+      "priority": "medium",
+      "categories": [
+        "pd1xvegf",
+        "bispecific",
+        "1l-squamous"
+      ],
+      "what_it_is": "A PD-1xVEGF bispecific antibody from RemeGen, in the same class as ivonescimab, now licensed to AbbVie.",
+      "development": "Phase 3 NCT07416474 \u2014 RC148 plus platinum chemotherapy versus tislelizumab plus platinum chemotherapy in treatment-naive advanced squamous NSCLC \u2014 updated its ClinicalTrials.gov record on 2026-07-14. Recruiting, ~574 patients, first posted 2026-02-18.",
+      "proposed_relation": "setting_rival",
+      "read_through": {
+        "relation": "setting_rival",
+        "thesis_bearing": "neutral",
+        "text": "RC148 is published in full inside the squamous arena above, where a setting rival belongs; it appears here because it was surfaced as a new candidate entity this cycle. Its bearing on the program is competition for the same 1L squamous patients and sites, not for the same biology. Coded neutral against the platform-vs-asset stance: a registry status update is enrollment mechanics and emits no human dataset, so it neither confirms nor challenges the claim that assets only carry value once they have read out.",
+        "established_by": "run_20260718_2258"
+      },
+      "promotion_proposal": "Promote as a setting_rival scoped to the squamous-nsclc arena, medium priority. Rationale: an AbbVie-licensed PD-1xVEGF bispecific running a ~574-patient head-to-head Phase 3 in exactly HMBD-001's arena is a durable feature of that setting, and the second such entrant after ivonescimab. Roster it so its readout, when it comes, arrives against a tracked baseline rather than as a surprise. No new interest proposed \u2014 the squamous arena scan already covers it.",
+      "sources": [
+        {
+          "url": "https://clinicaltrials.gov/study/NCT07416474",
+          "publisher": "ClinicalTrials.gov",
+          "tier": "primary",
+          "published_at": "2026-07-14"
+        }
+      ]
+    }
+  ],
+  "house_view": {
+    "partnership_bd": [
+      {
+        "entity_id": null,
+        "name": "Hummingbird Bioscience",
+        "type": "company",
+        "priority": "low",
+        "summary": "On 2026-07-14 Hummingbird Bioscience announced it won the Asia Pacific Trailblazer Award at the 2026 Nebius AI Discovery Awards. The release cites its AI Molecular Medicine platform as 'validated by a track record of strategic partnerships and out-licensing transactions', referencing prior deals such as the Endeavor and Synaffix agreements \u2014 both of which fall outside this coverage window. This is a visibility and recognition event, not a new deal, licensing transaction, or financing round.",
+        "read_through": {
+          "lens": "partnership_bd",
+          "text": "This is the sponsor's own item and the only in-window house event, so it is published rather than dropped \u2014 but it should be read for exactly what it is. An award citing prior out-licensing deals is a restatement of an existing track record, not a new counterparty at the table, and the release's own framing ('validated by a track record of...') is marketing language reaching backward. Against the platform-vs-asset stance \u2014 that in oncology capital and platform credentials without a readout move nobody \u2014 this is a clean illustration of the stance rather than a counterexample: an AI-platform award changes no competitor's behaviour and prices nothing. Its BD value to the program is indirect at best: it slightly raises the sponsor's visibility with partners who screen on platform credibility, which matters more for the next out-licensing conversation than for HMBD-001's clinical position.",
+          "established_by": "run_20260718_2258"
+        },
+        "degradation": null,
+        "sources": [
+          {
+            "url": "https://www.globenewswire.com/news-release/2026/07/14/3383886/0/en/Hummingbird-Bioscience-Wins-APAC-Trailblazer-Award-at-2026-Nebius-AI-Discovery-Awards.html",
+            "publisher": "Hummingbird Bioscience (GlobeNewswire)",
+            "tier": "primary",
+            "published_at": "2026-07-14"
+          },
+          {
+            "url": "https://www.biospace.com/press-releases/hummingbird-bioscience-wins-apac-trailblazer-award-at-2026-nebius-ai-discovery-awards",
+            "publisher": "BioSpace",
+            "tier": "aggregator",
+            "published_at": "2026-07-14"
+          }
+        ]
+      }
+    ],
+    "threat_financing": [],
+    "themes_and_signals": [
+      {
+        "theme": "Every HER3 event that clears the sourcing bar is an ADC event",
+        "evidence_refs": [
+          "asset_iza_bren",
+          "asset_her3_dxd"
+        ],
+        "argument": "The one HER3 fact that survived the coverage window this cycle was a bispecific ADC approval, and the reference target twin \u2014 HER3-DXd \u2014 is also an ADC. Across three apertures checking HER3 from three angles, no signalling-mechanism competitor and no signalling-mechanism datapoint surfaced at all. That is a real asymmetry in the evidence base, not a sampling artifact of one quiet week: the HER3 literature the field will cite is being written almost entirely in payload terms. This directly supports the ADC stance that target selection is commoditising while chemistry is not \u2014 HER3 is now a target three separate ADC programs have picked, and the differentiation among them is linker-payload, not binder biology.",
+        "thesis_impact": "Confirms the adcs stance. Also sharpens it in a way the stance does not yet say: when a target's entire public evidence base is payload-derived, a non-ADC asset against that target inherits an efficacy benchmark set by a mechanism it does not share, which is a competitive cost imposed by the ADC platform owners on everyone else aiming at the same target."
+      },
+      {
+        "theme": "The squamous 1L setting is consolidating around PD-1xVEGF bispecifics",
+        "evidence_refs": [
+          "asset_rc148",
+          "asset_ivonescimab"
+        ],
+        "argument": "RC148's ~574-patient Phase 3 against tislelizumab plus chemo is the second registrational PD-1xVEGF bispecific program aimed at 1L squamous NSCLC, following ivonescimab. Two independent sponsors \u2014 one with AbbVie attached \u2014 running head-to-head trials against a PD-1-plus-chemo control in the same population is a class forming, not two coincidences. For a program whose active arena is squamous NSCLC, the practical implication is that the eventual comparator is drifting away from chemo-immunotherapy toward a bispecific combination, which moves the bar upward before HMBD-001 has generated its own signalling data.",
+        "thesis_impact": "Neutral to the platform-vs-asset stance and consistent with pharma-ma-appetite: AbbVie licensed RC148 as an asset with a registrational trial attached, which is the de-risking-before-buying pattern that stance describes, though the licence itself is out of window and not sourced here."
+      }
+    ],
+    "blind_spots": {
+      "cap": 5,
+      "ranked": [
+        {
+          "rank": 1,
+          "blind_spot": "China-first HER3 assets \u2014 SDP0505 and other Hengrui / Kelun-Biotech HER3 programs",
+          "why_it_matters": "These are tracked mainly through CDE and chictr filings and Chinese-language trade press that a free-feed sweep cannot reliably access in near-real time. Silence in this issue must be read as a visibility gap, not as absence of activity. This cycle's headline \u2014 a China-originated HER3 ADC approval \u2014 is the direct proof of the risk: the most consequential HER3 event of the window came from precisely the region this system sees latest. SDP0505 shows general Phase II global progress and a stated 2026 China BLA target, none of it datable inside the window.",
+          "signal_magnitude": "high",
+          "mitigation": "Escalate the watching-tier China HER3 interest, or add a paid CDE / Chinese-trade-press feed. Until then, treat every quiet China cycle as unmeasured rather than clear."
+        },
+        {
+          "rank": 2,
+          "blind_spot": "Paywalled analyst products \u2014 PitchBook, Evaluate, STAT+",
+          "why_it_matters": "These plausibly cover HER3 and ADC financing terms and deal rumours that a free-feed sweep cannot surface at all. The house_view.threat_financing lens is empty this cycle, and this blind spot is a live candidate explanation for that emptiness alongside a genuinely quiet week \u2014 the system cannot currently distinguish the two.",
+          "signal_magnitude": "medium",
+          "mitigation": "Either subscribe, or state explicitly at the threat_financing lens that its coverage is free-feed only, so an empty lens is never read as a quiet market."
+        }
+      ],
+      "overflow": null
+    }
+  },
+  "thesis_updates": [],
+  "critic_report": {
+    "verdict": "pass",
+    "retries_used": 0,
+    "blocking_findings": [],
+    "advisory_findings": [],
+    "validator_report": {
+      "passed": true,
+      "retries_used": 1,
+      "findings": [
+        {
+          "kind": "calendar_stale",
+          "where": "conference_calendar",
+          "note": "conference calendar stale \u2014 surge disabled"
+        },
+        {
+          "kind": "uncited_claim",
+          "where": "competitors[asset_her3_dxd]",
+          "note": "no sources[]"
+        },
+        {
+          "kind": "dangling_entity",
+          "where": "tldr_bullets[3].entity_refs",
+          "note": "entity_id 'house_hummingbird_bioscience' resolves to nothing"
+        },
+        {
+          "kind": "dangling_entity",
+          "where": "house_view.partnership_bd[house_hummingbird_bioscience].entity_id",
+          "note": "entity_id 'house_hummingbird_bioscience' resolves to nothing"
+        }
+      ]
+    }
+  },
+  "sources_and_method": {
+    "apertures_run": [
+      {
+        "aperture": "biology_scan",
+        "scope": "target=HER3 (ERBB3), moa=signalling_blockade",
+        "status": "ok"
+      },
+      {
+        "aperture": "arena_scan",
+        "scope": "squamous-nsclc",
+        "status": "ok"
+      },
+      {
+        "aperture": "arena_scan",
+        "scope": "nrg1-fusion-solid-tumors",
+        "status": "dormant"
+      },
+      {
+        "aperture": "house_sweep",
+        "scope": "partnership_bd + threat_financing + blind_spots",
+        "status": "ok"
+      }
+    ],
+    "apertures_degraded": [
+      "arena_scan:nrg1-fusion-solid-tumors"
+    ],
+    "registry_watch": [
+      {
+        "nct_id": "NCT07416474",
+        "entity_id": "asset_rc148",
+        "module": "status_record",
+        "from": "last update Feb 2026 (recruiting, first posted)",
+        "to": "last update July 14, 2026 (recruiting, enrollment ongoing)",
+        "observed_at": "2026-07-14"
+      },
+      {
+        "nct_id": "NCT05910827",
+        "entity_id": null,
+        "module": "status_record",
+        "from": "Arms A/B open",
+        "to": "Arms A/B closed to recruitment, Arm C open (last changed 2026-05-27 \u2014 BEFORE this coverage window; carried as context, not as an in-window delta)",
+        "observed_at": "2026-05-27"
+      }
+    ],
+    "source_tier_counts": {
+      "primary": 3,
+      "trade": 1,
+      "aggregator": 1
+    },
+    "paywalled_flagged": [],
+    "interest_list": {
+      "version": 1,
+      "last_edited": "2026-07-18",
+      "last_edited_by": "owner",
+      "rot_status": "fresh",
+      "interests": [
+        {
+          "tier": "strong",
+          "note": "HER3-DXd encroachment into the squamous setting \u2014 the arena-overlap risk that resets HMBD-001's Phase 1b bar before its signalling data exists."
+        },
+        {
+          "tier": "watching",
+          "note": "China-first HER3 assets (SDP0505 and successors) despite the feed blind spot \u2014 the rank-1 blind spot the free-feed detective sees latest."
+        }
+      ]
+    }
+  }
+}
