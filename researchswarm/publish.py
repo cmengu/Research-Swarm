@@ -230,7 +230,7 @@ def iter_issue_files(issues_dir: Path):
 
     The one walk over an issues directory. Three v2↔v2 call sites had grown a
     byte-identical copy of it. The two V2 sites — `regenerate_manifest_v2` and
-    `_published_issue_files` — are routed through here, because v2↔v2 duplication
+    `_registry_row`'s history walk — are routed through here, because v2↔v2 duplication
     earns no "v1 is deleted later" exemption: both encode the same three
     decisions, so a change to either is a silent divergence in the other.
 
@@ -922,7 +922,10 @@ def _registry_row(root: Path, program) -> dict:
     already visible in that program's own dropdown, one hop away.
     """
     issues_dir = program_issues_dir(root, program.id)
-    issues = _published_issue_files(issues_dir)
+    # `iter_issue_files` skips what it cannot parse, so an unreadable file is
+    # also not COUNTED — the honest answer: `issue_count` counts issues the
+    # dashboard can actually open.
+    issues = list(iter_issue_files(issues_dir))
 
     latest_id = None
     latest_published_at = None
@@ -942,19 +945,6 @@ def _registry_row(root: Path, program) -> dict:
         "issue_count": len(issues),
         "flags": flags,
     }
-
-
-def _published_issue_files(issues_dir: Path) -> list[tuple[str, dict]]:
-    """Every readable issue in a program's directory, newest first.
-
-    Newest-first by reverse filename sort, for the reason in
-    `regenerate_manifest_v2`: ISO date ids sort lexically into chronological
-    order, so no parse can fail and silently reorder which issue the switcher
-    calls "latest". Unreadable files are skipped — and are therefore not counted
-    either, which is the honest answer: `issue_count` counts issues the dashboard
-    can actually open.
-    """
-    return list(iter_issue_files(issues_dir))
 
 
 # ---------------------------------------------------------------------------
