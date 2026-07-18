@@ -61,4 +61,20 @@ baseline = "monthly"
 
 # ⚑ How far back run #1 reaches when there is no previous issue to join to.
 # Applies once in a program's life (and again only if 12 consecutive issues stub).
-cold_start_lookback_days = 7
+#
+# WAS 7, which was wrong against a MONTHLY baseline and cost real intelligence.
+# run_20260718_2258 surfaced, judged and dropped-with-receipt five in-scope items
+# for falling outside a seven-day window:
+#
+#   Novartis / Myricx Bio ADC-payload platform, $1.1B   2026-07-06  (out by 5 days)
+#   Immunotech Biopharm HKEX IPO, $142M                 2026-07-10  (out by 1 day)
+#   Summit Therapeutics $500M offering pulled           2026-06-10
+#   BNT326 / YL202 HER3 ADC NSCLC data                  Mar 2026
+#   Akeso AK138D1 HER3 ADC + ivonescimab combination    Jun 2026
+#
+# house_view.threat_financing published EMPTY that cycle while its entire
+# contents sat in the dropped pile — the lens read as a quiet market because the
+# window, not the market, was quiet. A first run has no prior issue to join to,
+# so its window is the ONLY history the detective ever sees for everything before
+# it; a quarter is the honest floor for a board that moves in months.
+cold_start_lookback_days = 90

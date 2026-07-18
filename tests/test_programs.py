@@ -57,7 +57,13 @@ class TestLoadTheRealProgramConfig:
     def test_cadence_is_the_per_program_monthly_dial(self):
         program = load_program(CONFIG, "hmbd-001")
         assert program.cadence_baseline == "monthly"
-        assert program.cold_start_lookback_days == 7
+        # Not pinned to a literal: the value is a ⚑ dial and moved from 7 to 90
+        # once a live run proved seven days was shorter than the cadence it fed.
+        # What must hold is the RELATION — the cold start covers at least one
+        # baseline cycle — which cold_start_shortfall_v2 states and enforces.
+        from researchswarm.cadence import cold_start_shortfall_v2
+
+        assert cold_start_shortfall_v2(program) is None
 
     def test_a_missing_program_fails_naming_the_file(self):
         with pytest.raises(FileNotFoundError):
