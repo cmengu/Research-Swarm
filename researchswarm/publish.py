@@ -76,6 +76,33 @@ UNCRITIQUED_VERDICT = NOT_RUN
 FLAG_ADVISORY_KINDS = ("calendar_stale", "continuity_baseline_expired")
 
 
+def stamp_generated_at(now: datetime | None = None) -> str:
+    """`generated_at` for a derived file — timezone-AWARE, second precision.
+
+    Spec/08 shows the shape twice, in the program registry and in the issue
+    manifest, and both read `"2026-07-18T07:41:00+08:00"`. A bare
+    `datetime.now().isoformat()` produces `"2026-07-18T22:58:38.196694"` — naive
+    and microsecond-precise — which is what the first published `issues/index.json`
+    actually carried.
+
+    Both halves of the gap matter to a reader:
+
+    - **The offset is the load-bearing half.** These files are read by a dashboard
+      and diffed by a human; a naive stamp is unanchored, so "is this registry
+      newer than that manifest" stops being answerable the moment anything crosses
+      a machine or a DST boundary. `astimezone()` binds a naive local clock to the
+      system's real offset without shifting the instant.
+    - **Microseconds are noise.** They are precision the field does not have and
+      no reader uses, and they make every regeneration a diff even when the second
+      is unchanged.
+
+    Taking `now` rather than reading the clock is what lets one run stamp its
+    issue, its manifest and its registry with a single instant, instead of three
+    near-simultaneous calls that disagree in the last digits.
+    """
+    return (now or datetime.now()).astimezone().replace(microsecond=0).isoformat()
+
+
 @dataclass(frozen=True)
 class PublishResult:
     """What stage 6 hands back: where the issue landed, the status it published
@@ -261,7 +288,7 @@ def regenerate_manifest(issues_dir: Path, *, generated_at: str | None = None) ->
         entries.append(_manifest_entry(issue))
 
     manifest = {
-        "generated_at": generated_at or datetime.now().isoformat(),
+        "generated_at": generated_at or stamp_generated_at(),
         "issues": entries,
     }
     path = issues_dir / "index.json"
@@ -562,13 +589,30 @@ FLAG_RUN_STATUSES = (
     FAILED_STATUS,
 )
 
-# The typed degradation/finding kinds the pipeline can raise, in the order
-# spec/08's marker table lists them. This is an ORDERING, not a filter: an
-# unrecognised kind is still emitted (sorted, after these), because spec/08
-# "Vocabulary homes" is explicit that an unknown kind must render visibly rather
-# than vanish — a marker the page does not recognise is exactly when the reader
-# most needs to know something was raised.
-FLAG_KIND_ORDER = (
+# The READER-FACING markers, derived from spec/08's marker table — every row of
+# it that is raised by a typed `degradation.kind` or a validator/critic advisory,
+# in the order the table lists them. This is the ALLOWED SET as well as the
+# ordering, and it is one named constant because it is one rule.
+#
+# It is a filter, and the review found out why. The first published
+# `issues/index.json` carried
+# `["calendar_stale", "arena_scan_dormant", "dangling_entity", "uncited_claim"]`.
+# The last two are BLOCKING validator kinds (spec/07 §6). A blocking kind cannot
+# reach a published issue as an unresolved defect — the gate would have stopped
+# it — so what it means in a manifest is "something was caught and fixed", which
+# is provenance, not triage. spec/08 scopes `flags` to "markers the reader should
+# see before opening", and "a claim was uncited before the manager fixed it" is
+# not a reason to open, or not open, an issue. The blocking record lives in the
+# issue's own `critic_report.validator_report`, where a reader who wants the
+# forensics can find it, unabridged.
+#
+# What is NOT sacrificed is spec/08 "Vocabulary homes": an unknown kind must
+# render visibly rather than vanish. That rule is about the PAGE's chrome — a
+# marker the dashboard does not recognise still draws as a neutral chip. It was
+# never a licence for the manifest to promote every kind in the pipeline to a
+# triage signal, and reading it that way is what put two blocking kinds in a
+# reader's dropdown.
+READER_FACING_FLAG_KINDS = (
     "calendar_stale",
     "arena_scan_failed",
     "arena_scan_dormant",
@@ -684,7 +728,7 @@ def regenerate_manifest_v2(
 
     manifest = {
         "program_id": program_id,
-        "generated_at": generated_at or datetime.now().isoformat(),
+        "generated_at": generated_at or stamp_generated_at(),
         "issues": entries,
     }
     issues_dir.mkdir(parents=True, exist_ok=True)
@@ -749,11 +793,12 @@ def _manifest_flags_v2(issue: dict) -> list[str]:
        `interest_list_stale` rot line (spec/07 `interest_list`, [#55]).
     4. `run.status`, when the status is itself a banner (spec/08's marker table).
 
-    Order is stable — the registered kinds in spec/08's table order, then any
-    unrecognised kind sorted — so a manifest diff is readable. Unrecognised kinds
-    are EMITTED, not dropped: spec/08 requires an unknown kind to render visibly,
-    and a flag list that silently filtered would defeat that in Python before the
-    page ever saw it.
+    The result is SCOPED to `READER_FACING_FLAG_KINDS` plus the banner statuses —
+    spec/08's reader-facing-marker table, and nothing else. Order follows that
+    table, so a manifest diff is readable. See that constant for why the scope is
+    a filter rather than only an ordering: unscoped, the first published registry
+    leaked `dangling_entity` and `uncited_claim`, two BLOCKING validator kinds
+    (spec/07 §6), into a list whose whole job is "should I open this".
     """
     kinds: set[str] = set(_walk_degradation_kinds(issue))
 
@@ -773,9 +818,9 @@ def _manifest_flags_v2(issue: dict) -> list[str]:
     if status in FLAG_RUN_STATUSES:
         kinds.add(status)
 
-    known = [k for k in FLAG_KIND_ORDER if k in kinds]
-    known += [s for s in FLAG_RUN_STATUSES if s in kinds]
-    return known + sorted(kinds - set(known))
+    flags = [k for k in READER_FACING_FLAG_KINDS if k in kinds]
+    flags += [s for s in FLAG_RUN_STATUSES if s in kinds]
+    return flags
 
 
 def _walk_degradation_kinds(node) -> list[str]:
@@ -852,7 +897,7 @@ def write_registry(root: Path, *, generated_at: str | None = None) -> Path:
         rows.append(_registry_row(root, program))
 
     registry = {
-        "generated_at": generated_at or datetime.now().isoformat(),
+        "generated_at": generated_at or stamp_generated_at(),
         "programs": rows,
     }
     path = registry_path(root)
@@ -948,7 +993,7 @@ def run_publish_stage_v2(
     caller pass the run's own clock so all three artifacts agree on when the run
     happened.
     """
-    generated_at = (now or datetime.now()).isoformat()
+    generated_at = stamp_generated_at(now)
     issue_file = write_issue_v2(root, program_id, issue)
     manifest = regenerate_manifest_v2(
         program_issues_dir(root, program_id), program_id, generated_at=generated_at
