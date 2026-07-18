@@ -730,6 +730,35 @@ REQUIRED_SECTIONS_V2 = (
 QUIET_KEYS_V2 = ("no_news", "critic_catches", "open_threads")
 
 
+def _mapping(obj, key):
+    """The value at `key`, but ONLY if it is genuinely a mapping — else `{}`.
+
+    The one way every v2 check reaches into a nested object, and it exists
+    because the idiom it replaces is unsound. `x.get(k, {}).get(...)` supplies
+    its default only when the key is ABSENT: a key present-but-null, or holding
+    the prose the manager sends when it misreads [07], sails past the default and
+    raises AttributeError *inside the gate*. `x.get(k) or {}` fixes only the null
+    half — a non-empty string is truthy and still crashes.
+
+    Found by the first live-run review: `_check_malformed_dropped_receipt`, the
+    check written to catch a manager shape error, crashed on
+    `{"quiet_this_cycle": null}` and on `{"quiet_this_cycle": "prose"}` — the two
+    inputs it is most likely to meet.
+
+    A gate that CRASHES is strictly worse than one that misses ([06] admission
+    test 2: every check is mechanically decidable from the issue alone, and a
+    check that dies decides nothing). It takes the whole run down, and it does so
+    at exactly the moment the issue is most malformed. So every v2 traversal
+    routes through here: an intermediate that is not a mapping yields an empty
+    one, the walk finds nothing there, and the SHAPE checks — which read the raw
+    field, not this — are what report the malformation.
+    """
+    if not isinstance(obj, dict):
+        return {}
+    value = obj.get(key)
+    return value if isinstance(value, dict) else {}
+
+
 def _iter_competitor_items_v2(issue):
     """(item, where) for every typed program item obliged to carry a read_through.
 
@@ -744,7 +773,7 @@ def _iter_competitor_items_v2(issue):
         if not isinstance(ind, dict):
             continue
         iid = ind.get("indication_id", "?")
-        arena = ind.get("arena") or {}
+        arena = _mapping(ind, "arena")
         for key in ("setting_rivals", "benchmark_soc"):
             for i, item in enumerate(arena.get(key) or []):
                 if isinstance(item, dict):
@@ -756,7 +785,7 @@ def _iter_competitor_items_v2(issue):
 
 def _iter_house_items_v2(issue):
     """(item, where) for every house-view lens item obliged to carry a read_through."""
-    house = issue.get("house_view") or {}
+    house = _mapping(issue, "house_view")
     for key in ("partnership_bd", "threat_financing"):
         for i, item in enumerate(house.get(key) or []):
             if isinstance(item, dict):
@@ -791,7 +820,7 @@ def _iter_all_sources_v2(issue):
         yield from _sources_of(obj, where)
 
     # theme items may carry sources[] even though they are not obliged to
-    for i, theme in enumerate(issue.get("house_view", {}).get("themes_and_signals") or []):
+    for i, theme in enumerate(_mapping(issue, "house_view").get("themes_and_signals") or []):
         if isinstance(theme, dict):
             yield from _sources_of(theme, f"house_view.themes_and_signals[{i}]")
 
@@ -800,26 +829,26 @@ def _iter_all_sources_v2(issue):
         if not isinstance(ind, dict):
             continue
         iid = ind.get("indication_id", "?")
-        for j, line in enumerate(ind.get("treatment_landscape", {}).get("lines") or []):
+        for j, line in enumerate(_mapping(ind, "treatment_landscape").get("lines") or []):
             if isinstance(line, dict) and line.get("efficacy_source") is not None:
                 yield line["efficacy_source"], f"indications[{iid}].treatment_landscape.lines[{j}].efficacy_source"
 
     # dropped-with-receipt: the source is the receipt the critic's rule reads
     for i, dropped in enumerate(
-        issue.get("quiet_this_cycle", {}).get("dropped_with_receipt") or []
+        _mapping(issue, "quiet_this_cycle").get("dropped_with_receipt") or []
     ):
         if isinstance(dropped, dict) and dropped.get("source") is not None:
             yield dropped["source"], f"quiet_this_cycle.dropped_with_receipt[{i}].source"
 
     # critic catches carry the sources that refuted a claim
     for i, catch in enumerate(
-        issue.get("quiet_this_cycle", {}).get("critic_catches") or []
+        _mapping(issue, "quiet_this_cycle").get("critic_catches") or []
     ):
         if isinstance(catch, dict):
             yield from _sources_of(catch, f"quiet_this_cycle.critic_catches[{i}]")
 
     # the catalyst queue and the critic's blocking-finding receipts — unchanged
-    for i, item in enumerate(issue.get("catalyst_queue", {}).get("items") or []):
+    for i, item in enumerate(_mapping(issue, "catalyst_queue").get("items") or []):
         if not isinstance(item, dict):
             continue
         where = f"catalyst_queue.items[{item.get('id', i)}]"
@@ -831,7 +860,7 @@ def _iter_all_sources_v2(issue):
             if isinstance(slip, dict) and slip.get("source") is not None:
                 yield slip["source"], f"{where}.slip_log[{j}].source"
     for i, finding in enumerate(
-        issue.get("critic_report", {}).get("blocking_findings") or []
+        _mapping(issue, "critic_report").get("blocking_findings") or []
     ):
         if isinstance(finding, dict) and finding.get("source") is not None:
             yield finding["source"], f"critic_report.blocking_findings[{i}].source"
@@ -856,13 +885,13 @@ def _iter_entity_refs_v2(issue):
         if item.get("entity_id"):
             yield item["entity_id"], f"{where}.entity_id"
 
-    quiet = issue.get("quiet_this_cycle", {})
+    quiet = _mapping(issue, "quiet_this_cycle")
     for key in ("no_news", "open_threads", "dropped_with_receipt"):
         for i, entry in enumerate(quiet.get(key) or []):
             if isinstance(entry, dict) and entry.get("entity_id"):
                 yield entry["entity_id"], f"quiet_this_cycle.{key}[{i}].entity_id"
 
-    for i, theme in enumerate(issue.get("house_view", {}).get("themes_and_signals") or []):
+    for i, theme in enumerate(_mapping(issue, "house_view").get("themes_and_signals") or []):
         if isinstance(theme, dict):
             for ref in theme.get("evidence_refs") or []:
                 yield ref, f"house_view.themes_and_signals[{i}].evidence_refs"
@@ -872,7 +901,7 @@ def _iter_entity_refs_v2(issue):
             for ref in update.get("triggered_by") or []:
                 yield ref, f"thesis_updates[{i}].triggered_by"
 
-    for i, item in enumerate(issue.get("catalyst_queue", {}).get("items") or []):
+    for i, item in enumerate(_mapping(issue, "catalyst_queue").get("items") or []):
         if isinstance(item, dict):
             for ref in item.get("entity_ids") or []:
                 yield ref, f"catalyst_queue.items[{item.get('id', i)}].entity_ids"
@@ -951,7 +980,7 @@ def _check_unaccounted_entity(issue, roster, problems):
     for ind in issue.get("indications") or []:
         if not isinstance(ind, dict):
             continue
-        arena = ind.get("arena") or {}
+        arena = _mapping(ind, "arena")
         for key in ("setting_rivals", "benchmark_soc"):
             for item in arena.get(key) or []:
                 if isinstance(item, dict) and item.get("entity_id"):
@@ -959,7 +988,7 @@ def _check_unaccounted_entity(issue, roster, problems):
 
     quiet = {
         entry.get("entity_id")
-        for entry in issue.get("quiet_this_cycle", {}).get("no_news") or []
+        for entry in _mapping(issue, "quiet_this_cycle").get("no_news") or []
         if isinstance(entry, dict) and entry.get("entity_id")
     }
 
@@ -1071,7 +1100,7 @@ def _check_malformed_dropped_receipt(issue, problems):
     is REQUIRED, absence must be a finding, never a skip.
     """
     required = ("name", "dropped_because", "source")
-    for i, entry in enumerate(issue.get("quiet_this_cycle", {}).get("dropped_with_receipt") or []):
+    for i, entry in enumerate(_mapping(issue, "quiet_this_cycle").get("dropped_with_receipt") or []):
         where = f"quiet_this_cycle.dropped_with_receipt[{i}]"
         if not isinstance(entry, dict):
             problems.append(
@@ -1086,6 +1115,116 @@ def _check_malformed_dropped_receipt(issue, problems):
                     where,
                     f"missing required key(s) {', '.join(missing)} — the receipt cannot be read"
                     f" (has: {', '.join(sorted(entry)) or 'nothing'})",
+                )
+            )
+
+
+def _check_malformed_open_thread(issue, problems):
+    """An `open_threads[]` entry is an OBJECT — `{entity_id, thread, since}` ([07]).
+
+    [07] §quiet_this_cycle carries `open_threads` forward "unchanged from v1", and
+    both schema samples show the same object: an `entity_id` the thread hangs off,
+    the `thread` itself, and the `since` date that makes "how long has this been
+    open" answerable without diffing twelve issues.
+
+    Found by the first live run (18 Jul 2026): the manager emitted BARE STRINGS —
+    paragraphs of prose. Nothing caught it, because no check read the section at
+    all. The cost is not cosmetic: `_iter_entity_refs_v2` walks `open_threads` for
+    `entity_id`, so a bare string is a thread about an entity that the dangling
+    check can never resolve and the reader can never trace, and `since` — the only
+    field that makes an OPEN thread distinguishable from a new one — is gone.
+
+    Same argument as `malformed_promotion_proposal`: this is a TYPE, not a
+    judgment, so it is mechanically decidable from the issue alone ([06] admission
+    test 2) and belongs in the free gate rather than the critic's budget.
+    """
+    required = ("entity_id", "thread", "since")
+    for i, entry in enumerate(_mapping(issue, "quiet_this_cycle").get("open_threads") or []):
+        where = f"quiet_this_cycle.open_threads[{i}]"
+        if not isinstance(entry, dict):
+            problems.append(
+                Finding(
+                    "malformed_open_thread",
+                    where,
+                    f"must be an object with entity_id/thread/since, got {type(entry).__name__}",
+                )
+            )
+            continue
+        missing = [k for k in required if entry.get(k) in (None, "")]
+        if missing:
+            problems.append(
+                Finding(
+                    "malformed_open_thread",
+                    where,
+                    f"missing required key(s) {', '.join(missing)}"
+                    f" (has: {', '.join(sorted(entry)) or 'nothing'})",
+                )
+            )
+
+
+def _check_malformed_treatment_landscape(issue, problems):
+    """An indication's `treatment_landscape` carries [07]'s envelope, `lines` a list.
+
+    [07] §treatment_landscape specifies `{as_of, last_changed, changed_by,
+    keyed_by, lines[]}` — a thin, manager-authored synthesis over the benchmark
+    records, keyed indication × line × biomarker-subgroup, whose `as_of` /
+    `last_changed` pair is what makes it slow state with a default no-op.
+
+    Found by the first live run (18 Jul 2026): the manager emitted
+    `{indication, entries, bar_direction, emerging_therapies_note}` instead — and
+    the run PASSED, because no check policed the envelope. The consequence was a
+    three-deep chain of silent vacuity, which is why this check is BLOCKING rather
+    than advisory:
+
+    - `landscape_number_unsourced` iterates `.lines`, so the primary-source-only
+      rule for benchmark efficacy numbers ([07], #57) could not fire against the
+      real output at all — the strictest bar in the schema, silently off.
+    - `_count_intel_sources_v2` walks the same `.lines` path, so `sources_cited`
+      undercounted every landscape number the issue actually carried.
+    - `derived_stats_mismatch` compares two values that BOTH read `.lines`, so
+      they agreed with each other and the undercount was invisible to the one
+      check whose job is catching a miscounted stat.
+
+    The lesson is the general one this gate keeps relearning: a check that reads a
+    path the emitter never writes is not a lenient check, it is an ABSENT one, and
+    an absent check reports clean. Policing the envelope is what puts the other
+    three back in contact with the data.
+    """
+    envelope = ("as_of", "last_changed", "changed_by", "keyed_by", "lines")
+    for ind in issue.get("indications") or []:
+        if not isinstance(ind, dict):
+            continue
+        iid = ind.get("indication_id", "?")
+        where = f"indications[{iid}].treatment_landscape"
+        landscape = ind.get("treatment_landscape")
+        if landscape is None:
+            continue  # an indication may carry no landscape; a MALFORMED one blocks
+        if not isinstance(landscape, dict):
+            problems.append(
+                Finding(
+                    "malformed_treatment_landscape",
+                    where,
+                    f"must be an object with {', '.join(envelope)}, got {type(landscape).__name__}",
+                )
+            )
+            continue
+        missing = [k for k in envelope if landscape.get(k) in (None, "")]
+        if missing:
+            problems.append(
+                Finding(
+                    "malformed_treatment_landscape",
+                    where,
+                    f"missing required key(s) {', '.join(missing)}"
+                    f" (has: {', '.join(sorted(landscape)) or 'nothing'})",
+                )
+            )
+        lines = landscape.get("lines")
+        if lines is not None and not isinstance(lines, list):
+            problems.append(
+                Finding(
+                    "malformed_treatment_landscape",
+                    f"{where}.lines",
+                    f"must be a list of keyed lines, got {type(lines).__name__}",
                 )
             )
 
@@ -1133,7 +1272,7 @@ def _check_untyped_competitor(issue, problems):
         if not isinstance(c, dict):
             continue
         where = f"competitors[{_ref(c, i)}]"
-        relation = (c.get("read_through") or {}).get("relation")
+        relation = _mapping(c, "read_through").get("relation")
         if relation == "platform_threat":
             problems.append(
                 Finding("untyped_competitor", where, "platform_threat is company-unit — it belongs in house_view, not competitors[]")
@@ -1151,7 +1290,7 @@ def _check_blind_spot_overflow(issue, problems):
     list carries an `overflow` receipt. A `ranked` longer than `cap` with no
     receipt is exactly the silent truncation the admission rule forbids.
     """
-    blind_spots = issue.get("house_view", {}).get("blind_spots")
+    blind_spots = _mapping(issue, "house_view").get("blind_spots")
     if not isinstance(blind_spots, dict):
         return
     cap = blind_spots.get("cap")
@@ -1178,7 +1317,7 @@ def _check_landscape_number_unsourced(issue, problems):
         if not isinstance(ind, dict):
             continue
         iid = ind.get("indication_id", "?")
-        for j, line in enumerate(ind.get("treatment_landscape", {}).get("lines") or []):
+        for j, line in enumerate(_mapping(ind, "treatment_landscape").get("lines") or []):
             if not isinstance(line, dict):
                 continue
             source = line.get("efficacy_source")
@@ -1219,7 +1358,7 @@ ARENA_DEGRADATION_KINDS = frozenset({"arena_scan_dormant", "arena_scan_failed"})
 
 
 def _arena_is_empty(indication) -> bool:
-    arena = indication.get("arena") or {}
+    arena = _mapping(indication, "arena")
     return not (arena.get("setting_rivals") or arena.get("benchmark_soc"))
 
 
@@ -1231,8 +1370,8 @@ def _indication_degradation(indication):
     sees a marker at the absence regardless of which sub-object holds it.
     """
     for holder in (
-        indication.get("treatment_landscape") or {},
-        indication.get("arena") or {},
+        _mapping(indication, "treatment_landscape"),
+        _mapping(indication, "arena"),
         indication,
     ):
         degradation = holder.get("degradation")
@@ -1250,7 +1389,7 @@ def _arena_mechanically_degraded(issue, indication_id) -> bool:
     `apertures_degraded`. Either is a fact run.py holds, so the exemption never
     rests on a model self-report ([06] admission test 2).
     """
-    method = issue.get("sources_and_method", {})
+    method = _mapping(issue, "sources_and_method")
     for entry in method.get("apertures_run") or []:
         if (
             isinstance(entry, dict)
@@ -1307,8 +1446,8 @@ def _derive_stats_v2(issue) -> dict:
     queue, dropped receipts, critic catches) are not the digest's cited evidence.
     `previous_issue` is a disk walk the publisher adds, not a count.
     """
-    house = issue.get("house_view", {})
-    quiet = issue.get("quiet_this_cycle", {})
+    house = _mapping(issue, "house_view")
+    quiet = _mapping(issue, "quiet_this_cycle")
     return {
         "competitors_moved": len(issue.get("competitors") or []),
         "competitors_quiet": len(quiet.get("no_news") or []),
@@ -1319,7 +1458,7 @@ def _derive_stats_v2(issue) -> dict:
             + len(house.get("threat_financing") or [])
             + len(house.get("themes_and_signals") or [])
         ),
-        "blind_spots_ranked": len(house.get("blind_spots", {}).get("ranked") or []),
+        "blind_spots_ranked": len(_mapping(house, "blind_spots").get("ranked") or []),
         "sources_cited": _count_intel_sources_v2(issue),
         "critic_catches": len(quiet.get("critic_catches") or []),
     }
@@ -1335,16 +1474,16 @@ def _count_intel_sources_v2(issue) -> int:
     a PROPOSAL, not yet cited intelligence, so its sources do not count toward
     what the reader is told is "cited." This is the set `source_tier_counts` tiers.
     """
-    total = len(issue.get("headline", {}).get("sources") or [])
+    total = len(_mapping(issue, "headline").get("sources") or [])
     for ind in issue.get("indications") or []:
         if not isinstance(ind, dict):
             continue
-        arena = ind.get("arena") or {}
+        arena = _mapping(ind, "arena")
         for key in ("setting_rivals", "benchmark_soc"):
             for item in arena.get(key) or []:
                 if isinstance(item, dict):
                     total += len(item.get("sources") or [])
-        for line in ind.get("treatment_landscape", {}).get("lines") or []:
+        for line in _mapping(ind, "treatment_landscape").get("lines") or []:
             if isinstance(line, dict) and line.get("efficacy_source") is not None:
                 total += 1
     for c in issue.get("competitors") or []:
@@ -1352,10 +1491,52 @@ def _count_intel_sources_v2(issue) -> int:
             total += len(c.get("sources") or [])
     for item, _ in _iter_house_items_v2(issue):
         total += len(item.get("sources") or [])
-    for theme in issue.get("house_view", {}).get("themes_and_signals") or []:
+    for theme in _mapping(issue, "house_view").get("themes_and_signals") or []:
         if isinstance(theme, dict):
             total += len(theme.get("sources") or [])
     return total
+
+
+# The top-level containers the SHARED (v1-authored) checks traverse with the
+# `x.get(k, {}).get(...)` idiom `_mapping` replaces. v2 cannot harden those checks
+# — v1 is frozen and deleted whole, and giving it new dependencies is exactly the
+# invariant this branch restores — so v2 guards its own call sites instead: it
+# proves the container is a mapping BEFORE handing the issue to a shared walk.
+SHARED_WALK_CONTAINERS_V2 = ("catalyst_queue", "stats", "sources_and_method")
+
+
+def _check_malformed_container_v2(issue, problems) -> bool:
+    """A top-level container is an object, or the shared walks are not run.
+
+    Returns True when every container in `SHARED_WALK_CONTAINERS_V2` is safe to
+    traverse. `_check_queue_tamper` and `_check_derived_stats_mismatch` are shared
+    with v1 and reach into `issue["catalyst_queue"]` directly, so a manager that
+    sends prose or null there would crash them — the same class of failure
+    `_mapping` fixes inside the v2 section, one altitude up.
+
+    Blocking, then short-circuiting, is the honest order: the malformation is
+    REPORTED (the reader and the retry loop both learn the shape was wrong), and
+    only then is the walk that cannot survive it skipped. Nothing is silently
+    tolerated; a crash is simply not how the gate says so.
+    """
+    safe = True
+    for key in SHARED_WALK_CONTAINERS_V2:
+        if key not in issue:
+            continue  # ABSENT is safe: `.get(k, {})` supplies its default correctly
+        value = issue[key]
+        if isinstance(value, dict):
+            continue
+        # PRESENT-but-not-a-mapping is the unsafe case, and null is the sharpest
+        # form of it — `.get(k, {})` returns the null rather than the default.
+        safe = False
+        problems.append(
+            Finding(
+                "malformed_section",
+                key,
+                f"must be an object, got {type(value).__name__}",
+            )
+        )
+    return safe
 
 
 def _validate_issue_v2(issue, *, state, queue_baseline, baseline_expired, calendar_stale, roster=None):
@@ -1375,13 +1556,16 @@ def _validate_issue_v2(issue, *, state, queue_baseline, baseline_expired, calend
     _check_unaccounted_entity(issue, roster, blocking)
     _check_empty_section_v2(issue, state, blocking)
     _check_empty_arena_v2(issue, blocking)
-    _check_derived_stats_mismatch(issue, blocking)
-    _check_queue_tamper(issue, queue_baseline, blocking)
+    if _check_malformed_container_v2(issue, blocking):
+        _check_derived_stats_mismatch(issue, blocking)
+        _check_queue_tamper(issue, queue_baseline, blocking)
 
     _check_missing_read_through(issue, blocking)
     _check_untyped_competitor(issue, blocking)
     _check_malformed_promotion_proposal(issue, blocking)
     _check_malformed_dropped_receipt(issue, blocking)
+    _check_malformed_open_thread(issue, blocking)
+    _check_malformed_treatment_landscape(issue, blocking)
     _check_blind_spot_overflow(issue, blocking)
     _check_landscape_number_unsourced(issue, blocking)
 
@@ -1401,7 +1585,7 @@ def _validate_issue_v2(issue, *, state, queue_baseline, baseline_expired, calend
     # interest_list_stale is fail-visible like calendar_stale — a whole-list marker
     # from a date the orchestrator holds (interest_list.rot_status), filed here so
     # it rides every issue whether or not the critic runs ([06] register, #55).
-    if (issue.get("sources_and_method", {}).get("interest_list") or {}).get("rot_status") == "stale":
+    if _mapping(_mapping(issue, "sources_and_method"), "interest_list").get("rot_status") == "stale":
         advisory.append(
             Finding("interest_list_stale", "sources_and_method.interest_list", INTEREST_LIST_STALE_MARKER)
         )

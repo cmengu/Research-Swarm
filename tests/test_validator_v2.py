@@ -45,31 +45,48 @@ def _known_entity_ids(issue: dict) -> set[str]:
     dangling check fires. `newly_discovered` slugs introduce themselves, exactly
     as v1's `new_on_radar` did, so they are excluded from the roster.
     """
+    def _obj(container, key):
+        """Sub-object as a mapping, or empty — the harness twin of `_mapping`.
+
+        The malformation tests hand this helper issues whose sections have been
+        replaced with null or prose ON PURPOSE. The harness must survive the same
+        inputs the gate does, or a validator fix is masked by a crashing fixture.
+        """
+        value = container.get(key) if isinstance(container, dict) else None
+        return value if isinstance(value, dict) else {}
+
+    def _items(container, key):
+        value = container.get(key) if isinstance(container, dict) else None
+        return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+
     ids: set[str] = set()
-    for c in issue.get("competitors", []):
-        ids.add(c["entity_id"])
-    for ind in issue.get("indications", []):
-        arena = ind.get("arena", {})
+    for c in _items(issue, "competitors"):
+        if c.get("entity_id"):
+            ids.add(c["entity_id"])
+    for ind in _items(issue, "indications"):
+        arena = _obj(ind, "arena")
         for key in ("setting_rivals", "benchmark_soc"):
-            for item in arena.get(key, []) or []:
+            for item in _items(arena, key):
                 if item.get("entity_id"):
                     ids.add(item["entity_id"])
     for key in ("partnership_bd", "threat_financing", "themes_and_signals"):
-        for item in issue.get("house_view", {}).get(key, []) or []:
+        for item in _items(_obj(issue, "house_view"), key):
             if item.get("entity_id"):
                 ids.add(item["entity_id"])
-    quiet = issue.get("quiet_this_cycle", {})
+    quiet = _obj(issue, "quiet_this_cycle")
     for key in ("no_news", "open_threads", "dropped_with_receipt"):
-        for item in quiet.get(key, []) or []:
+        for item in _items(quiet, key):
             if item.get("entity_id"):
                 ids.add(item["entity_id"])
     # queue holders (e.g. hengrui) are roster entities referenced only there;
     # headline/thesis entity_refs are REFERENCES, not roster definitions, so they
     # are not harvested — a ref with no roster entry is exactly a dangling_entity.
-    for item in issue.get("catalyst_queue", {}).get("items", []) or []:
+    for item in _items(_obj(issue, "catalyst_queue"), "items"):
         ids.update(item.get("entity_ids", []) or [])
     # drop the self-introducing discovery slugs
-    discovered = {c["entity_id"] for c in issue.get("newly_discovered", []) or []}
+    discovered = {
+        c["entity_id"] for c in _items(issue, "newly_discovered") if c.get("entity_id")
+    }
     return ids - discovered
 
 
@@ -332,3 +349,145 @@ class TestPortedSpineChecks:
         issue["tldr_bullets"] = []
         result = validate_issue(issue, state=_state_for(issue))
         assert "empty_section" in _kinds(result)
+
+
+class TestTheGateNeverCrashes:
+    """A gate that CRASHES is strictly worse than one that misses.
+
+    `_mapping` exists because `x.get(k, {}).get(...)` supplies its default only
+    when the key is ABSENT — a key present-but-null, or holding prose, raised
+    AttributeError *inside* the check written to catch exactly that malformation.
+    These are the two live shapes that took the gate down.
+    """
+
+    def test_a_null_intermediate_object_does_not_raise(self):
+        issue = _load_sample()
+        state = _state_for(issue)
+        for section in (
+            "quiet_this_cycle",
+            "house_view",
+            "sources_and_method",
+            "catalyst_queue",
+            "headline",
+        ):
+            broken = _load_sample()
+            broken[section] = None
+            result = validate_issue(broken, state=state)
+            assert not result.passed, f"{section}: a null section must be FOUND, not tolerated"
+
+    def test_prose_where_an_object_belongs_does_not_raise(self):
+        issue = _load_sample()
+        state = _state_for(issue)
+        for section in (
+            "quiet_this_cycle",
+            "house_view",
+            "sources_and_method",
+            "catalyst_queue",
+            "headline",
+        ):
+            broken = _load_sample()
+            broken[section] = "the manager wrote a paragraph here"
+            result = validate_issue(broken, state=state)
+            assert not result.passed, f"{section}: prose must be FOUND, not tolerated"
+
+    def test_nested_prose_intermediates_do_not_raise(self):
+        issue = _load_sample()
+        issue["indications"][0]["arena"] = "prose where the arena belongs"
+        issue["indications"][0]["treatment_landscape"] = "prose where the landscape belongs"
+        issue["competitors"][0]["read_through"] = "prose where the read-through belongs"
+        issue["house_view"]["blind_spots"] = "prose"
+        result = validate_issue(issue, state=_state_for(issue))
+        assert {"malformed_treatment_landscape", "missing_read_through"} <= _kinds(result)
+
+    def test_the_dropped_receipt_check_survives_its_own_failure_mode(self):
+        from researchswarm.validator import _check_malformed_dropped_receipt
+
+        for value in (None, "prose", 7, []):
+            problems: list = []
+            _check_malformed_dropped_receipt({"quiet_this_cycle": value}, problems)
+            assert problems == []
+
+
+class TestMalformedOpenThread:
+    def test_a_bare_string_thread_blocks(self):
+        issue = _load_sample()
+        issue["quiet_this_cycle"]["open_threads"] = ["a paragraph of prose"]
+        result = validate_issue(issue, state=_state_for(issue))
+        assert "malformed_open_thread" in _kinds(result)
+
+    def test_a_thread_missing_since_blocks(self):
+        issue = _load_sample()
+        del issue["quiet_this_cycle"]["open_threads"][0]["since"]
+        result = validate_issue(issue, state=_state_for(issue))
+        assert "malformed_open_thread" in _kinds(result)
+
+    def test_the_sample_threads_pass(self):
+        issue = _load_sample()
+        result = validate_issue(issue, state=_state_for(issue))
+        assert "malformed_open_thread" not in _kinds(result)
+
+
+class TestMalformedTreatmentLandscape:
+    def test_the_live_managers_envelope_blocks(self):
+        """The exact shape the first live run emitted ([07] §treatment_landscape)."""
+        issue = _load_sample()
+        issue["indications"][0]["treatment_landscape"] = {
+            "indication": "Squamous NSCLC",
+            "entries": [],
+            "bar_direction": "rising",
+            "emerging_therapies_note": "…",
+        }
+        result = validate_issue(issue, state=_state_for(issue))
+        assert "malformed_treatment_landscape" in _kinds(result)
+
+    def test_lines_that_is_not_a_list_blocks(self):
+        issue = _load_sample()
+        issue["indications"][0]["treatment_landscape"]["lines"] = {"1L": "…"}
+        result = validate_issue(issue, state=_state_for(issue))
+        assert "malformed_treatment_landscape" in _kinds(result)
+
+    def test_an_indication_with_no_landscape_at_all_is_untouched(self):
+        issue = _load_sample()
+        issue["indications"][0].pop("treatment_landscape", None)
+        result = validate_issue(issue, state=_state_for(issue))
+        assert "malformed_treatment_landscape" not in _kinds(result)
+
+    def test_the_envelope_check_is_what_makes_the_landscape_rule_reachable(self):
+        """The vacuity chain: a wrong envelope hides `lines`, so the primary-only
+        efficacy rule and the sources_cited count both go silently blind ([07] #57)."""
+        issue = _load_sample()
+        issue["indications"][0]["treatment_landscape"] = {
+            "indication": "Squamous NSCLC",
+            "entries": [{"efficacy_source": {"tier": "trade_press"}}],
+        }
+        result = validate_issue(issue, state=_state_for(issue))
+        assert "landscape_number_unsourced" not in _kinds(result)
+        assert "malformed_treatment_landscape" in _kinds(result)
+
+
+class TestAgainstTheRealPublishedIssue:
+    """The published artifact the review was found against — issues/hmbd-001/2026-07-18.json.
+
+    It PASSED the gate as it stood. The two new checks are what put the gate back
+    in contact with it: the landscape envelope and the bare-string open threads.
+    """
+
+    PUBLISHED = Path(__file__).resolve().parents[1] / "issues" / "hmbd-001" / "2026-07-18.json"
+
+    def test_the_new_checks_fire_on_the_real_issue(self):
+        if not self.PUBLISHED.exists():  # pragma: no cover - artifact may be pruned
+            import pytest
+
+            pytest.skip("no published issue on disk")
+        from researchswarm.validator import (
+            _check_malformed_open_thread,
+            _check_malformed_treatment_landscape,
+        )
+
+        issue = json.loads(self.PUBLISHED.read_text())
+        landscape: list = []
+        _check_malformed_treatment_landscape(issue, landscape)
+        threads: list = []
+        _check_malformed_open_thread(issue, threads)
+        assert len(landscape) == 2, [f.where for f in landscape]
+        assert len(threads) == 3, [f.where for f in threads]
