@@ -1,6 +1,8 @@
 # ResearchSwarm — Capture Doc (16 Jul 2026)
 
-Raw capture of the initial voice brain-dump, before grooming. Nothing here is final; the Wayfinder map will supersede this.
+> **⛔ HISTORICAL — superseded by [`SPEC.md`](SPEC.md) and `docs/spec/`.** This is the pre-map voice capture, kept for its fuller reasoning. It describes the **v1 market-wide digest** (twice-weekly beats, a flat watchlist, an investor reader). The system was since **re-rooted into a per-program competitive detective** by the pivot map ([#49](https://github.com/cmengu/Research-Swarm/issues/49)) and its second capture, the pivot grilling ([PR #48](https://github.com/cmengu/Research-Swarm/pull/48) — also historical). **Where this document and the spec disagree, the spec wins.** Read it for the origin story, not for current rules.
+
+Raw capture of the initial voice brain-dump, before grooming. Nothing here is final; the Wayfinder map superseded this.
 
 ## One-liner
 
