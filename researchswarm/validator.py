@@ -1051,6 +1051,36 @@ def _check_missing_read_through(issue, problems):
             )
 
 
+def _check_malformed_promotion_proposal(issue, problems):
+    """A `newly_discovered[].promotion_proposal` is an OBJECT, never prose.
+
+    Found by the first live run (18 Jul 2026): the manager emitted a sentence
+    ("Promote to the typed roster as a target_twin…") where [07] specifies
+    `{promote_to_competitors, reason, proposes_interest}`. Nothing caught it —
+    not the manager seam, not this gate, not the critic — and it surfaced three
+    stages later as an AttributeError in the state-edit writer, *after* the issue
+    had been published.
+
+    It belongs here rather than in the critic because it is a type, not a
+    judgment: `isinstance(x, dict)` is mechanically decidable from the issue
+    alone, which is [06]'s admission test 2. The lesson generalises — a field the
+    orchestrator later calls `.get()` on is a field this gate must have already
+    proven is a mapping, or the manager's mistake becomes the run's crash.
+    """
+    for i, entry in enumerate(issue.get("newly_discovered") or []):
+        if not isinstance(entry, dict):
+            continue
+        proposal = entry.get("promotion_proposal")
+        if proposal is not None and not isinstance(proposal, dict):
+            problems.append(
+                Finding(
+                    "malformed_promotion_proposal",
+                    f"newly_discovered[{_ref(entry, i)}].promotion_proposal",
+                    f"must be an object with promote_to_competitors/reason, got {type(proposal).__name__}",
+                )
+            )
+
+
 def _check_untyped_competitor(issue, problems):
     """A competitors[] entry carries one of the four PROGRAM relations, and no other.
 
@@ -1311,6 +1341,7 @@ def _validate_issue_v2(issue, *, state, queue_baseline, baseline_expired, calend
 
     _check_missing_read_through(issue, blocking)
     _check_untyped_competitor(issue, blocking)
+    _check_malformed_promotion_proposal(issue, blocking)
     _check_blind_spot_overflow(issue, blocking)
     _check_landscape_number_unsourced(issue, blocking)
 

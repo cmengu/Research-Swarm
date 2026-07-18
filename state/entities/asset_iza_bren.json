@@ -1,0 +1,98 @@
+{
+  "entity_id": "asset_iza_bren",
+  "first_seen": "2026-07-18",
+  "facts": {
+    "name": {
+      "value": "Izalontamab brengitecan (iza-bren, BL-B01D1)",
+      "established_by": "run_20260718_2258",
+      "issue": "2026-07-18"
+    },
+    "type": {
+      "value": "asset",
+      "established_by": "run_20260718_2258",
+      "issue": "2026-07-18"
+    },
+    "categories": {
+      "value": [
+        "her3",
+        "egfr",
+        "bispecific-adc",
+        "china"
+      ],
+      "established_by": "run_20260718_2258",
+      "issue": "2026-07-18"
+    },
+    "sources": {
+      "value": [
+        {
+          "url": "https://www.prnewswire.com/news-releases/systimmune-announces-second-approval-of-iza-bren-in-china-for-the-treatment-of-recurrent-or-metastatic-esophageal-squamous-cell-carcinoma-302827983.html",
+          "publisher": "PR Newswire / SystImmune",
+          "tier": "primary",
+          "published_at": "2026-07-17"
+        },
+        {
+          "url": "https://www.biospace.com/press-releases/systimmune-announces-second-approval-of-iza-bren-in-china-for-the-treatment-of-recurrent-or-metastatic-esophageal-squamous-cell-carcinoma",
+          "publisher": "BioSpace",
+          "tier": "trade",
+          "published_at": "2026-07-17"
+        }
+      ],
+      "established_by": "run_20260718_2258",
+      "issue": "2026-07-18"
+    }
+  },
+  "drift_log": [
+    {
+      "date": "2026-07-18",
+      "action": "established",
+      "field": "name",
+      "from": null,
+      "to": "Izalontamab brengitecan (iza-bren, BL-B01D1)",
+      "run_id": "run_20260718_2258"
+    },
+    {
+      "date": "2026-07-18",
+      "action": "established",
+      "field": "type",
+      "from": null,
+      "to": "asset",
+      "run_id": "run_20260718_2258"
+    },
+    {
+      "date": "2026-07-18",
+      "action": "established",
+      "field": "categories",
+      "from": null,
+      "to": [
+        "her3",
+        "egfr",
+        "bispecific-adc",
+        "china"
+      ],
+      "run_id": "run_20260718_2258"
+    },
+    {
+      "date": "2026-07-18",
+      "action": "established",
+      "field": "sources",
+      "from": null,
+      "to": [
+        {
+          "url": "https://www.prnewswire.com/news-releases/systimmune-announces-second-approval-of-iza-bren-in-china-for-the-treatment-of-recurrent-or-metastatic-esophageal-squamous-cell-carcinoma-302827983.html",
+          "publisher": "PR Newswire / SystImmune",
+          "tier": "primary",
+          "published_at": "2026-07-17"
+        },
+        {
+          "url": "https://www.biospace.com/press-releases/systimmune-announces-second-approval-of-iza-bren-in-china-for-the-treatment-of-recurrent-or-metastatic-esophageal-squamous-cell-carcinoma",
+          "publisher": "BioSpace",
+          "tier": "trade",
+          "published_at": "2026-07-17"
+        }
+      ],
+      "run_id": "run_20260718_2258"
+    }
+  ],
+  "version": 1,
+  "last_edited_by": "loop"
+}

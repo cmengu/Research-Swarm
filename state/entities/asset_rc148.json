@@ -1,0 +1,84 @@
+{
+  "entity_id": "asset_rc148",
+  "first_seen": "2026-07-18",
+  "facts": {
+    "name": {
+      "value": "RC148 (RemeGen / AbbVie)",
+      "established_by": "run_20260718_2258",
+      "issue": "2026-07-18"
+    },
+    "type": {
+      "value": "asset",
+      "established_by": "run_20260718_2258",
+      "issue": "2026-07-18"
+    },
+    "categories": {
+      "value": [
+        "pd1xvegf",
+        "bispecific",
+        "1l-squamous"
+      ],
+      "established_by": "run_20260718_2258",
+      "issue": "2026-07-18"
+    },
+    "sources": {
+      "value": [
+        {
+          "url": "https://clinicaltrials.gov/study/NCT07416474",
+          "publisher": "ClinicalTrials.gov",
+          "tier": "primary",
+          "published_at": "2026-07-14"
+        }
+      ],
+      "established_by": "run_20260718_2258",
+      "issue": "2026-07-18"
+    }
+  },
+  "drift_log": [
+    {
+      "date": "2026-07-18",
+      "action": "established",
+      "field": "name",
+      "from": null,
+      "to": "RC148 (RemeGen / AbbVie)",
+      "run_id": "run_20260718_2258"
+    },
+    {
+      "date": "2026-07-18",
+      "action": "established",
+      "field": "type",
+      "from": null,
+      "to": "asset",
+      "run_id": "run_20260718_2258"
+    },
+    {
+      "date": "2026-07-18",
+      "action": "established",
+      "field": "categories",
+      "from": null,
+      "to": [
+        "pd1xvegf",
+        "bispecific",
+        "1l-squamous"
+      ],
+      "run_id": "run_20260718_2258"
+    },
+    {
+      "date": "2026-07-18",
+      "action": "established",
+      "field": "sources",
+      "from": null,
+      "to": [
+        {
+          "url": "https://clinicaltrials.gov/study/NCT07416474",
+          "publisher": "ClinicalTrials.gov",
+          "tier": "primary",
+          "published_at": "2026-07-14"
+        }
+      ],
+      "run_id": "run_20260718_2258"
+    }
+  ],
+  "version": 1,
+  "last_edited_by": "loop"
+}

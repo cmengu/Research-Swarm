@@ -365,6 +365,25 @@ def _apply_edges_v2(root: Path, issue, program_id: str, edges, run_id: str, date
     return path, changed
 
 
+def _promotion_proposal(entry) -> dict:
+    """Read `promotion_proposal` as a mapping, whatever the manager actually sent.
+
+    THREE call sites read this field, and the first live run (18 Jul 2026) proved
+    why they must not each call `.get()` on it directly: the manager emitted prose
+    where [07] specifies an object, and the first site raised AttributeError
+    *after* the issue was published — costing the run its git commit and leaving
+    state half-applied. Fixing that one site would have left the other two armed,
+    so the coercion lives here, once.
+
+    The validator now BLOCKS the malformed shape upstream
+    (`malformed_promotion_proposal`), which is where the manager gets told it was
+    wrong. This is the downstream half of that pair: past the publish line a
+    shape surprise must degrade to "nothing proposed", never take the run down.
+    """
+    proposal = entry.get("promotion_proposal") if isinstance(entry, dict) else None
+    return proposal if isinstance(proposal, dict) else {}
+
+
 def _promotions_v2(issue):
     """`(entity_id, read_through)` for every entity this issue types onto the program."""
     for entry in issue.get("competitors") or []:
@@ -373,8 +392,7 @@ def _promotions_v2(issue):
     for entry in issue.get("newly_discovered") or []:
         if not isinstance(entry, dict) or not entry.get("entity_id"):
             continue
-        proposal = entry.get("promotion_proposal") or {}
-        if proposal.get("promote_to_competitors"):
+        if _promotion_proposal(entry).get("promote_to_competitors"):
             yield entry["entity_id"], entry.get("read_through") or {}
 
 
@@ -390,7 +408,7 @@ def _log_interest_proposals_v2(issue) -> None:
     for entry in issue.get("newly_discovered") or []:
         if not isinstance(entry, dict):
             continue
-        proposed = (entry.get("promotion_proposal") or {}).get("proposes_interest")
+        proposed = _promotion_proposal(entry).get("proposes_interest")
         if proposed:
             log.info(
                 "publish: interest proposed (%s) for %s — recorded as a finding, "
@@ -572,7 +590,7 @@ def _apply_promotions(root: Path, issue, state: State, run_id: str, date: str) -
     changed = False
 
     for entry in issue.get("new_on_radar") or []:
-        proposal = (entry or {}).get("promotion_proposal") or {}
+        proposal = _promotion_proposal(entry)
         if not proposal.get("promote_to_watchlist"):
             continue
         entity_id = entry.get("entity_id")

@@ -1,0 +1,28 @@
+{
+  "program_id": "hmbd-001",
+  "generated_at": "2026-07-18T22:58:38.196694",
+  "issues": [
+    {
+      "id": "2026-07-18",
+      "published_at": "2026-07-18T22:58:38.196694",
+      "coverage_window": {
+        "from": "2026-07-11",
+        "to": "2026-07-18"
+      },
+      "status": "published",
+      "headline_title": "A HER3 ADC just won its second China approval \u2014 in squamous histology",
+      "stats": {
+        "competitors_moved": 0,
+        "sources_cited": 5,
+        "indications_covered": 2,
+        "newly_discovered": 2
+      },
+      "flags": [
+        "calendar_stale",
+        "arena_scan_dormant",
+        "dangling_entity",
+        "uncited_claim"
+      ]
+    }
+  ]
+}

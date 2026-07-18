@@ -430,3 +430,55 @@ class TestTheRecipe:
         _publish(root, _issue("2026-07-18"))
 
         assert (root / "issues" / "sibling" / "index.json").read_text() == before
+
+
+class TestTheFirstLiveRunsCrash:
+    """Regression: the manager emitted prose where [07] specifies an object.
+
+    Nothing caught it — not the manager seam, not the validator, not the critic —
+    and it surfaced as an AttributeError in the state-edit writer AFTER the issue
+    was published, costing the run its git commit. Two fixes, both pinned here:
+    the gate now blocks the shape, and the writer degrades instead of crashing.
+    """
+
+    def _issue_with_prose_proposal(self):
+        return {
+            "newly_discovered": [
+                {
+                    "entity_id": "asset_iza_bren",
+                    "promotion_proposal": "Promote to the typed roster as a target_twin.",
+                }
+            ]
+        }
+
+    def test_the_validator_blocks_a_prose_promotion_proposal(self):
+        from researchswarm.validator import _check_malformed_promotion_proposal
+
+        problems = []
+        _check_malformed_promotion_proposal(self._issue_with_prose_proposal(), problems)
+        assert len(problems) == 1
+        assert problems[0].kind == "malformed_promotion_proposal"
+        assert "got str" in problems[0].note
+
+    def test_a_well_formed_proposal_passes(self):
+        from researchswarm.validator import _check_malformed_promotion_proposal
+
+        problems = []
+        _check_malformed_promotion_proposal(
+            {"newly_discovered": [{"entity_id": "e", "promotion_proposal": {"promote_to_competitors": False}}]},
+            problems,
+        )
+        assert problems == []
+
+    def test_an_absent_proposal_is_not_a_finding(self):
+        from researchswarm.validator import _check_malformed_promotion_proposal
+
+        problems = []
+        _check_malformed_promotion_proposal({"newly_discovered": [{"entity_id": "e"}]}, problems)
+        assert problems == []
+
+    def test_the_state_writer_degrades_rather_than_crashing(self):
+        """It runs after publish, so a crash costs the commit — never worth it."""
+        from researchswarm.state_edits import _promotions_v2
+
+        assert list(_promotions_v2(self._issue_with_prose_proposal())) == []
