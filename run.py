@@ -33,11 +33,18 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime
 from pathlib import Path
 
-from researchswarm.apertures import plan_apertures
+from researchswarm.apertures import (
+    cap_receipt,
+    company_ids_from_entities,
+    plan_apertures,
+    plan_dossier_scans,
+)
 from researchswarm.beats import load_beats
 from researchswarm.cadence import (
     is_run_day,
@@ -55,6 +62,7 @@ from researchswarm.calendar import (
     write_verified_dates,
 )
 from researchswarm.critique import run_critique_stage, run_critique_stage_v2
+from researchswarm.dossiers import load_company_dossiers
 from researchswarm.manager import ManagerFailed, load_models
 from researchswarm.programs import (
     load_edges,
@@ -63,7 +71,7 @@ from researchswarm.programs import (
     load_program,
     program_roster,
 )
-from researchswarm.prompts import RunContext, load_template
+from researchswarm.prompts import RunContext, load_template, render_dossier_prompt
 from researchswarm.publish import (
     derive_full_stats,
     git_commit_run,
@@ -74,11 +82,13 @@ from researchswarm.publish import (
     stamp_run_fields,
 )
 from researchswarm.research import (
+    persist_findings_v2,
     render_all_prompts,
     render_all_prompts_v2,
     run_research_stage,
     run_research_stage_v2,
 )
+from researchswarm.researcher import ResearcherFailed, run_researcher_v2
 from researchswarm.runs import (
     LOOKBACK_FLOOR,
     latest_covering_issue,
@@ -87,7 +97,7 @@ from researchswarm.runs import (
     resolve_run_id,
 )
 from researchswarm.state import _load_json as load_state_json, check_entity_refs, load_state
-from researchswarm.state_edits import apply_state_edits_v2
+from researchswarm.state_edits import apply_dossier_edits_v2, apply_state_edits_v2
 from researchswarm.stub import PublishedIssueExists
 from researchswarm.synthesis import (
     RESEARCHER_MODEL_DEFAULT,
@@ -253,6 +263,24 @@ RESEARCHER_MODEL_DEFAULT_V2 = RESEARCHER_MODEL_DEFAULT
 # deliberately not here: a role with a fallback has nothing to gate on.
 REQUIRED_MODEL_ROLES_V2 = ("manager", "critic")
 
+# ⚑ KNOWN GAP, wired the same honest way as COMPETITORS_IN_WINDOW_V2 above. Spec
+# #92 lists a MATERIAL EVENT as the third dossier trigger — "an acquisition or a
+# discontinuation must not wait for the dial" — and `apertures.plan_dossier_scans`
+# takes that set as a CALLER-SUPPLIED parameter, so the seam is live code. What is
+# missing is the SOURCE: nothing in config or state marks an entity as having had
+# a material event this cycle, and deriving one from the previous issue's prose
+# would be a judgement call, which by this file's own rule belongs in a prompt and
+# not in an `if` here. So the honest value is the empty set: the other two triggers
+# (first sighting, the quarterly dial) still fire, and no dossier is refreshed on a
+# guess. The day an event source is decided, this constant is what changes.
+MATERIAL_EVENT_IDS_V2: frozenset[str] = frozenset()
+
+# The dossier scan's own prompt document. A FOURTH template beside researcher-v2:
+# the dossier aperture is window-exempt, and the shared researcher template
+# hard-codes the coverage window into its output contract, so a scope block could
+# not repeal it (prompts/dossier-scan.md states this in full).
+DOSSIER_TEMPLATE_V2 = "dossier-scan.md"
+
 
 def _require_model_roles_v2(models_config: dict) -> None:
     """Every subscripted model role is present at Stage 0, or the run never starts.
@@ -339,7 +367,187 @@ def _default_publisher_v2(now: datetime):
     return publisher
 
 
-def _main_v2(args, *, root: Path, now: datetime, publisher=None) -> int:
+# ---------------------------------------------------------------------------
+# The fourth aperture kind — dossier scans (spec #92)
+# ---------------------------------------------------------------------------
+#
+# Everything below is SUBORDINATE to the cycle's intelligence. A dossier is
+# background gathering: it answers "who is this company", not "what moved this
+# window", and spec #92 is explicit that a failed, capped or dormant dossier scan
+# DEGRADES the run rather than failing it. So every function here is total — the
+# worst outcome any of them may produce is "no dossier this cycle", never an
+# exception. A crash in this path would kill a run whose real product (the issue)
+# was already gathered, and in the tail of the machine it would kill it AFTER
+# publishing. That bug has shipped five times in this repo.
+
+
+def _plan_dossier_scans_v2(root: Path, entities, today: date):
+    """Which companies need a dossier scan this run. Returns a list of Apertures.
+
+    Two decisions live here and nowhere else:
+
+    * **The candidate set comes from the shared entity layer**
+      (`company_ids_from_entities`), which is how DISCOVERY FEEDS THE ROSTER
+      (spec #92 story 40). A competitor first sighted in cycle N is written into
+      `state/entities/` by that cycle's state edits; cycle N+1's planner therefore
+      sees a company with no dossier and queues its first scan, so the roster
+      deepens automatically as it widens rather than being bounded by what a human
+      remembered to seed. No hand-maintained queue file is needed for that, and
+      inventing one would put a second source of truth beside the entity layer.
+    * **The triggers are the planner's**, not this file's: first sighting, a
+      material event, then the ⚑ quarterly dial, in that precedence order. run.py
+      supplies the inputs (what we hold, what day it is) and asks.
+
+    The prior records are read from disk here rather than passed in because they
+    are the planner's INPUT, and reading them is cheap: a run with no dossiers on
+    disk reads an absent directory and gets `{}`.
+    """
+    try:
+        held = load_company_dossiers(root)
+        company_ids = company_ids_from_entities(entities)
+        return plan_dossier_scans(
+            company_ids,
+            dossiers=held,
+            today=today,
+            material_events=MATERIAL_EVENT_IDS_V2,
+        )
+    except Exception as exc:  # noqa: BLE001 — background gathering never fails the run
+        log.warning("dossier planning failed (%s) — no dossier scans this cycle", exc)
+        return []
+
+
+def _run_one_dossier_scan_v2(
+    aperture, template, ctx, root, *, program_id, entities, dossiers, known_entity_ids,
+    model, as_of: str, runner,
+) -> dict:
+    """Scan one company's history. Returns its findings envelope, or raises ResearcherFailed.
+
+    The aperture is asked for its own properties rather than tested for its kind
+    (spec #92: the window exemption "must be explicit in the aperture's own
+    definition rather than a special case"). Hence `aperture.window_bounded`
+    deciding what window the researcher echoes: a dossier scan hands `None`,
+    because its subject is history and a window would truncate a founding story
+    to nothing — the same rule a seven-day window recently used to discard a
+    $1.1B acquisition.
+
+    Identity is seeded from the prior record first and the entity record second,
+    which is the propagation contract applied to identity: an established,
+    provenanced name outranks the one a discovery finding happened to spell.
+    Deliberately NOT seeded from the program: a dossier is shared across programs,
+    so program-relative steering must not reach its prompt.
+    """
+    entity_id = aperture.scope
+    prompt = render_dossier_prompt(
+        template,
+        aperture,
+        dossier=dossiers.get(entity_id),
+        candidate=entities.get(entity_id) if isinstance(entities, dict) else None,
+        as_of=as_of,
+        ctx=ctx,
+    )
+    result = run_researcher_v2(
+        aperture,
+        prompt,
+        model=model,
+        program_id=program_id,
+        run_id=ctx.run_id,
+        window=ctx.window if aperture.window_bounded else None,
+        known_entity_ids=known_entity_ids,
+        runner=runner,
+    )
+    findings = result.findings
+
+    # The cost cap, turned into a receipt rather than a silent truncation. The
+    # receipt rides on the envelope's `errors[]`, which is exactly where
+    # `state_edits._dossier_degradation_v2` looks for the record's
+    # `coverage.degradation` — so a capped scan lands on the page as UNMEASURED
+    # rather than reading as a small company.
+    receipt = cap_receipt(aperture, findings.get("spend") if isinstance(findings, dict) else None)
+    if receipt and isinstance(findings, dict):
+        errors = findings.get("errors")
+        findings["errors"] = (errors if isinstance(errors, list) else []) + [
+            f"{receipt['degradation']}: exceeded {', '.join(receipt['exceeded'])} "
+            f"(cap {receipt['cap']}, spend {receipt['spend']})"
+        ]
+        log.warning("%s: cost cap exceeded — %s", aperture.id, receipt["exceeded"])
+
+    persist_findings_v2(root, ctx.run_id, aperture.id, findings)
+    return findings
+
+
+def _run_dossier_scans_v2(
+    dossier_apertures, template, ctx, root, *, program_id, entities, known_entity_ids,
+    model, as_of: str, runner,
+):
+    """Fan out the dossier scans beside the cycle's apertures. `(corpus, degraded)`.
+
+    Threads, and one per scan, for the same reason the cycle fan-out uses them: a
+    researcher is a subprocess blocked on the network for minutes. The corpus is
+    rebuilt in ROSTER order afterwards, never completion order, so the run's
+    artifacts are deterministic.
+
+    The corpus is kept SEPARATE from `stage.findings_by_aperture` on purpose. That
+    corpus is rendered into the manager's prompt and handed to the critic, and
+    spec #92 puts authorship of dossier facts out of scope for this work ("no
+    read-through is authored from the dossier"). Feeding it in would invite the
+    manager to interpret a shared record inside one program's issue, which is the
+    exact leak the facts-only rule exists to prevent. The dossier corpus goes one
+    place: the state-edit path, which writes the shared store.
+
+    A scan that RETURNED NOTHING is in the corpus with `quiet: true`; a scan that
+    DID NOT RUN is in `degraded` and absent from the corpus (story 38). The two
+    are never confused, and both are logged in their own voice.
+    """
+    corpus: dict[str, dict] = {}
+    degraded: list[str] = []
+    if not dossier_apertures:
+        return corpus, degraded
+
+    dossiers = load_company_dossiers(root)
+    with ThreadPoolExecutor(max_workers=len(dossier_apertures)) as pool:
+        futures = {
+            pool.submit(
+                _run_one_dossier_scan_v2,
+                aperture, template, ctx, root,
+                program_id=program_id,
+                entities=entities,
+                dossiers=dossiers,
+                known_entity_ids=known_entity_ids,
+                model=model,
+                as_of=as_of,
+                runner=runner,
+            ): aperture
+            for aperture in dossier_apertures
+        }
+        for future in as_completed(futures):
+            aperture = futures[future]
+            try:
+                corpus[aperture.id] = future.result()
+            except ResearcherFailed as exc:
+                log.warning("%s: DOSSIER SCAN FAILED — %s", aperture.id, exc)
+                degraded.append(aperture.id)
+            except Exception as exc:  # noqa: BLE001 — a dossier never fails the run
+                log.warning("%s: DOSSIER SCAN ERRORED — %s", aperture.id, exc)
+                degraded.append(aperture.id)
+
+    ordered = {a.id: corpus[a.id] for a in dossier_apertures if a.id in corpus}
+    for aperture_id, findings in ordered.items():
+        log.info(
+            "%s: %s",
+            aperture_id,
+            "scanned, nothing to record (quiet)"
+            if findings.get("quiet")
+            else f"dossier returned, {len(findings.get('findings') or [])} datable finding(s)",
+        )
+    if degraded:
+        log.warning(
+            "dossier scans degraded: %s — the cycle continues without them",
+            ", ".join(degraded),
+        )
+    return ordered, degraded
+
+
+def _main_v2(args, *, root: Path, now: datetime, publisher=None, runner=None) -> int:
     """Stages 0-6 for one program detective. The v2 twin of `main`'s body.
 
     Additive beside v1 and dispatch-free inside each stage, exactly as every other
@@ -481,6 +689,21 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None) -> int:
         len(apertures), len(active), ", ".join(a.id for a in active),
     )
 
+    # The fourth kind joins the fan-out (spec #92). Planned SEPARATELY because
+    # `plan_apertures` is a total function of CONFIG and stays `1 + N + 1`, while a
+    # dossier scan is a function of STATE: which companies we know, how old their
+    # records are, what just happened to them. Most cycles plan none, which is the
+    # slow dial working rather than a failure.
+    dossier_apertures = _plan_dossier_scans_v2(root, entities, today)
+    if dossier_apertures:
+        log.info(
+            "dossier scans: %d planned (%s)",
+            len(dossier_apertures),
+            ", ".join(f"{a.scope} ({a.trigger})" for a in dossier_apertures),
+        )
+    else:
+        log.info("dossier scans: none due — every company record is inside the refresh dial")
+
     ctx = RunContext(
         run_id=run_id,
         coverage_window_from=window.from_.isoformat(),
@@ -497,6 +720,18 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None) -> int:
     except (FileNotFoundError, ValueError) as exc:
         return _config_error(exc)
 
+    # The dossier template is loaded SOFTLY, unlike the five above. A missing
+    # manager template is a broken run; a missing dossier template costs the run
+    # its background gathering and nothing else, and #92 is explicit that
+    # background gathering is subordinate to the cycle's intelligence.
+    dossier_template = None
+    if dossier_apertures:
+        try:
+            dossier_template = load_template(root / "prompts" / DOSSIER_TEMPLATE_V2)
+        except (FileNotFoundError, ValueError) as exc:
+            log.warning("%s — dossier scans skipped, the cycle continues", exc)
+            dossier_apertures = []
+
     if args.dry_run:
         rendered = render_all_prompts_v2(
             active, researcher_template, program=program, interests=interests,
@@ -504,6 +739,17 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None) -> int:
         )
         for aperture_id, prompt in rendered.items():
             log.info("[dry-run] %s: rendered %d chars, no placeholders left", aperture_id, len(prompt))
+        held = load_company_dossiers(root)
+        for aperture in dossier_apertures:
+            prompt = render_dossier_prompt(
+                dossier_template,
+                aperture,
+                dossier=held.get(aperture.scope),
+                candidate=entities.get(aperture.scope),
+                as_of=today.isoformat(),
+                ctx=ctx,
+            )
+            log.info("[dry-run] %s: rendered %d chars, no placeholders left", aperture.id, len(prompt))
         log.info("[dry-run] complete — nothing called, nothing written")
         return EXIT_OK
 
@@ -520,6 +766,19 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None) -> int:
         apertures, researcher_template, ctx, root,
         program=program, interests=interests, edges=edges, thesis=thesis,
         known_entity_ids=known_entity_ids, model=researcher_model,
+        runner=runner or subprocess.run,
+    )
+
+    # The dossier fan-out rides beside the cycle's, on the same model and the same
+    # transport, and is NEVER allowed to decide the run's fate: its corpus is
+    # collected here and spent in stage 6, and every failure mode inside it is a
+    # degradation. The `all_failed` check below therefore reads the CYCLE stage
+    # alone — a run whose apertures all died is a stub even if a dossier landed,
+    # and a run whose dossiers all died still publishes its issue.
+    dossier_corpus, dossiers_degraded = _run_dossier_scans_v2(
+        dossier_apertures, dossier_template, ctx, root,
+        program_id=program.id, entities=entities, known_entity_ids=known_entity_ids,
+        model=researcher_model, as_of=today.isoformat(), runner=runner or subprocess.run,
     )
 
     if stage.all_failed:
@@ -654,12 +913,31 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None) -> int:
         ", ".join(str(p.relative_to(root)) for p in touched) or "none (a quiet cycle)",
     )
 
+    # The dossier writes go through the same state-edit path as everything else, so
+    # `run.py` stays the sole writer (spec #92 story 36) and the files land in the
+    # run's ONE commit below. Guarded, and the guard is the point: this is past the
+    # publish line, where a crash would cost a published run its commit, and the
+    # dossier is background gathering — it degrades, it never fails the cycle.
+    try:
+        dossier_paths = apply_dossier_edits_v2(
+            root, dossier_corpus, run_id=run_id, issue_id=today.isoformat(), now=now
+        )
+    except Exception as exc:  # noqa: BLE001 — a dossier write never fails the run
+        log.warning("dossier state edits failed (%s) — the issue is published regardless", exc)
+        dossier_paths = []
+    log.info(
+        "dossier edits: %s%s",
+        ", ".join(str(p.relative_to(root)) for p in dossier_paths)
+        or ("none (nothing new about the companies we hold)" if dossier_corpus else "none scanned"),
+        f" — {len(dossiers_degraded)} scan(s) degraded" if dossiers_degraded else "",
+    )
+
     # One commit for the whole run, citing the run_id (spec/09 stage 6 step 5). A
     # failed commit is NOT a failed run: the artifacts are on disk either way.
     committed = git_commit_run(
         root,
         run_id,
-        [p for p in [*touched, *artifacts] if p is not None],
+        [p for p in [*touched, *dossier_paths, *artifacts] if p is not None],
         message=f"run {run_id}: {program.id} {today.isoformat()} ({critic.status})",
     )
     log.info(
@@ -669,7 +947,15 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None) -> int:
     return EXIT_OK
 
 
-def main(argv: list[str] | None = None, *, publisher=None) -> int:
+def main(argv: list[str] | None = None, *, publisher=None, runner=None) -> int:
+    """The CLI entry point. `publisher` and `runner` are the two injection seams.
+
+    `runner` is the SUBPROCESS runner every researcher shells out through
+    (`subprocess.run` in production). Threading it from here is what lets a test
+    drive the whole v2 spine — the cycle fan-out and the dossier fan-out both —
+    against canned envelopes without reaching a model, which the offline guard in
+    `researcher.run_researcher_v2` otherwise refuses outright.
+    """
     args = _parse_args(argv)
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
@@ -689,7 +975,7 @@ def main(argv: list[str] | None = None, *, publisher=None) -> int:
     # detective and selects the v2 stage machine WHOLE. v1 below is untouched and
     # is deleted as its own ticket.
     if args.program:
-        return _main_v2(args, root=root, now=now, publisher=publisher)
+        return _main_v2(args, root=root, now=now, publisher=publisher, runner=runner)
     if args.push:
         return _config_error(
             ValueError("--push is a per-program trigger — it requires --program <id>")
