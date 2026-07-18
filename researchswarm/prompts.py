@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-from researchswarm.apertures import Aperture
+from researchswarm.apertures import ARENA_SCAN, BIOLOGY_SCAN, HOUSE_SWEEP, Aperture
 from researchswarm.beats import Beat
 from researchswarm.calendar import SurgeState
 from researchswarm.critic import REAFFIRMED
@@ -211,6 +211,187 @@ def render_researcher_prompt(
         "catalyst_queue_active": _catalyst_queue_active(state),
     }
 
+    return _substitute(template, values)
+
+
+# ---------------------------------------------------------------------------
+# The v2 researcher prompt — one template, N apertures (spec/04).
+#
+# Additive alongside the v1 render_researcher_prompt above, exactly like the v2
+# manager renderer is additive alongside the v1 manager: the engine dispatches on
+# schema_version, so the two prompts run side by side while the pipeline migrates.
+# Nothing here touches the v1 path — render_researcher_prompt, its beat helpers and
+# its tests are unchanged. What changed is the scope unit: the six fixed beats
+# became three aperture KINDS (biology_scan / arena_scan / house_sweep), and the
+# per-beat charter became a per-aperture SCOPE block. The rules below the scope —
+# the read-only wall, the sourcing tiers, the coverage duty, the contract — are
+# identical across apertures and live once in prompts/researcher-v2.md.
+#
+# The shared machinery is reused wholesale: _substitute (and its UnresolvedPlaceholder
+# wall), _surge_block, _window_carveout, and _render_thesis_slots. So v1 and v2
+# never drift on how a stance is shown, what counts as in-window, or how a leftover
+# placeholder is caught.
+# ---------------------------------------------------------------------------
+
+
+def _aperture_scope_block(aperture: Aperture) -> str:
+    """The per-kind SCOPE block — the ONE thing that differs across apertures.
+
+    Everything else in the researcher template is identical for all three kinds
+    (spec/04 "one template, N apertures"); this is where a biology scan, an arena
+    scan and a house sweep part ways. The block names the relation classes each
+    kind carries and — crucially for the house sweep — the `house_lens` tagging
+    duty and the folded-in discovery + blind-spot work, so the one conditional
+    field in the contract (`house_lens`, house_sweep-only) is grounded in prose the
+    model actually read rather than left as a bare comment.
+
+    `aperture.scope` (e.g. `target=HER3 (ERBB3), moa=signalling_blockade`, or an
+    indication id) is echoed literally so the scope string the run planned and the
+    scope the researcher scans are provably the same value.
+    """
+    if aperture.kind == BIOLOGY_SCAN:
+        return (
+            "BIOLOGY SCAN (1 per program) — target + MOA, INDICATION-BLIND.\n"
+            f"Scope: {aperture.scope}.\n"
+            "You carry the program's biology across EVERY indication. Chase two\n"
+            "relation classes (report the fact; you do NOT type them — that is the\n"
+            "manager's):\n"
+            "- mechanism twins: same target AND same MOA — a true rival to the thesis.\n"
+            "- target twins: same target, DIFFERENT MOA (e.g. a HER3 ADC vs a HER3\n"
+            "  signalling antibody) — validates the target, not the mechanism.\n"
+            "On an off-roster find, attach a proposed_relation as a PROPOSAL only.\n"
+            "house_lens stays null for this aperture."
+        )
+    if aperture.kind == ARENA_SCAN:
+        return (
+            f"ARENA SCAN — ONE indication: {aperture.scope} (indication × line ×\n"
+            "biomarker). You carry THIS setting's patients. Chase two relation\n"
+            "classes (report the fact; the manager types them):\n"
+            "- setting rivals: share the PATIENTS, not the biology.\n"
+            "- benchmark / SOC: the bar the setting is measured against.\n"
+            "Stay inside this indication — the biology scan carries the cross-\n"
+            "indication target/mechanism twins, so you need not chase them here.\n"
+            "house_lens stays null for this aperture."
+        )
+    if aperture.kind == HOUSE_SWEEP:
+        return (
+            "HOUSE SWEEP (1, fixed) — the wider oncology board, aimed.\n"
+            f"Scope: {aperture.scope}.\n"
+            "TWO LENSES on ONE scan (a shallow tag, NOT two scans) — set each\n"
+            "finding's house_lens to the lens it answers:\n"
+            "- partnership_bd: deals, licensing, collaborations, M&A that reshape\n"
+            "  the board.\n"
+            "- threat_financing: financings, competitive raises, and platform\n"
+            "  threats (a modality engine that can be re-aimed at the program).\n"
+            "PLUS blind-spot detection: name what the free-feed detective cannot\n"
+            "see — China-first assets (CDE/chictr, HKEX financings), language-gated\n"
+            "feeds, paywalled analyst interpretation — so the manager can RANK the\n"
+            "gap rather than mistake silence for absence.\n"
+            "Discovery is FOLDED IN here: an off-roster entity you surface carries\n"
+            "entity_ids: [] and a proposed_entity — a CANDIDATE, never an edge.\n"
+            "house_lens is REQUIRED on every house_sweep finding (it is null for the\n"
+            "other apertures)."
+        )
+    # A defensive default: a new aperture kind should not silently ship a template
+    # with no scope guidance. Better a visible, honest gap than an invented scope.
+    return f"Scope: {aperture.scope}. (No kind-specific scope guidance for '{aperture.kind}'.)"
+
+
+def _researcher_competitor_roster_v2(program: Program, edges: list[Edge]) -> str:
+    """The coverage-duty roster the researcher is held against: `entity_id · relation`.
+
+    Typed edges first (in edge order), then the cold-start `seed_competitors` not
+    yet on an edge, rendered `(seed — untyped)` so the researcher knows it still
+    covers them even though the manager has not typed them. Ordering is stable so
+    the audit is diffable.
+
+    The read-through is DELIBERATELY excluded — exactly the principle by which the
+    v1 `_watchlist_roster` excludes `why_tracked`: a read-through is the manager's
+    interpretation, and a researcher handed a summary is handed a conclusion. The
+    researcher gets the vocabulary (the slug) and the coverage target (the relation
+    it is checking against), not the argument. Names are absent too: the shared
+    `state/entities/` layer is the manager's to resolve, and the entity_id slug IS
+    the spine the researcher writes findings against.
+    """
+    lines: list[str] = []
+    typed = {e.entity_id for e in edges}
+    for edge in edges:
+        lines.append(f"- {edge.entity_id} · {edge.relation}")
+    for slug in program.seed_competitors:
+        if slug in typed:
+            continue  # already surfaced above as a typed edge
+        lines.append(f"- {slug} · (seed — untyped)")
+    return "\n".join(lines) if lines else "- (no competitors typed or seeded yet)"
+
+
+def _researcher_interest_list_v2(interests: InterestList) -> str:
+    """The steering wheel as `tier · note` lines — the researcher's slice of it.
+
+    Only `tier · note`: the note steers what the researcher NOTICES and the tier
+    marks its coverage-duty bar (a strong-tier interest in scope must be checked).
+    The version stamp and the rot marker are omitted here on purpose — rot is a
+    fail-visible degradation the MANAGER stamps on the digest (spec/06 register),
+    not something a fact-gathering researcher acts on. Handing it here would be
+    noise against a duty the researcher cannot discharge.
+    """
+    if not interests.interests:
+        return "- (no interests seeded)"
+    return "\n".join(f"- {i.tier} · {i.note}" for i in interests.interests)
+
+
+def render_researcher_prompt_v2(
+    template: str,
+    aperture: Aperture,
+    *,
+    program: Program,
+    interests: InterestList,
+    edges: list[Edge],
+    thesis: dict,
+    ctx: RunContext,
+) -> str:
+    """Interpolate ONE aperture's researcher prompt. Raises on a leftover placeholder.
+
+    The v2 counterpart of `render_researcher_prompt`: one shared template
+    (`prompts/researcher-v2.md`), one aperture per call. The only thing that
+    differs across the `1 + N + 1` apertures is `aperture_scope` — the biology /
+    arena / house scope block; every rule below it is byte-identical, which is the
+    whole point of "one template, N apertures" (spec/04).
+
+    Reuses the shared machinery so v1 and v2 cannot drift: `_surge_block` /
+    `_window_carveout` from `ctx.surge` (empty / "No carve-outs." on a baseline
+    run, the conference window + carve-out inside a verified surge), and
+    `_render_thesis_slots` for the lens (read fresh, dormant slots marked,
+    provenance attached). The propagation contract binds the researcher exactly as
+    it binds the manager: stance text is interpolated, never baked into the file,
+    so an owner who edits a stance sees the next run's findings chased under the
+    new lens.
+
+    The competitor roster (`edges` + `program.seed_competitors`) and the interest
+    list are the coverage duty; the catalyst queue is a STANDING DUTY stated as a
+    rule in the template rather than interpolated — the researcher references any
+    transition it observes by item id in `catalyst_refs`, and the manager holds the
+    authoritative queue.
+    """
+    values = {
+        "program_id": program.id,
+        "program_name": program.name,
+        "program_sponsor": program.sponsor,
+        "program_modality": program.modality,
+        "program_target": program.target,
+        "program_moa": program.moa,
+        "aperture_id": aperture.id,
+        "aperture_kind": aperture.kind,
+        "aperture_scope": _aperture_scope_block(aperture),
+        "run_id": ctx.run_id,
+        "coverage_window_from": ctx.coverage_window_from,
+        "coverage_window_to": ctx.coverage_window_to,
+        "surge_block": _surge_block(ctx.surge),
+        "window_carveout": _window_carveout(ctx.surge),
+        "competitor_roster": _researcher_competitor_roster_v2(program, edges),
+        "interest_list": _researcher_interest_list_v2(interests),
+        "thesis_version": str(thesis.get("version", "?")),
+        "thesis_slots": _render_thesis_slots(thesis.get("beliefs", [])),
+    }
     return _substitute(template, values)
 
 
