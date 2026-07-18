@@ -232,6 +232,76 @@ class TestUnaccountedEntity:
         assert "unaccounted_entity" not in _kinds(result)
 
 
+class TestArenaDormancyAndTheV2Register:
+    def test_the_samples_dormant_nrg1_arena_is_exempted(self):
+        # nrg1 arena is empty but carries arena_scan_dormant, and apertures_run /
+        # apertures_degraded confirm it — no empty_section for that arena
+        issue = _load_sample()
+        result = validate_issue(issue, state=_state_for(issue))
+        arenas = [f.where for f in result.blocking if f.kind == "empty_section"]
+        assert not any("nrg1" in w for w in arenas)
+
+    def test_an_empty_arena_with_no_degradation_blocks(self):
+        issue = _load_sample()
+        # strip nrg1's dormancy marker — now the empty arena is unexplained
+        nrg1 = next(i for i in issue["indications"] if i["indication_id"] == "nrg1-fusion-solid-tumors")
+        nrg1["treatment_landscape"].pop("degradation", None)
+        result = validate_issue(issue, state=_state_for(issue))
+        assert any(
+            f.kind == "empty_section" and "nrg1" in f.where for f in result.blocking
+        )
+
+    def test_an_off_topic_degradation_kind_does_not_explain_an_empty_arena(self):
+        issue = _load_sample()
+        nrg1 = next(i for i in issue["indications"] if i["indication_id"] == "nrg1-fusion-solid-tumors")
+        nrg1["treatment_landscape"]["degradation"] = {"kind": "calendar_stale", "marker": "x"}
+        result = validate_issue(issue, state=_state_for(issue))
+        assert any(
+            f.kind == "empty_section" and "nrg1" in f.where for f in result.blocking
+        )
+
+    def test_a_dormancy_marker_the_apertures_do_not_confirm_blocks(self):
+        issue = _load_sample()
+        # keep the marker but scrub the mechanical evidence: no apertures_degraded
+        # entry and the apertures_run status flipped to ok
+        method = issue["sources_and_method"]
+        method["apertures_degraded"] = []
+        for entry in method.get("apertures_run", []):
+            if entry.get("aperture") == "arena_scan" and entry.get("scope") == "nrg1-fusion-solid-tumors":
+                entry["status"] = "ok"
+        result = validate_issue(issue, state=_state_for(issue))
+        assert any(
+            f.kind == "empty_section" and "nrg1" in f.where for f in result.blocking
+        )
+
+    def test_interest_list_stale_files_a_visible_advisory(self):
+        issue = _load_sample()
+        issue["sources_and_method"]["interest_list"]["rot_status"] = "stale"
+        result = validate_issue(issue, state=_state_for(issue))
+        advisory_kinds = {f.kind for f in result.advisory}
+        assert "interest_list_stale" in advisory_kinds
+        # and it is advisory, never blocking
+        assert "interest_list_stale" not in _kinds(result)
+
+    def test_a_fresh_interest_list_files_no_advisory(self):
+        issue = _load_sample()  # sample rot_status is "fresh"
+        result = validate_issue(issue, state=_state_for(issue))
+        assert "interest_list_stale" not in {f.kind for f in result.advisory}
+
+    def test_the_v2_register_vocabulary_matches_the_spec_table(self):
+        from researchswarm.validator import DEGRADATION_REGISTER_V2
+
+        assert DEGRADATION_REGISTER_V2 == {
+            "thesis_unseeded",
+            "quiet_cycle",
+            "calendar_stale",
+            "arena_scan_failed",
+            "arena_scan_dormant",
+            "china_feed_partial",
+            "interest_list_stale",
+        }
+
+
 class TestPortedSpineChecks:
     def test_a_dangling_entity_ref_blocks(self):
         issue = _load_sample()
