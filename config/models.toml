@@ -15,6 +15,13 @@
 # catches what a same-family critic would share the blind spot on.
 
 [models]
+# The v2 aperture fan-out's model. v1 read a researcher's model from beats.toml
+# (a per-BEAT override, which is why researchers were not a role here); the pivot
+# replaced beats with apertures DERIVED from the program config, so there is no
+# beats.toml and no per-aperture axis to override on. That makes the researcher a
+# role like the other three, and this is its one home — read by both the fan-out
+# and the issue's models block, so the id invoked and the id recorded cannot drift.
+researchers = "claude-sonnet-5"
 manager = "claude-opus-4-8"
 critic = "gpt-5-codex"
 
