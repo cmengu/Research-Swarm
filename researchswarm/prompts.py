@@ -17,14 +17,23 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from typing import Any
 
-from researchswarm.apertures import ARENA_SCAN, BIOLOGY_SCAN, HOUSE_SWEEP, Aperture
+from researchswarm.apertures import (
+    ARENA_SCAN,
+    BIOLOGY_SCAN,
+    DOSSIER_COST_CAP,
+    HOUSE_SWEEP,
+    Aperture,
+)
 from researchswarm.beats import Beat
 from researchswarm.calendar import SurgeState
 from researchswarm.critic import REAFFIRMED
+from researchswarm.dossiers import DOSSIER_SECTIONS, assets_of_company
 from researchswarm.programs import Edge, InterestList, Program, program_roster
 from researchswarm.state import State
 
@@ -411,6 +420,304 @@ def _substitute(template: str, values: dict[str, str]) -> str:
         return values[key]
 
     return PLACEHOLDER.sub(substitute, template)
+
+
+# ---------------------------------------------------------------------------
+# dossier_scan — the fourth aperture kind (#92)
+#
+# Its own renderer, for the same reason it has its own template file: the
+# subject is a COMPANY rather than a molecule, and the aperture is EXEMPT from
+# the coverage window. Reusing `render_researcher_prompt_v2` would have meant
+# handing the dossier template a `coverage_window_from` / `coverage_window_to`
+# pair it deliberately does not carry, and handing the shared template a scope
+# block that cannot repeal the window rule stated above it.
+#
+# The program-relative values the v2 researcher renderer interpolates —
+# `thesis_slots`, `interest_list`, `competitor_roster` — are DELIBERATELY absent
+# here. A dossier is shared across every program (spec/03, #92 "A dossier is
+# shared; an opinion is not"), so steering it with one program's stance would
+# bake that program's lens into a record every other program then inherits. The
+# absence is the same absence that keeps `read_through` and `priority` on the
+# relation edge.
+#
+# TOTAL AND CRASH-PROOF by contract, exactly as `dossiers` and `apertures` are.
+# Every input below (the prior record, the discovery candidate, the asset list)
+# is machine-assembled from state files and model output, which in this repo has
+# repeatedly meant null, prose where a mapping was expected, a list where a dict
+# was expected, or a dict nested one level too deep. A renderer that raises on a
+# malformed prior record takes the run down before the scan that would have
+# corrected it ever ran — strictly worse than rendering an honest "(unknown)".
+# The ONE thing that still raises is an unresolved placeholder, which is not
+# adversarial input but a template/renderer contract break, and which must never
+# reach a model (see `UnresolvedPlaceholder`).
+# ---------------------------------------------------------------------------
+
+NO_DOSSIER_HELD = "(no dossier held — first scan)"
+UNKNOWN_FIELD = "(unknown — establish it)"
+NO_LINKED_ASSETS = "(none linked yet)"
+
+# The fallback tool-turn ceiling, used only when an aperture reaches here with no
+# `cost_cap` declared. `dossier_aperture` always sets one; a hand-built Aperture
+# might not, and rendering "{{tool_turn_cap}}" or "None" into a budget section
+# would read to the model as "unbounded" — the exact failure the cap exists to
+# prevent (#92 "Cost is bounded per scan").
+DEFAULT_TOOL_TURN_CAP = DOSSIER_COST_CAP.max_searches
+
+
+def _dossier_identity_facts(dossier: Any) -> dict:
+    """The prior record's `identity` fact value, or `{}` — never a raise.
+
+    A stored record is `{facts: {identity: {value: {...}, established_by, ...}}}`
+    (`dossiers.build_company_dossier_record`). Every level of that is unwrapped
+    defensively because every level has been seen malformed.
+    """
+    if not isinstance(dossier, Mapping):
+        return {}
+    facts = dossier.get("facts")
+    if not isinstance(facts, Mapping):
+        return {}
+    fact = facts.get("identity")
+    if not isinstance(fact, Mapping):
+        return {}
+    value = fact.get("value")
+    return dict(value) if isinstance(value, Mapping) else {}
+
+
+def _dossier_scalar(*candidates: Any) -> str:
+    """The first candidate that reads as real text, else the honest unknown marker.
+
+    "(unknown — establish it)" rather than an empty line: a blank after
+    `name:` reads to a model as a rendering bug and invites it to invent one,
+    which is the same failure `UnresolvedPlaceholder` exists to prevent one level
+    up.
+    """
+    for candidate in candidates:
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip()
+    return UNKNOWN_FIELD
+
+
+def _dossier_alias_line(*candidates: Any) -> str:
+    """Known aliases as a comma-joined line — the Chinese legal name lives here.
+
+    Aliases are what let a model searching HKEX/CSRC disclosure find a company
+    whose filings are under a romanisation we do not use. Accepts a list or a
+    bare string (a model asked for a list has returned a string), and de-dupes in
+    first-seen order so the line is stable and diffable.
+    """
+    out: list[str] = []
+    for candidate in candidates:
+        if isinstance(candidate, str):
+            candidate = [candidate]
+        if not isinstance(candidate, (list, tuple)):
+            continue
+        for alias in candidate:
+            text = alias.strip() if isinstance(alias, str) else ""
+            if text and text not in out:
+                out.append(text)
+    return ", ".join(out) if out else UNKNOWN_FIELD
+
+
+def _dossier_listing_line(*candidates: Any) -> str:
+    """Known listings as `EXCHANGE:TICKER` pairs.
+
+    Rendered so the scan knows WHICH filings regime to work first — an SEC
+    full-text search for an HKEX-only issuer is a wasted tool turn, and the
+    China-listed names are exactly where the tool budget is scarcest (#92, the
+    rank-1 blind spot).
+    """
+    out: list[str] = []
+    for candidate in candidates:
+        if not isinstance(candidate, (list, tuple)):
+            continue
+        for listing in candidate:
+            if not isinstance(listing, Mapping):
+                continue
+            exchange = listing.get("exchange")
+            ticker = listing.get("ticker")
+            exchange = exchange.strip() if isinstance(exchange, str) else ""
+            ticker = ticker.strip() if isinstance(ticker, str) else ""
+            text = ":".join(part for part in (exchange, ticker) if part)
+            if text and text not in out:
+                out.append(text)
+    return ", ".join(out) if out else UNKNOWN_FIELD
+
+
+def _dossier_section_lines(dossier: Any) -> list[str]:
+    """One line per section we already hold: `- <section>: <value>` as JSON.
+
+    The extend-don't-restate block. The model is told to report a field again
+    ONLY to correct or better-source it, which it can only honour if it can see
+    what the current value actually IS — so values are rendered in full rather
+    than summarised to a count. `default=str` keeps a non-serialisable value
+    (a date object that reached state through a hand edit) from raising here.
+    """
+    facts = dossier.get("facts") if isinstance(dossier, Mapping) else None
+    if not isinstance(facts, Mapping):
+        return []
+    lines: list[str] = []
+    for name in DOSSIER_SECTIONS:
+        fact = facts.get(name)
+        if not isinstance(fact, Mapping) or "value" not in fact:
+            continue
+        try:
+            rendered = json.dumps(fact["value"], ensure_ascii=False, default=str)
+        except (TypeError, ValueError):  # pragma: no cover — default=str covers ~all
+            rendered = str(fact["value"])
+        established_by = fact.get("established_by")
+        stamp = f" [established_by {established_by}]" if isinstance(established_by, str) and established_by else ""
+        lines.append(f"- {name}{stamp}: {rendered}")
+    return lines
+
+
+def _dossier_thin_line(dossier: Any) -> str:
+    """The prior scan's thin sections — this refresh's highest-value targets.
+
+    Recomputed by the writer on every merge, so this reads what we NOW hold
+    rather than what any one scan happened to see. A record with no coverage
+    block at all says so, because "not marked" and "nothing thin" are different
+    claims and the template's whole thin-section discipline rests on the
+    difference.
+    """
+    coverage = dossier.get("coverage") if isinstance(dossier, Mapping) else None
+    if not isinstance(coverage, Mapping):
+        return "(prior record marked no coverage — treat every section as unverified)"
+    thin = coverage.get("thin_sections")
+    names = [x.strip() for x in thin if isinstance(x, str) and x.strip()] if isinstance(thin, list) else []
+    if not names:
+        return "(none marked thin)"
+    return ", ".join(names)
+
+
+def _linked_assets_line(dossier: Any, assets: Any) -> str:
+    """The asset entity_ids that link to this company, from both directions.
+
+    Two directions because the store splits by kind (#92): the dossier's own
+    pipeline names its assets forward, and an asset record names its holder via
+    `held_by` — a caller that has walked `state/entities/assets/` passes those in
+    as `assets`. Rendering the union means an asset the pipeline has not caught
+    up with is still visible to the scan, which is precisely the asset most
+    likely to be missing from the dossier.
+    """
+    out: list[str] = []
+    for asset_id in assets_of_company(dossier):
+        if asset_id not in out:
+            out.append(asset_id)
+    if isinstance(assets, str):
+        assets = [assets]
+    if isinstance(assets, (list, tuple, set, frozenset)):
+        for asset_id in assets:
+            text = asset_id.strip() if isinstance(asset_id, str) else ""
+            if text and text not in out:
+                out.append(text)
+    return ", ".join(out) if out else NO_LINKED_ASSETS
+
+
+def _existing_dossier_block(dossier: Any, assets: Any) -> str:
+    """The "what we already hold" block — or an explicit first-scan marker.
+
+    The template's render-time notes are emphatic on one point: this must render
+    an explicit "(no dossier held — first scan)" when absent, so a first sighting
+    is never ambiguous with a FAILED RENDER. A blank block would read to the
+    model as "we hold nothing", which is the right answer for a first sighting
+    and a dangerous lie for a record we failed to load — and the model cannot
+    tell the two apart from an absence. Hence a stated sentence, always.
+
+    Interpretation is not rendered here for the same reason it is not stored:
+    the record carries facts only, and anything program-relative stays on the
+    relation edge (spec/03, #92).
+    """
+    lines = _dossier_section_lines(dossier)
+    if not lines:
+        return NO_DOSSIER_HELD
+
+    as_of = dossier.get("as_of") if isinstance(dossier, Mapping) else None
+    version = dossier.get("version") if isinstance(dossier, Mapping) else None
+    header = [
+        "A dossier IS held. Extend and correct it; do not restate it.",
+        f"- record as_of: {_dossier_scalar(as_of)}",
+        f"- record version: {version if isinstance(version, int) else '(unversioned)'}",
+        f"- linked assets: {_linked_assets_line(dossier, assets)}",
+        f"- marked thin by the prior scan (your highest-value targets): {_dossier_thin_line(dossier)}",
+        "",
+        "Sections held:",
+    ]
+    return "\n".join(header + lines)
+
+
+def render_dossier_prompt(
+    template: str,
+    aperture: Aperture,
+    *,
+    dossier: Any = None,
+    candidate: Any = None,
+    assets: Any = None,
+    as_of: str,
+    ctx: RunContext,
+) -> str:
+    """Interpolate ONE company's dossier-scan prompt. Raises on a leftover placeholder.
+
+    The fourth-kind counterpart of `render_researcher_prompt_v2`, and shaped like
+    it on purpose: one template argument, one aperture argument, everything else
+    keyword-only, a `RunContext` for the run's identity, and `_substitute` doing
+    the fill so a leftover `{{placeholder}}` can never reach a model from either
+    role (spec/04).
+
+    The company under scan comes from `aperture.scope`, which `dossier_aperture`
+    sets to the entity_id — so the company the run PLANNED to scan and the company
+    the prompt NAMES are provably the same value, the same guarantee
+    `aperture_scope` gives the v2 researcher renderer.
+
+    Identity is resolved with the prior record FIRST and the discovery
+    `candidate` second. That order is the propagation contract applied to
+    identity: a name we have already established and provenanced outranks the one
+    a discovery finding happened to spell, and the scan can still correct either
+    (the template's `"corrects": true` path). On a first sighting there is no
+    record and the candidate is all there is.
+
+    `ctx.coverage_window_from` / `_to` are read here and deliberately NOT
+    rendered. This aperture is window-exempt (`Aperture.window_exempt`, #92), the
+    template carries no window placeholder, and interpolating one would re-import
+    the exact rule the exemption exists to repeal — the same rule a seven-day
+    window recently used to discard a $1.1B platform acquisition.
+
+    Every argument except `template`, `as_of` and `ctx` may be null, prose, or
+    the wrong container: they are machine-assembled, and this renderer degrades
+    to an honest "(unknown — establish it)" rather than raising. The only raise
+    is `UnresolvedPlaceholder`.
+    """
+    entity_id = _dossier_scalar(
+        getattr(aperture, "scope", None), getattr(aperture, "id", None)
+    )
+    identity = _dossier_identity_facts(dossier)
+    candidate = candidate if isinstance(candidate, Mapping) else {}
+    cost_cap = getattr(aperture, "cost_cap", None)
+    max_searches = getattr(cost_cap, "max_searches", None)
+
+    values = {
+        "company_entity_id": entity_id,
+        "company_name": _dossier_scalar(
+            identity.get("legal_name"), candidate.get("name"), candidate.get("legal_name")
+        ),
+        "company_aliases": _dossier_alias_line(
+            identity.get("aliases"), candidate.get("aliases")
+        ),
+        "company_listings": _dossier_listing_line(
+            identity.get("listings"), candidate.get("listings")
+        ),
+        # The trigger is the audit trail: a model told it is refreshing a record
+        # behaves differently from one told this is a first build, and #92 asks
+        # for the reason to be legible rather than inferred.
+        "scan_trigger": _dossier_scalar(getattr(aperture, "trigger", None)),
+        "as_of": _dossier_scalar(as_of),
+        "run_id": _dossier_scalar(getattr(ctx, "run_id", None)),
+        "existing_dossier": _existing_dossier_block(dossier, assets),
+        "tool_turn_cap": str(
+            max_searches if isinstance(max_searches, int) and max_searches > 0
+            else DEFAULT_TOOL_TURN_CAP
+        ),
+    }
+    return _substitute(template, values)
 
 
 def _manager_watchlist_roster(state: State) -> str:
