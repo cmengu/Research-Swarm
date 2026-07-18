@@ -32,6 +32,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
+from researchswarm.findings import dossier_subject
 from researchswarm.state import State
 from researchswarm.validator import PROGRAM_RELATIONS, transition_brings_new_evidence
 
@@ -184,6 +185,205 @@ def apply_state_edits_v2(
 
     _log_interest_proposals_v2(issue)
     return touched
+
+
+def apply_dossier_edits_v2(
+    root: Path,
+    findings_by_aperture,
+    *,
+    run_id: str,
+    issue_id: str | None = None,
+    now: datetime | None = None,
+    date: str | None = None,
+) -> list[Path]:
+    """Persist every `dossier_scan` envelope's company dossier. Returns touched paths.
+
+    **A SEPARATE ENTRY POINT, not a branch inside `apply_state_edits_v2` — three
+    reasons, each of which would have to be argued away to merge them:**
+
+      1. *Different input.* `apply_state_edits_v2` edits state from the PUBLISHED
+         ISSUE. A dossier is not in the issue: it rides its own aperture envelope
+         in the research corpus (`findings_by_aperture`), because a dossier scan
+         answers "who is this company" and the manager never authors it. Merging
+         would mean threading a second, unrelated corpus through a function whose
+         whole signature says "the issue is the input".
+      2. *Different scope.* Everything `apply_state_edits_v2` writes is
+         program-scoped or program-derived; it takes a `program_id` and writes
+         under `state/programs/<id>/`. A dossier is program-AGNOSTIC by
+         construction (#92: "a dossier is shared across programs; a read-through
+         is not"), so passing a program_id into this path would invite exactly
+         the leak the interpretation ban exists to prevent.
+      3. *Different failure posture.* The issue-derived edits are the cycle's
+         product; a dossier is background gathering, and #92 is explicit that a
+         failed dossier scan degrades rather than fails the run. Keeping it a
+         separate call lets `run.py` order and guard it accordingly instead of
+         burying a soft-failure boundary inside a function that has none.
+
+    What it shares is the discipline, which is the part that matters ([03] and
+    story 36 — `run.py` stays the sole writer): every write cites the run, every
+    correction APPENDS a drift entry rather than overwriting, and a file is
+    rewritten only when something actually changed, so a quiet refresh cycle
+    stages nothing and the diff is exactly the edit.
+
+    All merge and record logic lives in `researchswarm.dossiers`; this function
+    is the state-edit-shaped shell over it. It re-implements no part of the
+    record shape.
+
+    TOTAL ON HOSTILE INPUT. `findings_by_aperture` may be None, a list, prose, or
+    a dict of prose; an envelope may be anything; a `dossier` value may be a
+    string or a list. Every one of those cases yields "nothing to write", never
+    an exception. This is past the publish line: a crash here would take the run
+    down *after* the issue reached disk, which is the bug this repo has shipped
+    five times.
+
+    Spec: docs/spec/03-state-and-governance.md, issue #92.
+    """
+    stamp = date or (now.date().isoformat() if isinstance(now, datetime) else None)
+    if stamp is None:
+        raise ValueError(
+            "apply_dossier_edits_v2 needs `now` or `date`: state writers never read the clock"
+        )
+
+    touched: list[Path] = []
+    for aperture_id, envelope in _dossier_envelopes_v2(findings_by_aperture):
+        for path, changed in _apply_one_dossier_v2(
+            root, aperture_id, envelope, run_id=run_id, issue_id=issue_id, date=stamp
+        ):
+            if changed:
+                touched.append(path)
+    return touched
+
+
+def _dossier_envelopes_v2(findings_by_aperture):
+    """`(aperture_id, envelope)` for every readable dossier_scan envelope.
+
+    The filter is by APERTURE KIND, not by "does this payload happen to have a
+    `dossier` key": a biology_scan that emitted a stray `dossier` key is a
+    contract breach the findings gate refuses, and honouring it here would let a
+    refused shape write to the shared store through the back door.
+
+    Yields nothing — rather than raising — for a corpus that is null, a list, or
+    a mapping of prose. See the totality note on the public function.
+    """
+    if not isinstance(findings_by_aperture, dict):
+        return
+    for aperture_id, envelope in findings_by_aperture.items():
+        if dossier_subject(aperture_id) is None:
+            continue
+        if not isinstance(envelope, dict):
+            log.warning(
+                "publish: dossier envelope for %r is %s, not an object — skipped",
+                aperture_id, type(envelope).__name__,
+            )
+            continue
+        yield aperture_id, envelope
+
+
+def _apply_one_dossier_v2(
+    root: Path, aperture_id: str, envelope: dict, *, run_id: str, issue_id: str | None, date: str
+):
+    """Write one envelope's dossier and its asset->company links. `(path, changed)` pairs.
+
+    Three writes, in the order a reader would want them:
+
+      - the company dossier itself, merged against whatever we already hold;
+      - one asset record per `pipeline[]` row, pointed at this company (story 31:
+        traverse from a readout to its sponsor's balance sheet). The link is
+        derived from the dossier the model just gave us, so it is written from the
+        same evidence and in the same cycle, never inferred later.
+
+    The subject comes from the APERTURE ID, not from the payload's `entity_id`.
+    The gate already refuses a mismatch; taking the id from the aperture means
+    that even if a payload slipped through claiming to be someone else, the write
+    lands under the company we asked about — a dossier filed under the wrong
+    company is worse than a missing one, because it looks like knowledge.
+
+    A quiet scan (nothing found) and a scan that did not run are both simply
+    absent writes here — the distinction between them lives in the envelope and
+    the degradation register, not in the store (story 38).
+    """
+    # Imported HERE, not at module scope: `dossiers` imports `write_json` from
+    # this module (it writes to the same formatting contract, and that contract
+    # lives with the state writers). A top-level import back would close the
+    # cycle and break `import researchswarm.state_edits`. The deferral keeps the
+    # dependency pointing one way — state_edits is the orchestration shell over
+    # dossiers, never the reverse.
+    from researchswarm.dossiers import (
+        apply_asset_company_link_v2,
+        apply_company_dossier_v2,
+        assets_of_company,
+        load_asset_record,
+        load_company_dossier,
+    )
+
+    entity_id = dossier_subject(aperture_id)
+    payload = envelope.get("dossier")
+    if not isinstance(payload, dict):
+        if payload is not None:
+            log.warning(
+                "publish: %s dossier payload is %s, not an object — nothing written",
+                entity_id, type(payload).__name__,
+            )
+        return []
+
+    results = [
+        apply_company_dossier_v2(
+            root,
+            entity_id,
+            payload,
+            existing=load_company_dossier(root, entity_id),
+            run_id=run_id,
+            issue_id=issue_id,
+            date=date,
+            as_of=payload.get("as_of"),
+            degradation=_dossier_degradation_v2(envelope),
+        )
+    ]
+
+    # Read the merged record back rather than mining the payload: `pipeline` is a
+    # provenanced fact on the record, and the links we owe are the ones we NOW
+    # HOLD, not the ones this one scan happened to mention. A refresh that stayed
+    # silent on pipeline therefore still reconciles its known assets — as a no-op
+    # if they are already linked, which is the point of `(path, changed)`.
+    for asset_id in assets_of_company(load_company_dossier(root, entity_id)):
+        results.append(
+            apply_asset_company_link_v2(
+                root,
+                asset_id,
+                entity_id,
+                existing=load_asset_record(root, asset_id),
+                run_id=run_id,
+                issue_id=issue_id,
+                date=date,
+            )
+        )
+    return results
+
+
+def _dossier_degradation_v2(envelope: dict) -> str | None:
+    """The scan's own confession, carried onto the record's `coverage`.
+
+    A dossier assembled from partial sources must say so AT THE POINT OF THE GAP
+    (#92's China-coverage decision), and the scan is the only party that knows
+    why it came back thin — a cap hit, an unreachable filings archive, a
+    tool error. `thin_sections` says *where*; this says *why*, and without it a
+    sparse HKEX dossier reads as a small company rather than as unmeasured
+    coverage.
+
+    Errors outrank coverage notes because an error explains an absence while a
+    note merely annotates one. Anything that is not a list of strings degrades to
+    None rather than raising: the receipt is worth having, but never at the price
+    of the run.
+    """
+    for key in ("errors", "coverage_notes"):
+        value = envelope.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        if isinstance(value, list):
+            parts = [item.strip() for item in value if isinstance(item, str) and item.strip()]
+            if parts:
+                return "; ".join(parts)
+    return None
 
 
 def _entity_entries_v2(issue):

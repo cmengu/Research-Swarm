@@ -30,6 +30,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from researchswarm.findings import SOURCE_FIELDS, SOURCE_TIERS
+from researchswarm.findings import DOSSIER_ENTITY_KIND as _DOSSIER_KIND
+from researchswarm.findings import DOSSIER_SECTIONS as _PAYLOAD_SECTIONS
 
 # ---------------------------------------------------------------------------
 # The finding shape and the result
@@ -1561,6 +1563,19 @@ def _check_shape(shape, value, where, problems):
             )
         return
 
+    if shape.container == "string":
+        # Added for the dossier record table, where the load-bearing fields at
+        # the root are scalars (`entity_id`, `as_of`) rather than objects. No
+        # ISSUE_SHAPE_V2 row uses it, so this is additive: the "object" default
+        # is untouched. A container/prose confusion here is exactly the defect
+        # this row exists to name — an `as_of` that is a dict renders as a date
+        # on the page and silently claims freshness it does not have.
+        if not isinstance(value, str) or not value.strip():
+            problems.append(
+                Finding(shape.kind, where, f"must be a non-empty string, got {type(value).__name__}")
+            )
+        return
+
     if not isinstance(value, dict):
         expected = ", ".join(shape.keys) or "the shape [07] specifies"
         problems.append(
@@ -1607,6 +1622,172 @@ def _check_issue_shape_v2(issue, problems, table=ISSUE_SHAPE_V2):
     for shape in table:
         for value, where in _walk_path(issue, shape.path):
             _check_shape(shape, value, where, problems)
+
+
+# ---------------------------------------------------------------------------
+# The dossier record contract (#92)
+# ---------------------------------------------------------------------------
+#
+# A dossier is NOT an issue section. It is a STATE file —
+# `state/entities/companies/<id>.json` — written by `run.py` through the
+# state-edit path and read by every future run and every other program ([03] the
+# shared fact layer). So it gets its own table rather than rows in
+# ISSUE_SHAPE_V2: a row there would be walked against an issue that will never
+# contain a `facts.identity`, and would police nothing forever.
+#
+# It gets a table at all, rather than hand-written checks, for the reason #92
+# states outright ("the dossier shape joins the declarative shape table, so its
+# gate coverage cannot drift from its contract") — the discipline adopted after
+# hand-written v2 checks were found to cover roughly a third of [07]. Same
+# `Shape`, same `_walk_path`, same `_check_shape`; only the table differs.
+#
+# WHY THIS GATE EXISTS AT ALL, given `findings.validate_dossier_findings`
+# already refuses a bad payload at the model seam: the two guard different
+# moments. The findings gate asks "did the model emit a legal payload"; this
+# asks "is the record we are about to hand to every future run legal after the
+# merge". A dossier accumulates across runs — a record can be corrupted by an
+# old write, a hand edit, or a merge bug long after the payload that seeded it
+# passed. The layer that must be trustworthy is the one that is read, and this
+# is the gate on that layer. Asymmetric defence, per the house style.
+#
+# The vocabulary is IMPORTED, never respelled. `findings` is the bottom of the
+# stack (it imports nothing from this package), so taking the enums from there
+# is cycle-free and means an enum cannot mean one thing at the model seam and
+# another at the state seam. `dossiers` — which sits ABOVE this module, via
+# state_edits — is deliberately not imported; the drift test asserts the two
+# agree instead, which is the same guarantee without the import cycle.
+
+# The eight FACT sections, derived from the payload contract rather than
+# retyped. `coverage` is filtered out because in the persisted record it is not
+# a fact: it lives at the root, unprovenanced, as the honesty layer.
+DOSSIER_FACT_SECTIONS: tuple[str, ...] = tuple(
+    section.name for section in _PAYLOAD_SECTIONS if section.name != "coverage"
+)
+DOSSIER_LIST_SECTIONS: frozenset[str] = frozenset(
+    section.name for section in _PAYLOAD_SECTIONS if section.container == "array"
+)
+_SECTION_ENUMS: dict[str, dict] = {
+    section.name: dict(section.enums) for section in _PAYLOAD_SECTIONS
+}
+
+# Every field of a dossier carries the run that established it and the issue it
+# came from ([03]: "every factual field cites the run_id/issue that established
+# it, so the record has cross-scan memory but cannot drift from published
+# truth"). A fact wrapper missing `established_by` is a claim with no audit
+# trail, which story 13 exists to make impossible.
+FACT_KEYS = ("value", "established_by")
+
+# A drift entry is how a correction APPENDS instead of overwriting (story 14).
+# `from` is absent from this tuple on purpose: the first time a field is
+# established there is nothing to have drifted from, and a null there is the
+# honest answer, not a defect.
+DRIFT_ENTRY_KEYS = ("date", "action", "field", "run_id")
+DRIFT_ACTIONS = frozenset({"established", "corrected"})
+
+# The root row. Applied directly rather than through `_walk_path`, because the
+# root has no path to walk to — `_check_shape` is the whole of it.
+DOSSIER_RECORD_ROOT = Shape(
+    "<dossier>",
+    kind="malformed_dossier",
+    required=True,
+    keys=("entity_id", "kind", "as_of", "facts", "coverage", "drift_log"),
+    enums={"kind": frozenset({_DOSSIER_KIND})},
+)
+
+
+def _dossier_rows() -> tuple[Shape, ...]:
+    """Build the record table from the section contract, not by hand.
+
+    Generated rather than typed out so the table cannot fall behind the
+    contract by one section: add a section to the payload table and its
+    `facts.<name>`, `facts.<name>.value` and element rows appear here in the
+    same commit, gated the moment it is named. Hand-listing them is precisely
+    the drift `test_the_record_table_does_not_drift` would then have to catch
+    after the fact, and a table that cannot drift beats a test that notices.
+    """
+    rows: list[Shape] = [
+        Shape("entity_id", kind="malformed_dossier", container="string", required=True),
+        Shape("as_of", kind="malformed_dossier", container="string", required=True),
+        Shape("coverage", kind="malformed_dossier", keys=("thin_sections",)),
+        Shape("coverage.thin_sections", kind="malformed_dossier", container="array"),
+        Shape("drift_log", kind="malformed_dossier", container="array"),
+        Shape(
+            "drift_log[]",
+            kind="malformed_dossier",
+            keys=DRIFT_ENTRY_KEYS,
+            enums={"action": DRIFT_ACTIONS},
+        ),
+        Shape("facts", kind="malformed_dossier"),
+    ]
+    for name in DOSSIER_FACT_SECTIONS:
+        is_list = name in DOSSIER_LIST_SECTIONS
+        enums = _SECTION_ENUMS.get(name) or {}
+        # The provenance wrapper: one row per section, so a fact that lost its
+        # `established_by` in a merge is named at the section that lost it.
+        rows.append(Shape(f"facts.{name}", kind="malformed_dossier", keys=FACT_KEYS))
+        if is_list:
+            # The value is the list; the ENUMS live on its elements (a deal's
+            # `type`, a setback's `kind`), so the element row carries them.
+            rows.append(
+                Shape(f"facts.{name}.value", kind="malformed_dossier", container="array")
+            )
+            rows.append(
+                Shape(f"facts.{name}.value[]", kind="malformed_dossier", enums=enums)
+            )
+        else:
+            rows.append(
+                Shape(f"facts.{name}.value", kind="malformed_dossier", enums=enums)
+            )
+    # The nested containers inside the two object sections that [92]'s schema
+    # block spells out as lists. Named explicitly because a walk cannot infer
+    # them, and an `aliases` emitted as prose is the exact wrong-container
+    # defect this table exists to catch.
+    rows.extend((
+        Shape("facts.identity.value.aliases", kind="malformed_dossier", container="array"),
+        Shape("facts.identity.value.listings", kind="malformed_dossier", container="array"),
+        Shape("facts.origin.value.founders", kind="malformed_dossier", container="array"),
+        Shape("facts.funding.value.rounds", kind="malformed_dossier", container="array"),
+        Shape("facts.funding.value.rounds[]", kind="malformed_dossier"),
+        Shape("facts.funding.value.rounds[].investors", kind="malformed_dossier", container="array"),
+        Shape("facts.pivots.value[].evidence", kind="malformed_dossier", container="array"),
+        # A person's PRIOR affiliations are a list, not a string — the writer's
+        # `Person.prior` is `list[str]`. Found by the drift test rather than by
+        # reading, which is the whole argument for having it.
+        Shape("facts.people.value[].prior", kind="malformed_dossier", container="array"),
+    ))
+    return tuple(rows)
+
+
+DOSSIER_RECORD_V2 = _dossier_rows()
+
+
+def check_dossier_record(record, problems) -> None:
+    """The whole dossier contract, enforced by one walk over one table.
+
+    NEVER raises, at any depth, for any input. This gate reads a file on disk
+    that a prior run wrote — the input is adversarial by construction, and a
+    gate that dies decides nothing ([06] admission test 2). `_walk_path` is
+    total by design and `_check_shape` files-or-returns on every branch, so
+    totality here is inherited rather than re-argued; the root is the one node
+    neither covers, and it is handled first.
+    """
+    _check_shape(DOSSIER_RECORD_ROOT, record, "<dossier>", problems)
+    if not isinstance(record, dict):
+        return  # the root row already filed it; walking a non-mapping yields nothing
+    _check_issue_shape_v2(record, problems, table=DOSSIER_RECORD_V2)
+
+
+def validate_dossier_record(record) -> ValidationResult:
+    """Public seam: is this persisted company dossier structurally legal?
+
+    Returns findings rather than raising or writing — this module is a gate, and
+    `run.py` is the sole writer ([03] clause 1). Blocking, not advisory: a
+    malformed dossier is inherited by every program that reads it, so it is the
+    one place where letting it through is worse than the alternative.
+    """
+    problems: list[Finding] = []
+    check_dossier_record(record, problems)
+    return ValidationResult(blocking=tuple(problems))
 
 
 def _check_untyped_competitor(issue, problems):
