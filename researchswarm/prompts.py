@@ -18,11 +18,14 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
+from researchswarm.apertures import Aperture
 from researchswarm.beats import Beat
 from researchswarm.calendar import SurgeState
 from researchswarm.critic import REAFFIRMED
+from researchswarm.programs import Edge, InterestList, Program, program_roster
 from researchswarm.state import State
 
 # The factual fields a catalyst-queue item carries into the published snapshot.
@@ -34,6 +37,15 @@ QUEUE_SNAPSHOT_FIELDS = (
     "expected_window", "window_source", "status", "slip_log", "bears_on_thesis_slot",
     "sources",
 )
+
+# The v2 queue snapshot carries one extra factual field the manager reproduces
+# verbatim: `fed_by` (competitor_discovery｜scheduled｜manual), the provenance of
+# how a prediction reached the one governed surface (spec/07, #54 — discovery
+# feeds the queue rather than growing a `next_catalyst` field on each competitor).
+# what_it_would_prove stays absent for the same reason as v1: the manager authors
+# it, thesis-gated, so handing it the state's value would invite a copy where an
+# argument belongs.
+QUEUE_SNAPSHOT_FIELDS_V2 = QUEUE_SNAPSHOT_FIELDS + ("fed_by",)
 
 TEMPLATE_FENCE = re.compile(r"```text\n(.*?)```", re.DOTALL)
 PLACEHOLDER = re.compile(r"\{\{(\w+)\}\}")
@@ -103,9 +115,19 @@ def _thesis_slots(state: State) -> str:
     to parse a delimiter out of. The table's shorthand doesn't survive the real
     field, so the stance gets its own line. Roster and queue follow the table
     exactly, because there the fields are short enough that it works.
+
+    The actual rendering is `_render_thesis_slots(beliefs)` so the v2 manager
+    prompt can reuse it: the thesis lives in the same `state/thesis.json`, but the
+    v2 render path holds it as a plain dict, not a v1 `State`. One renderer, one
+    dormant marker, so v1 and v2 never drift on how a stance is shown.
     """
+    return _render_thesis_slots(state.thesis.get("beliefs", []))
+
+
+def _render_thesis_slots(beliefs: list[dict]) -> str:
+    """The stance-block renderer shared by the v1 and v2 manager prompts."""
     lines = []
-    for belief in state.thesis.get("beliefs", []):
+    for belief in beliefs:
         stance = belief.get("stance") or DORMANT_SLOT
         provenance = belief.get("stance_provenance", "unknown")
         lines.append(f"- {belief['id']} · {belief['title']} [{provenance}]\n  {stance}")
@@ -254,28 +276,34 @@ def _catalyst_queue_snapshot(state: State) -> str:
 
 
 def _findings_corpus(
-    findings_by_beat: dict[str, dict], beats_failed: list[str] | None = None
+    findings_by_beat: dict[str, dict],
+    beats_failed: list[str] | None = None,
+    *,
+    unit: str = "beat",
 ) -> str:
     """Each beat's findings.json as a labelled JSON block, in caller order.
 
-    One corpus renderer, shared by the manager prompt and the critic prompt, so
-    the two never drift on how a finding is presented. `beats_failed` is the sole
-    difference: the manager passes it (a list, possibly empty) and gets an explicit
-    dead-beats line next to the facts — what lets it mark the hole inline rather
-    than read a thin section as truth. The critic passes None and gets only the
-    surviving findings; on an empty run that leaves nothing, so it renders an
-    explicit marker rather than a blank.
+    One corpus renderer, shared by the v1 manager prompt, the critic prompt, AND
+    the v2 manager prompt, so none of the three drift on how a finding is
+    presented. `beats_failed` is the manager's difference: it passes a list
+    (possibly empty) and gets an explicit dead-scans line next to the facts — what
+    lets it mark the hole inline rather than read a thin section as truth. The
+    critic passes None and gets only the surviving findings; on an empty run that
+    leaves nothing, so it renders an explicit marker rather than a blank.
 
-    Beat order is whatever the caller passes (run.py keeps roster order).
+    `unit` names what a block IS — "beat" for v1, "aperture" for v2 (the pivot
+    replaced beats with apertures, spec/04). It only changes the labels; the JSON
+    body is byte-identical, so the two schemas share one embed. Beat/aperture
+    order is whatever the caller passes (run.py keeps roster order).
     """
     blocks = [
-        f"=== findings from beat: {beat_id} ===\n"
+        f"=== findings from {unit}: {beat_id} ===\n"
         f"{json.dumps(findings, indent=2, ensure_ascii=False)}"
         for beat_id, findings in findings_by_beat.items()
     ]
     if beats_failed is not None:
         failed = ", ".join(beats_failed) if beats_failed else "(none)"
-        blocks.append(f"=== beats that failed (no findings this cycle): {failed} ===")
+        blocks.append(f"=== {unit}s that failed (no findings this cycle): {failed} ===")
     if not blocks:
         return "(no findings on disk this run)"
     return "\n\n".join(blocks)
@@ -328,6 +356,220 @@ def render_manager_prompt(
         "findings_corpus": _findings_corpus(findings_by_beat, beats_failed),
     }
     return _substitute(template, values)
+
+
+# ---------------------------------------------------------------------------
+# The v2 manager prompt — a per-program detective, not a market digest.
+#
+# Additive alongside the v1 render_manager_prompt above: the engine dispatches on
+# schema_version, so the two prompts (and the two seam contracts) run side by side
+# while the pipeline migrates. Nothing here touches the v1 path — the v1 renderer,
+# its helpers and its tests are unchanged. What changed is the vocabulary the
+# manager is handed: apertures not beats, a program subject, a typed competitor
+# roster, and the interest list as a second interpolated owner surface.
+# ---------------------------------------------------------------------------
+
+
+def _program_block_v2(program: Program) -> str:
+    """The program identity as indented JSON the manager authors the `program`
+    block from. `moa` is the load-bearing field (spec/07): it is what separates a
+    target_twin (same target, different MOA) from a mechanism_twin (same target
+    AND MOA), so it is surfaced explicitly rather than buried in prose. The
+    aperture is echoed so the emitted `program.aperture` matches what actually ran.
+    """
+    block = {
+        "id": program.id,
+        "name": program.name,
+        "sponsor": program.sponsor,
+        "modality": program.modality,
+        "target": program.target,
+        "moa": program.moa,
+        "config_source": f"config/programs/{program.id}.toml",
+        "indications": [
+            {"id": i.id, "role": i.role} for i in program.indications
+        ],
+        "aperture": {
+            "biology_scan": {"target": program.target, "moa": program.moa},
+            "arena_scans": list(program.active_arena_ids),
+        },
+    }
+    return json.dumps(block, indent=2, ensure_ascii=False)
+
+
+def _competitor_roster_v2(
+    program: Program, edges: list[Edge], entities: dict[str, dict]
+) -> str:
+    """The typed competitor roster the accounting duty holds the manager against.
+
+    The v2 replacement for v1's flat watchlist roster: every promoted edge (with
+    its typed relation and read-through provenance) plus every cold-start
+    `seed_competitors` slug not yet on an edge, rendered `(seed — untyped)` so the
+    manager knows it must type it this cycle. Names are lifted from the shared
+    `state/entities/` layer when a record exists; at seed the layer is empty, so a
+    slug carries no name and reads with a `—` placeholder — honest about what the
+    machine actually knows, never a fabricated name.
+
+    Ordering is stable — typed edges first (in edge order), then the untyped seeds
+    — so the roster reads the same way every cycle and the audit is diffable.
+    """
+    lines: list[str] = []
+    typed = {e.entity_id for e in edges}
+    for edge in edges:
+        name = entities.get(edge.entity_id, {}).get("name", "—")
+        provenance = edge.promoted_by or "unknown"
+        lines.append(
+            f"- {edge.entity_id} · {edge.relation} · {name} · promoted_by={provenance}"
+        )
+    for slug in program.seed_competitors:
+        if slug in typed:
+            continue  # already surfaced above as a typed edge
+        name = entities.get(slug, {}).get("name", "—")
+        lines.append(f"- {slug} · (seed — untyped) · {name} · seed_competitors")
+    return "\n".join(lines) if lines else "- (no competitors typed or seeded yet)"
+
+
+def _interest_list_block_v2(interests: InterestList, *, today: date) -> str:
+    """The steering wheel as `tier · note` lines plus its version and rot marker.
+
+    The interest list is the second owner surface interpolated fresh (spec/03
+    #55). The note steers attention/interpretation/the bar; the tier is a sort key
+    and default bar, not a score. Rot is a fail-visible degradation, never silent:
+    a list edited beyond the 6-month default renders STALE here so the manager
+    stamps `interest_list.rot_status: "stale"` on the digest — the trigger is a
+    date the orchestrator holds, so it passes admission test 2.
+    """
+    rot = "STALE — render rot_status: stale" if interests.is_stale(today) else "fresh"
+    header = (
+        f"version {interests.version} · last_edited {interests.last_edited or '(unknown)'} "
+        f"by {interests.last_edited_by} · rot: {rot}"
+    )
+    if not interests.interests:
+        return f"{header}\n- (no interests seeded)"
+    lines = [f"- {i.tier} · {i.note}" for i in interests.interests]
+    return header + "\n" + "\n".join(lines)
+
+
+def _aperture_roster_v2(apertures: list[Aperture]) -> str:
+    """The `1 + N + 1` aperture roster: `id · kind · scope · (active｜DORMANT)`.
+
+    A DORMANT arena scan stays in the roster (it is not run, but the manager must
+    render an `arena_scan_dormant` degradation in the section it would have fed);
+    an active scan that later FAILED at the seam arrives via apertures_degraded,
+    not here. This block tells the manager which sections need an inline dormancy
+    marker at the point of the absence (spec/04, spec/05 degradation duties).
+    """
+    lines = [
+        "- {id} · {kind} · {scope} · {state}".format(
+            id=a.id,
+            kind=a.kind,
+            scope=a.scope,
+            state="active" if a.active else "DORMANT",
+        )
+        for a in apertures
+    ]
+    return "\n".join(lines) if lines else "- (no apertures planned)"
+
+
+def _catalyst_queue_snapshot_v2(queue: dict, *, program_id: str) -> str:
+    """The per-program queue as indented JSON, not a table.
+
+    Same rationale as v1 (`_catalyst_queue_snapshot`): the manager reproduces the
+    factual fields VERBATIM, so it is handed JSON to copy rather than a compact
+    line it would have to re-serialise and could mangle. The v2 field set adds
+    `fed_by`; `what_it_would_prove` stays omitted (the manager authors it, thesis-
+    gated). Every item is included regardless of status — the snapshot freezes the
+    whole queue at publication. `snapshot_of` points at the per-program path.
+    """
+    snapshot = {
+        "snapshot_of": f"state/programs/{program_id}/catalyst-queue.json",
+        "recut_at": queue.get("last_recut_at"),
+        "items": [
+            {field: item.get(field) for field in QUEUE_SNAPSHOT_FIELDS_V2}
+            for item in queue.get("queue", [])
+        ],
+    }
+    return json.dumps(snapshot, indent=2, ensure_ascii=False)
+
+
+def render_manager_prompt_v2(
+    template: str,
+    *,
+    program: Program,
+    interests: InterestList,
+    apertures: list[Aperture],
+    findings_by_aperture: dict[str, dict],
+    apertures_degraded: list[str],
+    thesis: dict,
+    catalyst_queue: dict,
+    edges: list[Edge],
+    entities: dict[str, dict],
+    prior_quiet: dict[str, int],
+    run_id: str,
+    issue_id: str,
+    published_at: str,
+    coverage_window_from: str,
+    coverage_window_to: str,
+    thesis_version,
+    interest_list_version,
+    models: dict,
+) -> str:
+    """Interpolate the v2 manager prompt. Raises if any placeholder is left over.
+
+    The v2 counterpart of `render_manager_prompt`, assembling the per-program
+    detective's context from the program config, the interest list, the aperture
+    roster, the aperture findings corpus, the v2 state layers (thesis, per-program
+    catalyst queue, typed-competitor roster) and the run identity.
+
+    The propagation contract binds the manager twice here, not once: both the
+    thesis stances (via `_render_thesis_slots`, read fresh, dormant slots marked)
+    AND the interest list (via `_interest_list_block_v2`) arrive interpolated, so
+    an owner who edits either sees the next issue argue the new one. A template
+    that inlined stance or interest text would break that silently — the same
+    single failure the whole propagation contract exists to prevent. The interest
+    list's rot is computed against `published_at`'s date, the day the issue speaks
+    for, so the staleness marker is honest to the moment of publication.
+    """
+    today = _published_date(published_at)
+    values = {
+        "run_id": run_id,
+        "issue_id": issue_id,
+        "program_id": program.id,
+        "published_at": published_at,
+        "coverage_window_from": coverage_window_from,
+        "coverage_window_to": coverage_window_to,
+        "thesis_version": str(thesis_version),
+        "interest_list_version": str(interest_list_version),
+        "models_json": json.dumps(models, indent=2),
+        "program_block": _program_block_v2(program),
+        "competitor_roster": _competitor_roster_v2(program, edges, entities),
+        "thesis_slots": _render_thesis_slots(thesis.get("beliefs", [])),
+        "interest_list": _interest_list_block_v2(interests, today=today),
+        "aperture_roster": _aperture_roster_v2(apertures),
+        "catalyst_queue_snapshot": _catalyst_queue_snapshot_v2(
+            catalyst_queue, program_id=program.id
+        ),
+        "prior_quiet_counts": _prior_quiet_counts(prior_quiet),
+        "apertures_degraded": ", ".join(apertures_degraded) if apertures_degraded else "(none)",
+        "findings_corpus": _findings_corpus(
+            findings_by_aperture, apertures_degraded, unit="aperture"
+        ),
+    }
+    return _substitute(template, values)
+
+
+def _published_date(published_at: str) -> date:
+    """The calendar date `published_at` speaks for, for the interest-rot clock.
+
+    `published_at` is an ISO timestamp (`2026-07-18T07:41:00+08:00`); the rot
+    window is a coarse 6-month clock, so only the date prefix matters. A malformed
+    or empty value falls back to `date.min`, which reads as maximally stale — an
+    unknowable publication date is exactly the case the rot marker exists to
+    surface, never to hide (mirrors `InterestList.is_stale` on a bad edit date).
+    """
+    try:
+        return date.fromisoformat((published_at or "")[:10])
+    except (TypeError, ValueError):
+        return date.min
 
 
 def _surge_window_block(surge: SurgeState | None) -> str:

@@ -1,0 +1,59 @@
+{
+  "_comment": "HAND-BUILT v2 findings fixture (Build 17). Arena scan for the squamous-nsclc indication. FACTS + sources + coverage_notes only; NO read_through/thesis_bearing/priority — the manager's. Facts grounded in docs/schema/sample-issue-hmbd-001-2026-07-18.json and docs/research/program-detective-source-set-2026.md. registry_delta demonstrates the registry-watch input class (spec/04).",
+  "aperture": "arena_scan:squamous-nsclc",
+  "program_id": "hmbd-001",
+  "run_id": "run_20260718_0700",
+  "coverage_window": {"from": "2026-07-14", "to": "2026-07-18"},
+  "quiet": false,
+  "findings": [
+    {
+      "summary": "Ivonescimab (AK112), Akeso's PD-1 x VEGF bispecific, showed an overall-survival benefit (HR 0.66; 27.9 vs 23.7 months) over PD-1 plus chemotherapy in first-line squamous NSCLC in HARMONi-6, presented at the ASCO 2026 Plenary. The trial was conducted in China only; regional generalizability is a live dispute.",
+      "entity_ids": ["asset_ivonescimab"],
+      "proposed_entity": null,
+      "proposed_relation": "setting_rival",
+      "house_lens": null,
+      "registry_delta": null,
+      "sources": [
+        {"url": "https://www.prnewswire.com/news-releases/harmoni-6-demonstrates-significant-overall-survival-benefit-hr0-66-ivonescimab-plus-chemotherapy-superior-to-pd-1-plus-chemotherapy-in-first-line-sq-nsclc-landmark-results-to-be-presented-at-asco-2026-plenary-session-302786433.html", "publisher": "Akeso (PRNewswire)", "tier": "primary", "published_at": "2026-05-25", "paywalled": false},
+        {"url": "https://ascopost.com/news/june-2026/overall-survival-benefit-with-ivonescimab-plus-chemotherapy-in-advanced-squamous-nsclc/", "publisher": "The ASCO Post", "tier": "trade", "published_at": "2026-06-01", "paywalled": false}
+      ],
+      "catalyst_refs": [],
+      "priority_hint": "high",
+      "unconfirmed": false
+    },
+    {
+      "summary": "The current first-line standard of care in squamous NSCLC remains pembrolizumab plus platinum/taxane (the KEYNOTE-407 regimen), PD-L1 agnostic. No primary-sourced later-line displacement surfaced this cycle.",
+      "entity_ids": ["asset_pembrolizumab"],
+      "proposed_entity": {"name": "Pembrolizumab + platinum/taxane (KEYNOTE-407 regimen)", "type": "big_pharma", "what_it_is": "Merck & Co.'s first-line squamous-NSCLC standard-of-care chemo-immunotherapy regimen."},
+      "proposed_relation": "benchmark_soc",
+      "house_lens": null,
+      "registry_delta": null,
+      "sources": [
+        {"url": "https://ascopost.com/news/june-2026/overall-survival-benefit-with-ivonescimab-plus-chemotherapy-in-advanced-squamous-nsclc/", "publisher": "The ASCO Post", "tier": "trade", "published_at": "2026-06-01", "paywalled": false}
+      ],
+      "catalyst_refs": [],
+      "priority_hint": "medium",
+      "unconfirmed": false
+    },
+    {
+      "summary": "Registry watch: no in-window US-registry delta for the tracked HER3-DXd squamous NCT this cycle; the movement surfaced via the ESMO title-drop instead. The tracked HMBD-001 Phase 1b NCT (chemotherapy backbone +/- cetuximab) showed no module change.",
+      "entity_ids": ["asset_her3_dxd", "hmbd_001"],
+      "proposed_entity": null,
+      "proposed_relation": null,
+      "house_lens": null,
+      "registry_delta": {"nct_id": "NCT-HER3DXd-cohort", "module": "statusModule", "from": "no change", "to": "no change"},
+      "sources": [
+        {"url": "https://clinicaltrials.gov/data-api/api", "publisher": "ClinicalTrials.gov v2 API", "tier": "primary", "published_at": "2026-07-18", "paywalled": false}
+      ],
+      "catalyst_refs": [],
+      "priority_hint": "low",
+      "unconfirmed": false
+    }
+  ],
+  "coverage_notes": {
+    "scope_run": ["indication=squamous-nsclc", "setting rivals + benchmark/SOC", "1L and 2L+ lines"],
+    "entities_checked": ["asset_ivonescimab", "asset_pembrolizumab", "asset_her3_dxd"],
+    "notes": "Ivonescimab's HARMONi-6 OS win is the defining first-line squamous event; caveat that the trial was China-only. SOC unchanged this cycle. Registry poll returned no US delta for the HER3-DXd squamous NCT; China-first assets remain the coverage gap for this setting."
+  },
+  "errors": []
+}

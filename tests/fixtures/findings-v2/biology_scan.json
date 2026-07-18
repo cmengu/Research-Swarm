@@ -1,0 +1,58 @@
+{
+  "_comment": "HAND-BUILT v2 findings fixture (Build 17). Shaped per docs/spec/04-researchers.md 'the contract' — FACTS + sources + coverage_notes only. NO read_through / thesis_bearing / priority (published) / section placement — those are the manager's to author. Facts grounded in docs/schema/sample-issue-hmbd-001-2026-07-18.json and docs/research/program-detective-source-set-2026.md; no invented competitors. priority_hint is the one within-aperture triage tag the contract allows.",
+  "aperture": "biology_scan",
+  "program_id": "hmbd-001",
+  "run_id": "run_20260718_0700",
+  "coverage_window": {"from": "2026-07-14", "to": "2026-07-18"},
+  "quiet": false,
+  "findings": [
+    {
+      "summary": "An ESMO 2026 regular-abstract title referencing a patritumab deruxtecan (HER3-DXd) cohort posted on 17 Jul 2026. Only the title is public; the abstract text is embargoed to the autumn congress. HER3-DXd is a HER3-directed antibody-drug conjugate developed by Daiichi Sankyo and Merck & Co.",
+      "entity_ids": ["asset_her3_dxd"],
+      "proposed_entity": null,
+      "proposed_relation": null,
+      "house_lens": null,
+      "registry_delta": null,
+      "sources": [
+        {"url": "https://www.esmo.org/meeting-calendar/esmo-congress-2026/abstracts", "publisher": "ESMO", "tier": "primary", "published_at": "2026-07-17", "paywalled": false}
+      ],
+      "catalyst_refs": [],
+      "priority_hint": "high",
+      "unconfirmed": false
+    },
+    {
+      "summary": "Context confirmed within window: Daiichi Sankyo and Merck & Co. voluntarily withdrew the HER3-DXd EGFR-mutant NSCLC BLA in May 2025 after the HERTHENA-Lung02 overall-survival miss; the broader program continues across roughly 15 tumour types. No refiling in this coverage window.",
+      "entity_ids": ["asset_her3_dxd"],
+      "proposed_entity": null,
+      "proposed_relation": null,
+      "house_lens": null,
+      "registry_delta": null,
+      "sources": [
+        {"url": "https://www.merck.com/news/patritumab-deruxtecan-biologics-license-application-for-patients-with-previously-treated-locally-advanced-or-metastatic-egfr-mutated-non-small-cell-lung-cancer-voluntarily-withdrawn/", "publisher": "Merck & Co.", "tier": "primary", "published_at": "2025-05-20", "paywalled": false}
+      ],
+      "catalyst_refs": [],
+      "priority_hint": "medium",
+      "unconfirmed": false
+    },
+    {
+      "summary": "SDP0505 (SHR9265) is a first-in-class HER3 x c-Met bispecific antibody-drug conjugate in global Phase 2 for EGFR-TKI-resistant NSCLC, with a China BLA targeted for 2026. Primary movement registers on China's CDE and chictr.org.cn, which have no clean free feed and are language-gated; the finding is sourced from a journal review rather than a live registry diff.",
+      "entity_ids": ["asset_sdp0505"],
+      "proposed_entity": {"name": "SDP0505 (SHR9265)", "type": "frontier_asset", "what_it_is": "First-in-class HER3 x c-Met bispecific ADC (Shengdi Pharmaceutical / Jiangsu Hengrui Pharma lineage), global Phase 2 in EGFR-TKI-resistant NSCLC."},
+      "proposed_relation": "target_twin",
+      "house_lens": null,
+      "registry_delta": null,
+      "sources": [
+        {"url": "https://doi.org/10.1093/abt/tbag015", "publisher": "Antibody Therapeutics (Oxford Academic)", "tier": "primary", "published_at": "2026-05-10", "paywalled": false}
+      ],
+      "catalyst_refs": [],
+      "priority_hint": "medium",
+      "unconfirmed": false
+    }
+  ],
+  "coverage_notes": {
+    "scope_run": ["target=HER3 (ERBB3)", "moa=signalling_blockade", "indication-blind biology sweep"],
+    "entities_checked": ["asset_her3_dxd", "asset_ivonescimab", "asset_sdp0505"],
+    "notes": "No clinical mechanism twin (a HER3 antibody blocking the signalling node, same MOA as HMBD-001) surfaced this cycle; every moving HER3 competitor is an ADC or bispecific ADC — target twins. SDP0505 registry state is China-gated and carried at low confidence from a journal review, not a live CDE/chictr diff."
+  },
+  "errors": []
+}
