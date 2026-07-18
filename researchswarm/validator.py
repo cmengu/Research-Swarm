@@ -27,7 +27,7 @@ Spec: docs/spec/06-validator-and-critic.md, docs/spec/07-issue-schema.md
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from researchswarm.findings import SOURCE_FIELDS, SOURCE_TIERS
 
@@ -1080,183 +1080,533 @@ def _check_missing_read_through(issue, problems):
             )
 
 
-def _check_malformed_dropped_receipt(issue, problems):
-    """A `dropped_with_receipt[]` entry carries `name`, `dropped_because`, `source`.
+# ---------------------------------------------------------------------------
+# The declarative shape table — [07]'s required shapes, as data
+# ---------------------------------------------------------------------------
+#
+# WHY A TABLE. The gate's first v2 pass hand-wrote one function per shape, and
+# covered roughly fourteen of [07]'s ~twenty required shapes. The other six were
+# not *decided* against — they were simply never written, and the way the system
+# discovered each one was by CRASHING into it, one field at a time, after
+# publishing: a manager emits an off-spec shape, a defensive accessor swallows
+# it, and the gate reports clean because it could not read the data. Four such
+# incidents landed in a single night (the landscape envelope, open threads as
+# bare strings, a promotion proposal as prose, dropped receipts under invented
+# key names).
+#
+# The defect was never any one missing check. It was that COVERAGE lived in
+# prose — a reviewer's memory of which fields had a function — so it could drift
+# from the contract silently and without a diff. A table cannot drift silently:
+# it is one artifact, next to the spec it mirrors, and `test_shape_table_drift`
+# fails the moment the two disagree. Adding a shape to [07] and forgetting the
+# gate is now a red test, not a 3am AttributeError.
+#
+# WHAT LIVES HERE AND WHAT DOES NOT. Only SHAPE — the container type, the keys
+# [07] marks required, and the closed enums. Anything encoding JUDGMENT stays a
+# hand-written check, because judgment does not compress to a row: the admission
+# rule (`missing_read_through`), the platform_threat-belongs-in-the-house-view
+# rule (`untyped_competitor`), the capped-with-a-receipt rule
+# (`blind_spot_overflow`), the primary-source-only bar
+# (`landscape_number_unsourced`), and the mechanically-corroborated dormancy
+# rule (`_check_empty_arena_v2`). The table says what the data IS; those say
+# what it MEANS.
 
-    The third leg of the ternary receipt ([05]) and the input to the critic's
-    `dropped_story` rule ([06]) — so a malformed entry is not cosmetic: it is a
-    receipt that cannot be read, on an item the system claims to have judged.
 
-    Found by the first live run (18 Jul 2026). The manager emitted
-    `{item, reason, sources}` against the specified `{name, dropped_because,
-    source}`, five times, and the issue PASSED. It passed because
-    `_iter_all_sources_v2` guards with `dropped.get("source") is not None` and
-    silently skips what it cannot read — so all five receipts went unvalidated
-    and unread while the gate reported clean.
+_MISSING = object()  # "the key was absent", distinct from a present null
 
-    That is the failure this check exists to stop, and the guard was the cause,
-    not the symptom: a tolerant `.get()` on a required field converts "the
-    manager broke the contract" into "there was nothing to check". Where a field
-    is REQUIRED, absence must be a finding, never a skip.
+
+@dataclass(frozen=True)
+class Shape:
+    """One row of the contract: the shape required at one path in a v2 issue.
+
+    `path` is a dotted walk from the issue root; a `foo[]` segment means "each
+    element of the list at foo", so one row covers every competitor at once.
+    `kind` is the finding kind the row files — several rows deliberately reuse
+    the kinds the retired hand-written checks filed (`malformed_open_thread`,
+    `malformed_treatment_landscape`, …) because those names are the repair
+    vocabulary the manager's retry prompt and the critic already speak.
+
+    `required` means the path must be PRESENT and non-null. It is set only on
+    rows whose absence nothing else reports: the seven `REQUIRED_SECTIONS_V2`
+    already have `empty_section` for that, so their rows police type and keys
+    and leave absence to the check that owns it, and no defect is filed twice.
     """
-    required = ("name", "dropped_because", "source")
-    for i, entry in enumerate(_mapping(issue, "quiet_this_cycle").get("dropped_with_receipt") or []):
-        where = f"quiet_this_cycle.dropped_with_receipt[{i}]"
-        if not isinstance(entry, dict):
-            problems.append(
-                Finding("malformed_dropped_receipt", where, f"must be an object, got {type(entry).__name__}")
-            )
-            continue
-        missing = [k for k in required if entry.get(k) in (None, "")]
-        if missing:
-            problems.append(
-                Finding(
-                    "malformed_dropped_receipt",
-                    where,
-                    f"missing required key(s) {', '.join(missing)} — the receipt cannot be read"
-                    f" (has: {', '.join(sorted(entry)) or 'nothing'})",
-                )
-            )
+
+    path: str
+    kind: str = "malformed_shape"
+    container: str = "object"  # "object" | "array"
+    required: bool = False
+    keys: tuple[str, ...] = ()
+    enums: dict[str, frozenset] = field(default_factory=dict)
 
 
-def _check_malformed_open_thread(issue, problems):
-    """An `open_threads[]` entry is an OBJECT — `{entity_id, thread, since}` ([07]).
+# Closed enums [07] states. Named once so a row and a prose reference to the
+# same enum cannot drift.
+RUN_STATUSES = frozenset(
+    {"published", "published_uncritiqued", "published_with_unresolved_findings", "failed"}
+)
+CRITIC_VERDICTS = frozenset({"pass", "pass_with_advisories", "blocked", "not_run"})
+CONFIDENCE_LEVELS = frozenset({"high", "medium", "low"})
+THESIS_BEARINGS = frozenset({"confirms", "challenges", "neutral"})
+FAILURE_TIERS = frozenset({"program_tier", "indication_tier"})
+INDICATION_ROLES = frozenset({"active_arena", "priority_indication"})
+QUEUE_STATUSES = frozenset({"pending", "slipped", "delivered", "dead"})
+FED_BY = frozenset({"competitor_discovery", "scheduled", "manual"})
+THESIS_CHANGES = frozenset({"amended", "added", "retired"})
+ROT_STATUSES = frozenset({"fresh", "stale"})
+INTEREST_TIERS = frozenset({"strong", "watching"})
 
-    [07] §quiet_this_cycle carries `open_threads` forward "unchanged from v1", and
-    both schema samples show the same object: an `entity_id` the thread hangs off,
-    the `thread` itself, and the `since` date that makes "how long has this been
-    open" answerable without diffing twelve issues.
+# The contract, in rows. Ordered as [07] orders its sections so the two read
+# side by side. A `null`-legal field ([07] says so in words — `previous_issue`
+# on run #1, `overflow` when nothing overflowed, `efficacy_source` on a line
+# claiming no number) is deliberately ABSENT from a `keys` tuple: requiring it
+# would turn a documented honest null into a finding.
+ISSUE_SHAPE_V2 = (
+    # --- issue ------------------------------------------------------------
+    Shape(
+        "issue",
+        required=True,
+        keys=("id", "program_id", "published_at", "coverage_window", "run"),
+    ),
+    Shape("issue.coverage_window", keys=("from", "to")),
+    Shape(
+        "issue.run",
+        keys=(
+            "run_id",
+            "status",
+            "critic_verdict",
+            "critic_retries",
+            "thesis_version",
+            "interest_list_version",
+            "models",
+        ),
+        enums={"status": RUN_STATUSES, "critic_verdict": CRITIC_VERDICTS},
+    ),
+    Shape("issue.run.models", keys=("researchers", "manager", "critic")),
+    # --- program ----------------------------------------------------------
+    Shape(
+        "program",
+        required=True,
+        keys=(
+            "id",
+            "name",
+            "sponsor",
+            "modality",
+            "target",
+            "moa",
+            "one_line",
+            "priority_indications",
+            "clinical_stage",
+            "config_source",
+            "aperture",
+        ),
+    ),
+    Shape("program.priority_indications", container="array"),
+    Shape("program.aperture", keys=("biology_scan", "arena_scans")),
+    Shape("program.aperture.biology_scan", keys=("target", "moa")),
+    Shape("program.aperture.arena_scans", container="array"),
+    # --- headline ---------------------------------------------------------
+    Shape(
+        "headline",
+        keys=("title", "summary", "so_what", "entity_refs", "confidence", "sources"),
+        enums={"confidence": CONFIDENCE_LEVELS},
+    ),
+    Shape("headline.entity_refs", container="array"),
+    Shape("headline.sources", container="array"),
+    # --- stats ------------------------------------------------------------
+    Shape(
+        "stats",
+        required=True,
+        keys=(
+            "competitors_moved",
+            "competitors_quiet",
+            "newly_discovered",
+            "indications_covered",
+            "house_items",
+            "blind_spots_ranked",
+            "sources_cited",
+            "critic_catches",
+        ),
+    ),
+    # --- tldr_bullets -----------------------------------------------------
+    Shape("tldr_bullets", container="array"),
+    Shape(
+        "tldr_bullets[]",
+        keys=("text", "entity_refs", "priority"),
+        enums={"priority": CONFIDENCE_LEVELS},
+    ),
+    Shape("tldr_bullets[].entity_refs", container="array"),
+    # --- catalyst_queue ---------------------------------------------------
+    Shape("catalyst_queue", required=True, keys=("snapshot_of", "items")),
+    Shape("catalyst_queue.items", container="array"),
+    Shape(
+        "catalyst_queue.items[]",
+        keys=(
+            "id",
+            "catalyst",
+            "first_expected_window",
+            "expected_window",
+            "status",
+            "slip_log",
+            "bears_on_thesis_slot",
+            "fed_by",
+            "sources",
+        ),
+        enums={"status": QUEUE_STATUSES, "fed_by": FED_BY},
+    ),
+    Shape("catalyst_queue.items[].slip_log", container="array"),
+    Shape("catalyst_queue.items[].sources", container="array"),
+    # --- competitors ------------------------------------------------------
+    Shape("competitors", container="array"),
+    Shape(
+        "competitors[]",
+        keys=("entity_id", "name", "type", "status", "priority", "summary", "read_through", "sources"),
+        enums={"priority": CONFIDENCE_LEVELS},
+    ),
+    # `relation` / `lens` / non-empty `text` belong to the admission rule
+    # (`missing_read_through`), not here — this row covers only what that check
+    # does not read, so one defect never files two findings.
+    Shape(
+        "competitors[].read_through",
+        keys=("thesis_bearing", "established_by"),
+        enums={"thesis_bearing": THESIS_BEARINGS},
+    ),
+    Shape("competitors[].sources", container="array"),
+    Shape(
+        "competitors[].failure",
+        keys=("tier", "status", "archived", "established_by"),
+        enums={"tier": FAILURE_TIERS},
+    ),
+    # --- indications ------------------------------------------------------
+    Shape("indications", container="array"),
+    Shape(
+        "indications[]",
+        keys=("indication_id", "name", "role", "program_context", "arena"),
+        enums={"role": INDICATION_ROLES},
+    ),
+    Shape("indications[].arena", keys=("setting_rivals", "benchmark_soc")),
+    Shape("indications[].arena.setting_rivals", container="array"),
+    Shape("indications[].arena.benchmark_soc", container="array"),
+    # Arena items are ordinary competitor items ([07] §indications), one altitude
+    # down — the same duty to name themselves and carry sourced evidence.
+    Shape(
+        "indications[].arena.setting_rivals[]",
+        keys=("entity_id", "name", "read_through", "sources"),
+    ),
+    Shape(
+        "indications[].arena.benchmark_soc[]",
+        keys=("entity_id", "name", "read_through", "sources"),
+    ),
+    Shape(
+        "indications[].arena.setting_rivals[].read_through",
+        keys=("thesis_bearing", "established_by"),
+        enums={"thesis_bearing": THESIS_BEARINGS},
+    ),
+    Shape(
+        "indications[].arena.benchmark_soc[].read_through",
+        keys=("thesis_bearing", "established_by"),
+        enums={"thesis_bearing": THESIS_BEARINGS},
+    ),
+    Shape(
+        "indications[].treatment_landscape",
+        kind="malformed_treatment_landscape",
+        keys=("as_of", "last_changed", "changed_by", "keyed_by", "lines"),
+    ),
+    Shape(
+        "indications[].treatment_landscape.lines",
+        kind="malformed_treatment_landscape",
+        container="array",
+    ),
+    Shape(
+        "indications[].treatment_landscape.lines[]",
+        kind="malformed_treatment_landscape",
+        keys=("line", "biomarker_subgroup", "standard_of_care", "bar_direction"),
+    ),
+    # --- quiet_this_cycle -------------------------------------------------
+    Shape(
+        "quiet_this_cycle",
+        keys=("no_news", "critic_catches", "open_threads", "dropped_with_receipt"),
+    ),
+    Shape("quiet_this_cycle.no_news", container="array"),
+    Shape("quiet_this_cycle.critic_catches", container="array"),
+    Shape(
+        "quiet_this_cycle.critic_catches[]",
+        keys=("claim", "rejected_because", "detail", "caught_by"),
+    ),
+    Shape("quiet_this_cycle.no_news[]", keys=("entity_id", "name", "cycles_quiet")),
+    Shape("quiet_this_cycle.open_threads", kind="malformed_open_thread", container="array"),
+    Shape(
+        "quiet_this_cycle.open_threads[]",
+        kind="malformed_open_thread",
+        keys=("entity_id", "thread", "since"),
+    ),
+    Shape(
+        "quiet_this_cycle.dropped_with_receipt",
+        kind="malformed_dropped_receipt",
+        container="array",
+    ),
+    Shape(
+        "quiet_this_cycle.dropped_with_receipt[]",
+        kind="malformed_dropped_receipt",
+        keys=("name", "dropped_because", "source"),
+    ),
+    # --- newly_discovered -------------------------------------------------
+    Shape("newly_discovered", container="array"),
+    Shape(
+        "newly_discovered[]",
+        keys=(
+            "entity_id",
+            "name",
+            "type",
+            "priority",
+            "what_it_is",
+            "development",
+            "proposed_relation",
+            "read_through",
+            "promotion_proposal",
+            "sources",
+        ),
+        enums={"priority": CONFIDENCE_LEVELS, "proposed_relation": ALL_RELATIONS},
+    ),
+    Shape(
+        "newly_discovered[].read_through",
+        keys=("thesis_bearing", "established_by"),
+        enums={"thesis_bearing": THESIS_BEARINGS},
+    ),
+    Shape("newly_discovered[].sources", container="array"),
+    Shape(
+        "newly_discovered[].promotion_proposal",
+        kind="malformed_promotion_proposal",
+        keys=("promote_to_competitors", "reason"),
+    ),
+    # --- house_view -------------------------------------------------------
+    Shape(
+        "house_view",
+        keys=("partnership_bd", "threat_financing", "themes_and_signals", "blind_spots"),
+    ),
+    Shape("house_view.partnership_bd", container="array"),
+    Shape("house_view.threat_financing", container="array"),
+    Shape("house_view.partnership_bd[]", keys=("name", "summary", "read_through", "sources")),
+    Shape("house_view.threat_financing[]", keys=("name", "summary", "read_through", "sources")),
+    # A house read-through carries a `lens`, not a `thesis_bearing` — the house
+    # aperture is wider than the thesis. `lens` and `text` are the admission
+    # rule's; only the provenance field is left for the table.
+    Shape("house_view.partnership_bd[].read_through", keys=("established_by",)),
+    Shape("house_view.threat_financing[].read_through", keys=("established_by",)),
+    Shape("house_view.themes_and_signals", container="array"),
+    Shape("house_view.themes_and_signals[].evidence_refs", container="array"),
+    Shape(
+        "house_view.themes_and_signals[]",
+        keys=("theme", "evidence_refs", "argument", "thesis_impact"),
+    ),
+    Shape("house_view.blind_spots", keys=("cap", "ranked")),
+    Shape("house_view.blind_spots.ranked", container="array"),
+    Shape(
+        "house_view.blind_spots.ranked[]",
+        keys=("rank", "blind_spot", "why_it_matters", "signal_magnitude", "mitigation"),
+        enums={"signal_magnitude": CONFIDENCE_LEVELS},
+    ),
+    # --- thesis_updates ---------------------------------------------------
+    # The list itself may be honestly empty (no drift is information, [06]), so
+    # only its ENTRIES carry a shape.
+    Shape("thesis_updates", container="array"),
+    Shape(
+        "thesis_updates[]",
+        keys=("change", "field", "before", "after", "triggered_by"),
+        enums={"change": THESIS_CHANGES},
+    ),
+    Shape("thesis_updates[].triggered_by", container="array"),
+    # --- critic_report ----------------------------------------------------
+    Shape(
+        "critic_report",
+        required=True,
+        keys=(
+            "verdict",
+            "retries_used",
+            "blocking_findings",
+            "advisory_findings",
+            "validator_report",
+        ),
+        enums={"verdict": CRITIC_VERDICTS},
+    ),
+    Shape("critic_report.blocking_findings", container="array"),
+    Shape("critic_report.advisory_findings", container="array"),
+    Shape("critic_report.validator_report", keys=("passed", "retries_used", "findings")),
+    Shape("critic_report.validator_report.findings", container="array"),
+    # --- sources_and_method -----------------------------------------------
+    Shape(
+        "sources_and_method",
+        keys=(
+            "apertures_run",
+            "apertures_degraded",
+            "registry_watch",
+            "source_tier_counts",
+            "paywalled_flagged",
+            "interest_list",
+        ),
+    ),
+    Shape("sources_and_method.apertures_run", container="array"),
+    Shape("sources_and_method.apertures_run[]", keys=("aperture", "scope", "status")),
+    Shape("sources_and_method.apertures_degraded", container="array"),
+    Shape(
+        "sources_and_method.registry_watch",
+        keys=(
+            "input_class",
+            "tracked_nct_ids",
+            "polled_by",
+            "diffs_observed",
+            "coverage_note",
+        ),
+    ),
+    Shape("sources_and_method.registry_watch.tracked_nct_ids", container="array"),
+    Shape("sources_and_method.registry_watch.diffs_observed", container="array"),
+    Shape("sources_and_method.registry_watch.diffs_observed[]", keys=("source", "note")),
+    Shape("sources_and_method.source_tier_counts", keys=("primary", "trade", "aggregator")),
+    Shape("sources_and_method.paywalled_flagged", container="array"),
+    Shape(
+        "sources_and_method.interest_list",
+        keys=(
+            "source",
+            "version",
+            "last_edited",
+            "last_edited_by",
+            "rot_status",
+            "interests",
+        ),
+        enums={"rot_status": ROT_STATUSES},
+    ),
+    Shape("sources_and_method.interest_list.interests", container="array"),
+    Shape(
+        "sources_and_method.interest_list.interests[]",
+        keys=("tier", "note"),
+        enums={"tier": INTEREST_TIERS},
+    ),
+)
 
-    Found by the first live run (18 Jul 2026): the manager emitted BARE STRINGS —
-    paragraphs of prose. Nothing caught it, because no check read the section at
-    all. The cost is not cosmetic: `_iter_entity_refs_v2` walks `open_threads` for
-    `entity_id`, so a bare string is a thread about an entity that the dangling
-    check can never resolve and the reader can never trace, and `since` — the only
-    field that makes an OPEN thread distinguishable from a new one — is gone.
 
-    Same argument as `malformed_promotion_proposal`: this is a TYPE, not a
-    judgment, so it is mechanically decidable from the issue alone ([06] admission
-    test 2) and belongs in the free gate rather than the critic's budget.
+def _label(element, index):
+    """A readable name for a list element — its own id if it has one, else index.
+
+    Keeps a `where` traceable by eye: `competitors[asset_her3_dxd].read_through`
+    rather than `competitors[3].read_through`, so a manager repairing a finding
+    does not have to count array positions in its own output.
     """
-    required = ("entity_id", "thread", "since")
-    for i, entry in enumerate(_mapping(issue, "quiet_this_cycle").get("open_threads") or []):
-        where = f"quiet_this_cycle.open_threads[{i}]"
-        if not isinstance(entry, dict):
-            problems.append(
-                Finding(
-                    "malformed_open_thread",
-                    where,
-                    f"must be an object with entity_id/thread/since, got {type(entry).__name__}",
-                )
-            )
-            continue
-        missing = [k for k in required if entry.get(k) in (None, "")]
-        if missing:
-            problems.append(
-                Finding(
-                    "malformed_open_thread",
-                    where,
-                    f"missing required key(s) {', '.join(missing)}"
-                    f" (has: {', '.join(sorted(entry)) or 'nothing'})",
-                )
-            )
+    if isinstance(element, dict):
+        for key in ("entity_id", "indication_id", "id"):
+            value = element.get(key)
+            if isinstance(value, str) and value:
+                return value
+    return index
 
 
-def _check_malformed_treatment_landscape(issue, problems):
-    """An indication's `treatment_landscape` carries [07]'s envelope, `lines` a list.
+def _walk_path(issue, path):
+    """(value, where) for every node the dotted `path` names. NEVER raises.
 
-    [07] §treatment_landscape specifies `{as_of, last_changed, changed_by,
-    keyed_by, lines[]}` — a thin, manager-authored synthesis over the benchmark
-    records, keyed indication × line × biomarker-subgroup, whose `as_of` /
-    `last_changed` pair is what makes it slow state with a default no-op.
+    The one traversal every row uses. It is walking adversarial input by
+    definition — the table exists because managers emit nulls, prose and wrong
+    containers at arbitrary depth — so every step is total: an intermediate that
+    is not a mapping, or a `foo[]` segment over something that is not a list,
+    contributes NOTHING and the walk continues. That is not tolerance; the row
+    naming that intermediate is what reports it. A gate that crashes is strictly
+    worse than one that misses, because it takes the run down AFTER publishing
+    ([06] admission test 2: a check that dies decides nothing).
 
-    Found by the first live run (18 Jul 2026): the manager emitted
-    `{indication, entries, bar_direction, emerging_therapies_note}` instead — and
-    the run PASSED, because no check policed the envelope. The consequence was a
-    three-deep chain of silent vacuity, which is why this check is BLOCKING rather
-    than advisory:
-
-    - `landscape_number_unsourced` iterates `.lines`, so the primary-source-only
-      rule for benchmark efficacy numbers ([07], #57) could not fire against the
-      real output at all — the strictest bar in the schema, silently off.
-    - `_count_intel_sources_v2` walks the same `.lines` path, so `sources_cited`
-      undercounted every landscape number the issue actually carried.
-    - `derived_stats_mismatch` compares two values that BOTH read `.lines`, so
-      they agreed with each other and the undercount was invisible to the one
-      check whose job is catching a miscounted stat.
-
-    The lesson is the general one this gate keeps relearning: a check that reads a
-    path the emitter never writes is not a lenient check, it is an ABSENT one, and
-    an absent check reports clean. Policing the envelope is what puts the other
-    three back in contact with the data.
+    A yielded value may be `_MISSING` — absent is a distinct answer from null,
+    and only the caller knows whether the row requires presence.
     """
-    envelope = ("as_of", "last_changed", "changed_by", "keyed_by", "lines")
-    for ind in issue.get("indications") or []:
-        if not isinstance(ind, dict):
-            continue
-        iid = ind.get("indication_id", "?")
-        where = f"indications[{iid}].treatment_landscape"
-        landscape = ind.get("treatment_landscape")
-        if landscape is None:
-            continue  # an indication may carry no landscape; a MALFORMED one blocks
-        if not isinstance(landscape, dict):
+    frontier = [(issue, "")]
+    for segment in path.split("."):
+        is_list = segment.endswith("[]")
+        key = segment[:-2] if is_list else segment
+        nxt = []
+        for node, where in frontier:
+            if not isinstance(node, dict):
+                continue
+            here = f"{where}.{key}" if where else key
+            value = node.get(key, _MISSING)
+            if not is_list:
+                nxt.append((value, here))
+            elif isinstance(value, list):
+                nxt.extend(
+                    (element, f"{here}[{_label(element, i)}]")
+                    for i, element in enumerate(value)
+                )
+        frontier = nxt
+    return frontier
+
+
+def _in_enum(value, allowed) -> bool:
+    """Membership that survives an unhashable value — a manager that sends a
+    list or an object where an enum string belongs must get a finding, not a
+    TypeError out of the gate."""
+    try:
+        return value in allowed
+    except TypeError:
+        return False
+
+
+def _check_shape(shape, value, where, problems):
+    """Apply one row to one node. Total: every branch either files or returns."""
+    if value is _MISSING or value is None:
+        if shape.required:
+            problems.append(
+                Finding(shape.kind, where, "required by [07] but absent or null")
+            )
+        return
+
+    if shape.container == "array":
+        if not isinstance(value, list):
+            problems.append(
+                Finding(shape.kind, where, f"must be a list, got {type(value).__name__}")
+            )
+        return
+
+    if not isinstance(value, dict):
+        expected = ", ".join(shape.keys) or "the shape [07] specifies"
+        problems.append(
+            Finding(
+                shape.kind,
+                where,
+                f"must be an object with {expected}, got {type(value).__name__}",
+            )
+        )
+        return
+
+    missing = [k for k in shape.keys if value.get(k, _MISSING) in (_MISSING, None, "")]
+    if missing:
+        problems.append(
+            Finding(
+                shape.kind,
+                where,
+                f"missing required key(s) {', '.join(missing)}"
+                f" (has: {', '.join(sorted(str(k) for k in value)) or 'nothing'})",
+            )
+        )
+
+    for key, allowed in shape.enums.items():
+        got = value.get(key, _MISSING)
+        if got is _MISSING or got is None:
+            continue  # absence is the `keys` tuple's business, not the enum's
+        if not _in_enum(got, allowed):
             problems.append(
                 Finding(
-                    "malformed_treatment_landscape",
-                    where,
-                    f"must be an object with {', '.join(envelope)}, got {type(landscape).__name__}",
-                )
-            )
-            continue
-        missing = [k for k in envelope if landscape.get(k) in (None, "")]
-        if missing:
-            problems.append(
-                Finding(
-                    "malformed_treatment_landscape",
-                    where,
-                    f"missing required key(s) {', '.join(missing)}"
-                    f" (has: {', '.join(sorted(landscape)) or 'nothing'})",
-                )
-            )
-        lines = landscape.get("lines")
-        if lines is not None and not isinstance(lines, list):
-            problems.append(
-                Finding(
-                    "malformed_treatment_landscape",
-                    f"{where}.lines",
-                    f"must be a list of keyed lines, got {type(lines).__name__}",
+                    shape.kind,
+                    f"{where}.{key}",
+                    f"{got!r} is outside the enum {sorted(allowed)}",
                 )
             )
 
 
-def _check_malformed_promotion_proposal(issue, problems):
-    """A `newly_discovered[].promotion_proposal` is an OBJECT, never prose.
+def _check_issue_shape_v2(issue, problems, table=ISSUE_SHAPE_V2):
+    """The whole contract, enforced by one walk over one table.
 
-    Found by the first live run (18 Jul 2026): the manager emitted a sentence
-    ("Promote to the typed roster as a target_twin…") where [07] specifies
-    `{promote_to_competitors, reason, proposes_interest}`. Nothing caught it —
-    not the manager seam, not this gate, not the critic — and it surfaced three
-    stages later as an AttributeError in the state-edit writer, *after* the issue
-    had been published.
-
-    It belongs here rather than in the critic because it is a type, not a
-    judgment: `isinstance(x, dict)` is mechanically decidable from the issue
-    alone, which is [06]'s admission test 2. The lesson generalises — a field the
-    orchestrator later calls `.get()` on is a field this gate must have already
-    proven is a mapping, or the manager's mistake becomes the run's crash.
+    Replaces the per-field shape functions that covered two-thirds of [07] and
+    left the rest to be found by crashing. Coverage is now an artifact that can
+    be diffed against the spec, and `test_shape_table_drift` fails when it is not.
     """
-    for i, entry in enumerate(issue.get("newly_discovered") or []):
-        if not isinstance(entry, dict):
-            continue
-        proposal = entry.get("promotion_proposal")
-        if proposal is not None and not isinstance(proposal, dict):
-            problems.append(
-                Finding(
-                    "malformed_promotion_proposal",
-                    f"newly_discovered[{_ref(entry, i)}].promotion_proposal",
-                    f"must be an object with promote_to_competitors/reason, got {type(proposal).__name__}",
-                )
-            )
+    for shape in table:
+        for value, where in _walk_path(issue, shape.path):
+            _check_shape(shape, value, where, problems)
 
 
 def _check_untyped_competitor(issue, problems):
@@ -1505,38 +1855,26 @@ def _count_intel_sources_v2(issue) -> int:
 SHARED_WALK_CONTAINERS_V2 = ("catalyst_queue", "stats", "sources_and_method")
 
 
-def _check_malformed_container_v2(issue, problems) -> bool:
-    """A top-level container is an object, or the shared walks are not run.
+def _shared_walks_are_safe_v2(issue) -> bool:
+    """Whether the SHARED (v1-authored) walks can be run over this issue.
 
-    Returns True when every container in `SHARED_WALK_CONTAINERS_V2` is safe to
-    traverse. `_check_queue_tamper` and `_check_derived_stats_mismatch` are shared
-    with v1 and reach into `issue["catalyst_queue"]` directly, so a manager that
-    sends prose or null there would crash them — the same class of failure
-    `_mapping` fixes inside the v2 section, one altitude up.
+    `_check_queue_tamper` and `_check_derived_stats_mismatch` are shared with v1
+    and reach into `issue["catalyst_queue"]` directly, so a manager that sends
+    prose or null there would crash them — the same class of failure `_mapping`
+    fixes inside the v2 section, one altitude up.
 
-    Blocking, then short-circuiting, is the honest order: the malformation is
-    REPORTED (the reader and the retry loop both learn the shape was wrong), and
-    only then is the walk that cannot survive it skipped. Nothing is silently
-    tolerated; a crash is simply not how the gate says so.
+    This is a PREDICATE, not a check: the malformation is reported by the shape
+    table, which names all three containers as objects. Reporting it here too
+    would file the same defect twice. Nothing is silently tolerated — the finding
+    exists, it just has one home.
     """
-    safe = True
-    for key in SHARED_WALK_CONTAINERS_V2:
-        if key not in issue:
-            continue  # ABSENT is safe: `.get(k, {})` supplies its default correctly
-        value = issue[key]
-        if isinstance(value, dict):
-            continue
-        # PRESENT-but-not-a-mapping is the unsafe case, and null is the sharpest
-        # form of it — `.get(k, {})` returns the null rather than the default.
-        safe = False
-        problems.append(
-            Finding(
-                "malformed_section",
-                key,
-                f"must be an object, got {type(value).__name__}",
-            )
-        )
-    return safe
+    return all(
+        key not in issue or isinstance(issue[key], dict)
+        # ABSENT is safe: `.get(k, {})` supplies its default correctly. PRESENT-
+        # but-not-a-mapping is the unsafe case, and null is the sharpest form of
+        # it — `.get(k, {})` returns the null rather than the default.
+        for key in SHARED_WALK_CONTAINERS_V2
+    )
 
 
 def _validate_issue_v2(issue, *, state, queue_baseline, baseline_expired, calendar_stale, roster=None):
@@ -1556,16 +1894,16 @@ def _validate_issue_v2(issue, *, state, queue_baseline, baseline_expired, calend
     _check_unaccounted_entity(issue, roster, blocking)
     _check_empty_section_v2(issue, state, blocking)
     _check_empty_arena_v2(issue, blocking)
-    if _check_malformed_container_v2(issue, blocking):
+    if _shared_walks_are_safe_v2(issue):
         _check_derived_stats_mismatch(issue, blocking)
         _check_queue_tamper(issue, queue_baseline, blocking)
 
+    # The contract's SHAPE — one table, one walk. Everything below it encodes a
+    # judgment the table cannot: admission, placement, the cap, the sourcing bar.
+    _check_issue_shape_v2(issue, blocking)
+
     _check_missing_read_through(issue, blocking)
     _check_untyped_competitor(issue, blocking)
-    _check_malformed_promotion_proposal(issue, blocking)
-    _check_malformed_dropped_receipt(issue, blocking)
-    _check_malformed_open_thread(issue, blocking)
-    _check_malformed_treatment_landscape(issue, blocking)
     _check_blind_spot_overflow(issue, blocking)
     _check_landscape_number_unsourced(issue, blocking)
 

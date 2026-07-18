@@ -489,31 +489,46 @@ class TestTheFirstLiveRunsCrash:
             ]
         }
 
-    def test_the_validator_blocks_a_prose_promotion_proposal(self):
-        from researchswarm.validator import _check_malformed_promotion_proposal
+    @staticmethod
+    def _proposal_findings(issue):
+        """The shape table's verdict on `promotion_proposal`, and only that.
+
+        The hand-written `_check_malformed_promotion_proposal` was retired into
+        `ISSUE_SHAPE_V2`; the KIND it filed survives, because that name is the
+        repair vocabulary the manager's retry prompt speaks.
+        """
+        from researchswarm.validator import _check_issue_shape_v2
 
         problems = []
-        _check_malformed_promotion_proposal(self._issue_with_prose_proposal(), problems)
+        _check_issue_shape_v2(issue, problems)
+        return [f for f in problems if f.kind == "malformed_promotion_proposal"]
+
+    def test_the_validator_blocks_a_prose_promotion_proposal(self):
+        problems = self._proposal_findings(self._issue_with_prose_proposal())
         assert len(problems) == 1
         assert problems[0].kind == "malformed_promotion_proposal"
         assert "got str" in problems[0].note
 
     def test_a_well_formed_proposal_passes(self):
-        from researchswarm.validator import _check_malformed_promotion_proposal
-
-        problems = []
-        _check_malformed_promotion_proposal(
-            {"newly_discovered": [{"entity_id": "e", "promotion_proposal": {"promote_to_competitors": False}}]},
-            problems,
+        problems = self._proposal_findings(
+            {
+                "newly_discovered": [
+                    {
+                        "entity_id": "e",
+                        "promotion_proposal": {
+                            "promote_to_competitors": False,
+                            "reason": "Preclinical; watch, do not promote.",
+                        },
+                    }
+                ]
+            }
         )
         assert problems == []
 
     def test_an_absent_proposal_is_not_a_finding(self):
-        from researchswarm.validator import _check_malformed_promotion_proposal
-
-        problems = []
-        _check_malformed_promotion_proposal({"newly_discovered": [{"entity_id": "e"}]}, problems)
-        assert problems == []
+        """Absent is the parent row's business (`newly_discovered[]` names it
+        required); THIS row only judges a proposal that is actually there."""
+        assert self._proposal_findings({"newly_discovered": [{"entity_id": "e"}]}) == []
 
     def test_the_state_writer_degrades_rather_than_crashing(self):
         """It runs after publish, so a crash costs the commit — never worth it."""
@@ -533,11 +548,18 @@ class TestTheDroppedReceiptHole:
     """
 
     def _check(self, entries):
-        from researchswarm.validator import _check_malformed_dropped_receipt
+        """The shape table's verdict on the receipts, and only that.
+
+        `_check_malformed_dropped_receipt` was retired into `ISSUE_SHAPE_V2`;
+        the kind it filed is unchanged, so every downstream reader still works.
+        """
+        from researchswarm.validator import _check_issue_shape_v2
 
         problems = []
-        _check_malformed_dropped_receipt({"quiet_this_cycle": {"dropped_with_receipt": entries}}, problems)
-        return problems
+        _check_issue_shape_v2(
+            {"quiet_this_cycle": {"dropped_with_receipt": entries}}, problems
+        )
+        return [f for f in problems if f.kind == "malformed_dropped_receipt"]
 
     def test_it_catches_the_shape_the_live_manager_actually_emitted(self):
         problems = self._check([{"item": "X", "reason": "off-target", "sources": [{"url": "u"}]}])
@@ -561,7 +583,7 @@ class TestTheDroppedReceiptHole:
     def test_a_non_object_entry_is_caught_not_skipped(self):
         problems = self._check(["just a sentence"])
         assert len(problems) == 1
-        assert "must be an object, got str" in problems[0].note
+        assert "must be an object with name, dropped_because, source, got str" in problems[0].note
 
     def test_no_dropped_items_is_not_a_finding(self):
         assert self._check([]) == []

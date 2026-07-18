@@ -399,13 +399,15 @@ class TestTheGateNeverCrashes:
         result = validate_issue(issue, state=_state_for(issue))
         assert {"malformed_treatment_landscape", "missing_read_through"} <= _kinds(result)
 
-    def test_the_dropped_receipt_check_survives_its_own_failure_mode(self):
-        from researchswarm.validator import _check_malformed_dropped_receipt
+    def test_the_dropped_receipt_row_survives_its_own_failure_mode(self):
+        """`quiet_this_cycle` itself malformed: the RECEIPT row must find nothing
+        and raise nothing — the row that names `quiet_this_cycle` is what reports."""
+        from researchswarm.validator import _check_issue_shape_v2
 
         for value in (None, "prose", 7, []):
             problems: list = []
-            _check_malformed_dropped_receipt({"quiet_this_cycle": value}, problems)
-            assert problems == []
+            _check_issue_shape_v2({"quiet_this_cycle": value}, problems)
+            assert [f for f in problems if f.kind == "malformed_dropped_receipt"] == []
 
 
 class TestMalformedOpenThread:
@@ -479,15 +481,235 @@ class TestAgainstTheRealPublishedIssue:
             import pytest
 
             pytest.skip("no published issue on disk")
-        from researchswarm.validator import (
-            _check_malformed_open_thread,
-            _check_malformed_treatment_landscape,
-        )
+        from researchswarm.validator import _check_issue_shape_v2
 
         issue = json.loads(self.PUBLISHED.read_text())
-        landscape: list = []
-        _check_malformed_treatment_landscape(issue, landscape)
-        threads: list = []
-        _check_malformed_open_thread(issue, threads)
-        assert len(landscape) == 2, [f.where for f in landscape]
-        assert len(threads) == 3, [f.where for f in threads]
+        problems: list = []
+        _check_issue_shape_v2(issue, problems)
+        by_kind: dict[str, list] = {}
+        for finding in problems:
+            by_kind.setdefault(finding.kind, []).append(finding.where)
+
+        # The four shapes the live run broke, all now caught by rows in the table
+        # rather than by four hand-written functions.
+        assert len(by_kind.get("malformed_treatment_landscape", [])) == 2, by_kind
+        assert len(by_kind.get("malformed_open_thread", [])) == 3, by_kind
+        assert len(by_kind.get("malformed_dropped_receipt", [])) == 5, by_kind
+        assert len(by_kind.get("malformed_promotion_proposal", [])) == 2, by_kind
+
+        # And two the hand-written set never covered at all: `registry_watch`
+        # emitted as a bare list of diffs instead of [07]'s input-class object,
+        # and an `interest_list` with no `source`. Neither was ever *decided*
+        # against — no one had written the function yet, which is exactly the
+        # drift a table makes impossible.
+        assert sorted(by_kind.get("malformed_shape", [])) == [
+            "sources_and_method.interest_list",
+            "sources_and_method.registry_watch",
+        ], by_kind
+
+
+class TestTheShapeTableDoesNotDriftFromTheContract:
+    """THE point of the table: coverage that cannot silently fall behind [07].
+
+    The gate's first v2 pass hand-wrote ~14 shape checks against a spec stating
+    ~20 required shapes. The missing six were never *decided* against — nobody
+    had written the function — and the system discovered them one at a time by
+    crashing into them after publishing. Prose coverage drifts because nothing
+    fails when it does. These tests are what fails.
+    """
+
+    def _table_findings(self, issue):
+        from researchswarm.validator import _check_issue_shape_v2
+
+        problems: list = []
+        _check_issue_shape_v2(issue, problems)
+        return problems
+
+    def test_every_row_resolves_in_the_schema_correct_sample(self):
+        """Table → spec. A row naming a path the reference sample does not have
+        is a row written against a misremembered contract — a typo'd key, or a
+        field that moved. It would then silently police nothing forever."""
+        from researchswarm.validator import ISSUE_SHAPE_V2, _MISSING, _walk_path
+
+        sample = _load_sample()
+        unresolved = [
+            shape.path
+            for shape in ISSUE_SHAPE_V2
+            if not [
+                value
+                for value, _ in _walk_path(sample, shape.path)
+                if value is not _MISSING and value is not None
+            ]
+        ]
+        assert unresolved == [], f"rows naming paths absent from the sample: {unresolved}"
+
+    def test_the_schema_correct_sample_passes_the_table_cleanly(self):
+        """Spec → table. The worked example IS the contract made concrete, so a
+        finding against it means the table is wrong (or the sample is)."""
+        assert self._table_findings(_load_sample()) == []
+
+    # Paths the sample carries that carry NO shape duty in the table, each with
+    # the reason it is somebody else's job. This is the list a reviewer argues
+    # with — which is the point: an exemption is a decision on the record, not
+    # an absence nobody noticed.
+    EXEMPT_LEAF_KEYS = {
+        "sources": "the source object's four required fields are `malformed_source`'s",
+        "source": "same — the receipt's source object is `malformed_source`'s",
+        "window_source": "same",
+        "efficacy_source": "shape is `malformed_source`'s; its TIER is `landscape_number_unsourced`'s",
+        "degradation": "the degradation register owns the kind vocabulary ([06])",
+        "proposes_interest": "[07]: an item MAY propose an interest — optional by contract",
+        "holders": "[07] shows it; it is not marked required, and a solo-developed asset has none",
+        "categories": "optional taxonomy, not a required shape",
+        "entity_ids": "queue-level convenience refs; the dangling check reads them",
+        "emerging": "a read-only VIEW over the queue ([07] #57), never an authored list",
+        "paywalled_flagged": "unchanged-from-v1 open shape",
+        "advisory_findings": "critic-authored, open kind set — machinery [06] does not re-open",
+    }
+
+    def test_no_sample_path_is_missing_from_the_table_without_a_reason(self):
+        """The 'spec grew, table didn't' direction.
+
+        Walks the sample's own structure and demands that every container path
+        either has a row or appears in `EXEMPT_LEAF_KEYS` with a stated reason.
+        Add a section to [07] and the sample and forget the table, and this is
+        the test that turns a 3am AttributeError into a red build.
+        """
+        from researchswarm.validator import ISSUE_SHAPE_V2
+
+        sample = _load_sample()
+        paths: set[str] = set()
+
+        def walk(node, path):
+            if isinstance(node, dict):
+                if path:
+                    paths.add(path)
+                for key, value in node.items():
+                    walk(value, f"{path}.{key}" if path else key)
+            elif isinstance(node, list):
+                if path:
+                    paths.add(path)
+                for element in node:
+                    walk(element, path + "[]")
+
+        walk(sample, "")
+        covered = {shape.path for shape in ISSUE_SHAPE_V2}
+        uncovered = sorted(
+            path
+            for path in paths - covered
+            if path.split(".")[-1].removesuffix("[]") not in self.EXEMPT_LEAF_KEYS
+        )
+        assert uncovered == [], (
+            "sample paths with neither a table row nor a stated exemption — "
+            f"the contract grew and the gate did not: {uncovered}"
+        )
+
+    def test_the_retired_hand_written_checks_are_gone(self):
+        """They are rows now. Leaving a shim behind would restore exactly the
+        two-homes-for-one-rule drift this build removes."""
+        import researchswarm.validator as validator
+
+        for retired in (
+            "_check_malformed_open_thread",
+            "_check_malformed_dropped_receipt",
+            "_check_malformed_treatment_landscape",
+            "_check_malformed_promotion_proposal",
+        ):
+            assert not hasattr(validator, retired), f"{retired} should be a table row now"
+
+    def test_the_judgment_checks_are_kept(self):
+        """Shape compresses to a row; JUDGMENT does not. These stay hand-written
+        because each encodes a rule about MEANING, not about type."""
+        import researchswarm.validator as validator
+
+        for kept in (
+            "_check_missing_read_through",  # the admission rule
+            "_check_untyped_competitor",  # platform_threat belongs in the house view
+            "_check_blind_spot_overflow",  # capped, and overflow is never silent
+            "_check_landscape_number_unsourced",  # benchmark numbers are primary-only
+            "_check_empty_arena_v2",  # dormancy must be mechanically corroborated
+        ):
+            assert hasattr(validator, kept)
+
+
+class TestTheWalkerNeverCrashes:
+    """It validates adversarial input BY DEFINITION — that is its whole job.
+
+    A gate that raises is strictly worse than one that misses: it takes the run
+    down at the moment the issue is most malformed, and it does so AFTER
+    publishing. That exact bug shipped twice on the first live night. So the walk
+    is total at every depth, for every kind of garbage.
+    """
+
+    GARBAGE = (None, "prose the manager wrote instead", 7, 0, True, [], {}, [None], ["x"], {"k": None})
+
+    def _run(self, issue):
+        from researchswarm.validator import _check_issue_shape_v2
+
+        problems: list = []
+        _check_issue_shape_v2(issue, problems)  # must not raise
+        return problems
+
+    def test_every_top_level_section_survives_every_kind_of_garbage(self):
+        from researchswarm.validator import ISSUE_SHAPE_V2
+
+        roots = sorted({shape.path.split(".")[0].removesuffix("[]") for shape in ISSUE_SHAPE_V2})
+        for root in roots:
+            for value in self.GARBAGE:
+                issue = _load_sample()
+                issue[root] = value
+                self._run(issue)
+
+    def test_every_row_survives_garbage_at_its_own_depth(self):
+        """Not just the top level: a null two levels down is the shape the live
+        manager actually emitted, and the walk must step over it."""
+        from researchswarm.validator import ISSUE_SHAPE_V2, _walk_path
+
+        for shape in ISSUE_SHAPE_V2:
+            for value in self.GARBAGE:
+                issue = _load_sample()
+                # Plant the garbage AT the row's own path by walking the parents
+                # in the live object, which is the only way to hit `[]` segments.
+                self._plant(issue, shape.path.split("."), value)
+                self._run(issue)
+                assert _walk_path(issue, shape.path) is not None
+
+    @staticmethod
+    def _plant(node, segments, value):
+        segment, rest = segments[0], segments[1:]
+        key, is_list = segment.removesuffix("[]"), segment.endswith("[]")
+        if not isinstance(node, dict):
+            return
+        if not rest:
+            if is_list and isinstance(node.get(key), list):
+                node[key] = [value for _ in node[key]] or [value]
+            else:
+                node[key] = value
+            return
+        target = node.get(key)
+        if is_list and isinstance(target, list):
+            for element in target:
+                TestTheWalkerNeverCrashes._plant(element, rest, value)
+        else:
+            TestTheWalkerNeverCrashes._plant(target, rest, value)
+
+    def test_the_whole_gate_survives_a_totally_hostile_issue(self):
+        """Every section replaced with prose at once, through the real entry
+        point — the gate must return findings, not a traceback."""
+        from researchswarm.validator import validate_issue
+
+        issue = _load_sample()
+        hostile = {key: "the manager wrote a paragraph here" for key in issue}
+        hostile["schema_version"] = "2.0.0"  # the dispatch key, kept honest
+        result = validate_issue(hostile, state=_state_for(_load_sample()))
+        assert not result.passed
+        assert len(result.blocking) > 5
+
+    def test_an_unhashable_value_where_an_enum_belongs_is_a_finding_not_a_typeerror(self):
+        issue = _load_sample()
+        issue["issue"]["run"]["status"] = ["published"]  # a list is unhashable
+        issue["headline"]["confidence"] = {"level": "high"}
+        problems = self._run(issue)
+        wheres = {finding.where for finding in problems}
+        assert "issue.run.status" in wheres
+        assert "headline.confidence" in wheres
