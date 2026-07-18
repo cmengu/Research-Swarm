@@ -234,3 +234,42 @@ class TestDecisionShape:
         assert isinstance(decision, CadenceDecisionV2)
         assert decision.reason == "not_due"
         assert decision.surge is None
+
+
+class TestColdStartShortfall:
+    """A cold-start window shorter than the cadence it feeds reports as a quiet
+    market. run_20260718_2258 published an EMPTY threat_financing lens while five
+    in-scope items — including a $1.1B ADC-platform acquisition — sat in the
+    dropped pile, out of window by as little as one day.
+    """
+
+    def _program(self, baseline, lookback):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(cadence_baseline=baseline, cold_start_lookback_days=lookback)
+
+    def test_the_configuration_that_lost_the_novartis_deal_is_caught(self):
+        from researchswarm.cadence import cold_start_shortfall_v2
+
+        assert cold_start_shortfall_v2(self._program("monthly", 7)) == 23
+
+    def test_the_pilots_current_config_is_sound(self):
+        """The real committed file — not a fixture, so a regression in the TOML
+        fails here rather than silently on the next cold start."""
+        from pathlib import Path
+
+        from researchswarm.cadence import cold_start_shortfall_v2
+        from researchswarm.programs import load_program
+
+        program = load_program(Path(__file__).resolve().parents[1] / "config", "hmbd-001")
+        assert cold_start_shortfall_v2(program) is None
+
+    def test_exactly_one_cycle_is_sound(self):
+        from researchswarm.cadence import cold_start_shortfall_v2
+
+        assert cold_start_shortfall_v2(self._program("monthly", 30)) is None
+
+    def test_a_daily_baseline_has_no_shortfall_to_compute(self):
+        from researchswarm.cadence import cold_start_shortfall_v2
+
+        assert cold_start_shortfall_v2(self._program("daily", 1)) is None

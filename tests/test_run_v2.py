@@ -369,9 +369,22 @@ class TestPrepareAndDryRun:
         assert {p for p in fake_repo.rglob("*")} == before
 
     def test_the_cold_start_window_comes_from_the_program_config(self, fake_repo, caplog):
-        """cold_start_lookback_days ⚑ is a per-program dial, not a constant."""
+        """cold_start_lookback_days ⚑ is a per-program dial, not a constant.
+
+        Derived from the config rather than asserted as a literal, because the
+        literal is what this test was actually pinning: it hardcoded a 7-day
+        window while its own docstring said the value is a dial, so raising the
+        dial to 90 failed a test whose stated subject was that the dial moves.
+        """
+        from datetime import date, timedelta
+
+        from researchswarm.programs import load_program
+
+        program = load_program(fake_repo / "config", "hmbd-001")
+        to = date(2026, 7, 18)
+        expected = to - timedelta(days=program.cold_start_lookback_days)
         assert _run(fake_repo, "--dry-run") == run.EXIT_OK
-        assert "cold-start window 2026-07-11 → 2026-07-18" in caplog.text
+        assert f"cold-start window {expected} → {to}" in caplog.text
 
     def test_the_coverage_window_joins_this_programs_previous_issue(self, fake_repo, caplog):
         _write_issue(fake_repo, "2026-06-18")

@@ -352,3 +352,34 @@ def _add_months(start: date, months: int) -> date:
     year = start.year + total // 12
     month = total % 12 + 1
     return date(year, month, min(start.day, monthrange(year, month)[1]))
+
+
+def cold_start_shortfall_v2(program) -> int | None:
+    """Days by which a program's cold-start window falls short of one baseline cycle.
+
+    Returns None when the window is sound, else the shortfall in days.
+
+    A cold-start window SHORTER than the cadence it feeds is a config error that
+    reports as a quiet market. run_20260718_2258 is the worked example: a monthly
+    program with `cold_start_lookback_days = 7` surfaced five in-scope items —
+    including a $1.1B ADC-platform acquisition five days out of window — judged
+    them out of scope, and published `house_view.threat_financing` EMPTY. The
+    lens was not quiet; the window was.
+
+    This belongs in code rather than in a reviewer's head because it is
+    mechanically decidable from two numbers the orchestrator already holds
+    ([01] determinism before judgment): a run has no way to know the market was
+    louder than its window, so the only moment the mismatch is visible is before
+    the run, from config alone.
+
+    The floor is ONE baseline cycle — the weakest defensible bar, not a
+    recommendation. A first run's window is the only history the detective ever
+    sees for everything preceding it, so a deeper cold start is usually right;
+    this catches the case that cannot be right.
+    """
+    months = BASELINE_MONTHS_V2.get(program.cadence_baseline)
+    if months is None:  # daily, or a baseline validated elsewhere
+        return None
+    cycle_days = months * 30  # nominal; the check is an order-of-magnitude guard
+    lookback = program.cold_start_lookback_days
+    return cycle_days - lookback if lookback < cycle_days else None
