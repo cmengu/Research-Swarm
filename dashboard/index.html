@@ -960,7 +960,19 @@ const SAMPLE = {"schema_version":"2.0.0","issue":{"id":"2026-07-18","program_id"
     try {
       registry = await getJSON(ISSUES_BASE + 'index.json');
     } catch (err) {
-      // Registry dead → whole-page error. Nothing can be labelled, not even the switcher.
+      // A 404 here is NOT a transport failure — it is the pre-first-run state.
+      // The registry is written by the first successful run, so before one has
+      // ever completed there is nothing to fetch, and telling the reader to
+      // serve the repo over HTTP is advice that cannot help: they already are.
+      // Distinguishing the two is the difference between "you set this up wrong"
+      // and "this is new and hasn't run yet" (spec/08, first-publish bootstrap).
+      if (/HTTP 404/.test(err.message)) {
+        showFatal('<b>Nothing published yet</b>' +
+          'No run has completed, so <code>' + esc(ISSUES_BASE + 'index.json') + '</code> does not exist. ' +
+          'The registry is written by the first successful run: <code>python run.py --program &lt;id&gt;</code>.');
+        return;
+      }
+      // Any other failure IS transport — the hint applies.
       showFatal('<b>Could not load the program registry</b>' +
         'Fetch of <code>' + esc(ISSUES_BASE + 'index.json') + '</code> failed: ' + esc(err.message) + '.<br>' + SERVE_HINT);
       return;
