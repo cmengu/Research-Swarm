@@ -808,6 +808,68 @@ def render_critic_prompt(
     return _substitute(template, values)
 
 
+def render_critic_prompt_v2(
+    template: str,
+    *,
+    issue: dict,
+    findings_by_aperture: dict[str, dict],
+    previous_issue: dict | None,
+    program: Program,
+    edges: list[Edge],
+    entities: dict[str, dict],
+    thesis: dict,
+    surge: SurgeState | None = None,
+) -> str:
+    """Interpolate the v2 critic rubric with its inputs. Raises on a leftover.
+
+    The v2 twin of `render_critic_prompt`, additive beside it: the two rubrics run
+    side by side while the pipeline migrates, dispatched on the issue's own
+    schema_version. The load-bearing decision is unchanged (spec/06 "what the
+    critic sees") — the critic gets FIVE things, not just the finished issue,
+    because a critic holding only the digest cannot audit an ABSENCE: the absence
+    was removed from the artifact it is reading.
+
+    Three of the five changed SHAPE with the pivot, and one input is new:
+
+      - the findings corpus is keyed by APERTURE, not beat (spec/04). It is a
+        "retained artifact with a critic-input duty" — the `dropped_story` receipt
+        rule is enforced against exactly these files, so this is not context, it is
+        evidence, and it is rendered through the same `_findings_corpus` the
+        manager prompts use so the two can never present a finding differently.
+      - entity accounting is the TYPED COMPETITOR ROSTER (`state/programs/<id>/
+        edges.json` + the shared `state/entities/` layer) rather than v1's flat
+        watchlist. It carries the relation the critic's `relation_miscast` check
+        weighs the item's own facts against.
+      - the previous issue is this PROGRAM's most recent covering issue (issues are
+        stored per program, spec/07) — the caller resolves it, walking past stubs.
+      - the program block is new, because a read-through argues what a competitor
+        means FOR THIS PROGRAM; a critic that does not know the program's target and
+        `moa` cannot judge either `weak_read_through` or `relation_miscast`.
+
+    The roster and program blocks are the manager's renderers reused verbatim
+    (`_competitor_roster_v2`, `_program_block_v2`) — the critic must weigh exactly
+    the roster the manager was held against, and two renderers would be a place for
+    the accounting duty and its audit to drift.
+
+    The same UnresolvedPlaceholder wall applies: a literal {{issue_json}} reaching
+    Codex is an instruction to invent the thing it should be judging.
+    """
+    values = {
+        "program_block": _program_block_v2(program),
+        "issue_json": json.dumps(issue, indent=2, ensure_ascii=False),
+        "findings_corpus": _findings_corpus(findings_by_aperture, unit="aperture"),
+        "previous_issue_json": (
+            json.dumps(previous_issue, indent=2, ensure_ascii=False)
+            if previous_issue is not None
+            else "(no previous issue)"
+        ),
+        "competitor_roster": _competitor_roster_v2(program, edges, entities),
+        "thesis_json": json.dumps(thesis, indent=2, ensure_ascii=False),
+        "surge_window": _surge_window_block(surge),
+    }
+    return _substitute(template, values)
+
+
 def _blocking_findings_block(findings) -> str:
     """The validator's blocking findings as one `- kind at where: note` line each.
 

@@ -24,6 +24,15 @@ target = "HER3 (ERBB3)"
 # model turns on, so it lives in config and drives the biology scan.
 moa = "signalling_blockade"
 
+# THE FIVE-SECOND TEST (spec/08 "The program registry"). This one-liner rides in
+# `issues/index.json` so the program identity card can paint before the issue is
+# fetched — the reader learns which detective they are looking at while the issue
+# is still in flight. It is config-owned because the issue's `program.one_line`
+# (spec/07 `program`) is sourced from this file, and a mechanism sentence is a
+# fact about the drug, not something a run derives. Compressed from the modality
+# and moa above; it says what the drug DOES, not what it is made of.
+mechanism = "HER3 signalling blockade"
+
 # Cold-start typing (spec/03 "Discovery, promotion, and the edge", #53). These
 # entities are typed onto the program by writing a relation edge at run time;
 # this list is the seed the promotion path reads before any discovery has run.

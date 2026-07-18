@@ -67,6 +67,15 @@ class Program:
     target_twin (same target, different MOA) from a mechanism_twin (same target
     AND MOA), the distinction the whole competitor model turns on. `seed_competitors`
     is the cold-start typing path, NOT the migrated v1 roster.
+
+    `mechanism` is the FIVE-SECOND TEST (spec/08 "The program registry"): a plain
+    one-liner that rides in `issues/index.json` beside `sponsor`, so the program
+    identity card paints from the registry alone, before any issue is fetched. It
+    is config-owned rather than derived because a mechanism sentence is a fact
+    about the drug, and spec/07's `program.one_line` is sourced from this same
+    file. Optional, defaulting to empty: a program config that has not written one
+    yet still loads and still lists in the switcher — an unlabelled detective is a
+    smaller failure than an unreachable one.
     """
 
     id: str
@@ -79,6 +88,9 @@ class Program:
     cadence_baseline: str
     cold_start_lookback_days: int
     seed_competitors: tuple[str, ...]
+    # Last, with a default, so it is additive: every existing constructor call
+    # keeps working and only the registry has to know the field exists.
+    mechanism: str = ""
 
     @property
     def active_arena_ids(self) -> tuple[str, ...]:
@@ -107,6 +119,7 @@ def load_program(config_dir: Path, program_id: str) -> Program:
         cadence_baseline=cadence.get("baseline", "monthly"),
         cold_start_lookback_days=cadence.get("cold_start_lookback_days", 7),
         seed_competitors=tuple(program.get("seed_competitors", [])),
+        mechanism=program.get("mechanism", ""),
     )
 
 

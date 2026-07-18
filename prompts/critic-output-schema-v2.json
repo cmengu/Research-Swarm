@@ -1,0 +1,116 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "verdict",
+    "blocking_findings",
+    "advisory_findings"
+  ],
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "pass_with_advisories",
+        "blocked"
+      ],
+      "description": "The critic's judgment ONLY, never the orchestrator's outcome. `not_run` is orchestrator-only and never emitted here."
+    },
+    "blocking_findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      },
+      "description": "A reader would be misled about a fact. Only the seven blocking kinds belong here (spec/06 blocking findings); anything else the orchestrator demotes to advisory. A dropped_story MUST carry a well-formed `source` receipt or it is downgraded."
+    },
+    "advisory_findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      },
+      "description": "True but weaker than it should be — weak_read_through above all. Published, never gates, never enters a retry payload."
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "where",
+        "note",
+        "source"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "provenance_stale",
+            "overclaim",
+            "aggregator_only",
+            "unconfirmed_as_fact",
+            "dropped_story",
+            "thesis_impact_false",
+            "relation_miscast",
+            "thin_sourcing",
+            "coverage_gap",
+            "weak_read_through",
+            "thesis_unseeded",
+            "paywalled_primary",
+            "unverifiable_claim",
+            "stale_open_thread",
+            "source_unreachable",
+            "calendar_stale",
+            "thread_dropped",
+            "continuity_break",
+            "continuity_baseline_expired"
+          ],
+          "description": "The rubric kind (spec/06 v2 tables). The seven blocking kinds first, then the twelve advisories. The enum is a boundary guard, not the classifier: which ARRAY a kind rides in is what gates the run, and the orchestrator re-sorts by kind regardless of where the critic put it."
+        },
+        "where": {
+          "type": "string",
+          "description": "A path into the v2 issue, e.g. competitors.asset_her3_dxd, indications.squamous-nsclc.arena.setting_rivals.asset_ivonescimab, house_view.threat_financing.daiichi, headline."
+        },
+        "note": {
+          "type": "string"
+        },
+        "source": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "url",
+            "publisher",
+            "tier",
+            "published_at"
+          ],
+          "properties": {
+            "url": {
+              "type": "string"
+            },
+            "publisher": {
+              "type": "string"
+            },
+            "tier": {
+              "type": "string",
+              "enum": [
+                "primary",
+                "trade",
+                "aggregator"
+              ]
+            },
+            "published_at": {
+              "type": "string"
+            }
+          },
+          "description": "REQUIRED on a dropped_story — the receipt. Strict mode: the key is always present; null on every other kind."
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ResearchSwarm critic verdict (issue.json v2.0.0)",
+  "description": "The one JSON object Codex must emit for a v2 per-program issue. Passed to `codex exec --output-schema` to pin the shape at the model boundary; the orchestrator re-validates it anyway (a broken critic must never silently pass), so this is a guardrail, not the guarantee. Additive alongside critic-output-schema.json (v1), which is unchanged."
+}

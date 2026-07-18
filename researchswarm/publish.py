@@ -42,8 +42,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from researchswarm.critic import NOT_RUN, PUBLISHED_UNCRITIQUED
+from researchswarm.critic import (
+    NOT_RUN,
+    PUBLISHED_UNCRITIQUED,
+    PUBLISHED_WITH_UNRESOLVED,
+)
 from researchswarm.critique import CritiqueStageResult
+from researchswarm.programs import load_program
 from researchswarm.runs import latest_covering_issue
 from researchswarm.state import State
 from researchswarm.state_edits import apply_state_edits, write_json
@@ -468,3 +473,468 @@ def publish_stub(
         message=message, runner=runner,
     )
     return path
+
+
+# ===========================================================================
+# v2 — the per-program detective's three files
+# ===========================================================================
+#
+# Everything above this line is v1's flat single-digest publisher and is
+# UNTOUCHED: v1 is deleted whole, as its own ticket, not eroded in place. The v2
+# publisher is additive beside it for the same reason every other v2 twin on this
+# branch is (research, synthesis, critique, validation, state edits) — `--program`
+# selects the whole v2 stage machine, so no function has to ask which schema it
+# is serving.
+#
+# v2 emits THREE kinds of file, and naming the third is the point (spec/08 "The
+# program registry"):
+#
+#   issues/<program_id>/<date>.json   the issue      — immutable, per-program
+#   issues/<program_id>/index.json    the manifest   — derived,   per-program
+#   issues/index.json                 the registry   — derived,   CROSS-program
+#
+# The registry is the new thing. It is what the program switcher reads, so it can
+# label every detective without opening any program's manifest, and it is what
+# lets the identity card paint before the issue is fetched (spec/08 "The data
+# layer": first paint does not wait for the issue).
+#
+# The SOLE-WRITER invariant is unbroken. Everything here is a library function
+# called by run.py; nothing in this section shells out to git, and nothing here
+# runs off a background path. `publish.py` is `run.py`'s library, not a second
+# actor (spec/08 "The program registry", last rule).
+
+
+# The failure status a stub publishes under (stub.write_failed_stub). Named here
+# so the v2 flag derivation keys on a CONSTANT rather than a bare literal — the
+# whole point of v2's typed markers is that the chrome never greps prose.
+FAILED_STATUS = "failed"
+
+# The run statuses that are themselves reader-facing markers (spec/08 "Reader-
+# facing markers": the uncritiqued banner, the unresolved-findings banner, and
+# the failed-run stub are all raised BY `run.status`). They ride into `flags` as
+# their own literals — no second vocabulary is invented for them, because the
+# status string already IS the type the page keys on.
+FLAG_RUN_STATUSES = (
+    PUBLISHED_UNCRITIQUED,
+    PUBLISHED_WITH_UNRESOLVED,
+    FAILED_STATUS,
+)
+
+# The typed degradation/finding kinds the pipeline can raise, in the order
+# spec/08's marker table lists them. This is an ORDERING, not a filter: an
+# unrecognised kind is still emitted (sorted, after these), because spec/08
+# "Vocabulary homes" is explicit that an unknown kind must render visibly rather
+# than vanish — a marker the page does not recognise is exactly when the reader
+# most needs to know something was raised.
+FLAG_KIND_ORDER = (
+    "calendar_stale",
+    "arena_scan_failed",
+    "arena_scan_dormant",
+    "china_feed_partial",
+    "interest_list_stale",
+)
+
+# The manifest's stats subset — the counts a reader triages on without opening
+# the issue. Deliberately four of the v2 block's nine (07 `stats`): what moved,
+# how well sourced, how wide the aperture reached, and what is new. A stub's
+# stats is {}, so the subset comes out empty rather than a row of nulls.
+MANIFEST_STATS_KEYS_V2 = (
+    "competitors_moved",
+    "sources_cited",
+    "indications_covered",
+    "newly_discovered",
+)
+
+
+@dataclass(frozen=True)
+class PublishResultV2:
+    """What the v2 publisher hands back: the three files it wrote.
+
+    All three are returned because run.py stages all three in the run's single
+    commit. Returning only the issue would leave the derived files behind the
+    artifact in git — the manifest and registry are what the dashboard actually
+    fetches, so a commit without them publishes an issue no reader can reach.
+    """
+
+    issue_path: Path
+    manifest_path: Path
+    registry_path: Path
+
+    @property
+    def paths(self) -> tuple[Path, ...]:
+        """The three, in write order — what run.py stages."""
+        return (self.issue_path, self.manifest_path, self.registry_path)
+
+
+# ---------------------------------------------------------------------------
+# Layout — one home for where a v2 file lives
+# ---------------------------------------------------------------------------
+
+
+def program_issues_dir(root: Path, program_id: str) -> Path:
+    """`issues/<program_id>/` — one program's whole history (spec/07 `program_id`
+    is the join key; issues are stored per program per [#59])."""
+    return Path(root) / "issues" / program_id
+
+
+def issue_path_v2(root: Path, program_id: str, issue_id: str) -> Path:
+    """`issues/<program_id>/<date>.json`.
+
+    The v2 twin of `stub.issue_path`, kept as its own function rather than a
+    parameter on that one: the flat and the nested layouts coexist while v1 is
+    alive, and a single function that switched on an argument would be the
+    dispatch-inside-a-stage this branch has avoided everywhere else.
+    """
+    return program_issues_dir(root, program_id) / f"{issue_id}.json"
+
+
+def registry_path(root: Path) -> Path:
+    """`issues/index.json` — the cross-program registry (spec/08)."""
+    return Path(root) / "issues" / "index.json"
+
+
+# ---------------------------------------------------------------------------
+# Step 2 — the immutable issue
+# ---------------------------------------------------------------------------
+
+
+def write_issue_v2(root: Path, program_id: str, issue: dict) -> Path:
+    """Write `issues/<program_id>/<date>.json`, refusing to overwrite a publication.
+
+    The immutability guard is `stub.check_overwritable`, REUSED rather than
+    rewritten (spec/08 "Published issues are immutable"). Sharing it with v1 and
+    with the stub writer is what makes "already published" mean exactly one thing
+    across every writer of an issue path: a same-day rerun may replace its own
+    earlier FAILED stub — a retried failure succeeding is the behaviour we want —
+    but a published issue is untouchable and this raises PublishedIssueExists.
+    """
+    path = issue_path_v2(root, program_id, issue["issue"]["id"])
+    check_overwritable(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_json(path, issue)
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Step 3 — the per-program manifest
+# ---------------------------------------------------------------------------
+
+
+def regenerate_manifest_v2(
+    issues_dir: Path, program_id: str, *, generated_at: str | None = None
+) -> Path:
+    """Rewrite `issues/<program_id>/index.json` from the issues on disk, newest first.
+
+    Same reconciliation rule as v1 (spec/08 "The issue manifest"): the manifest is
+    a PROJECTION of the issues, so it is rebuilt whole every run rather than
+    patched, and if it ever disagrees with disk, disk wins by construction. Stubs
+    appear with `status: "failed"` — an unexplained date gap is exactly the silent
+    failure the whole design refuses. An unreadable issue file is skipped rather
+    than fatal: one corrupt byte must not stop the dropdown listing every other
+    issue.
+
+    Newest-first falls out of a reverse filename sort because issue ids are ISO
+    dates — lexical order IS chronological order for `YYYY-MM-DD`, so no parse can
+    fail and reorder the dropdown.
+    """
+    issues_dir = Path(issues_dir)
+    entries = []
+    for path in sorted(issues_dir.glob("*.json"), reverse=True):
+        if path.name == "index.json":
+            continue
+        try:
+            issue = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            continue  # an unreadable issue is not a dropdown entry
+        entries.append(_manifest_entry_v2(issue))
+
+    manifest = {
+        "program_id": program_id,
+        "generated_at": generated_at or datetime.now().isoformat(),
+        "issues": entries,
+    }
+    issues_dir.mkdir(parents=True, exist_ok=True)
+    path = issues_dir / "index.json"
+    write_json(path, manifest)
+    return path
+
+
+def _manifest_entry_v2(issue: dict) -> dict:
+    """One row of a program's issue dropdown (spec/08 "The issue manifest").
+
+    The subset a reader triages on without opening the file: id, when, what it
+    covered, how it ran, its headline, its counts, and its markers. Two shapes are
+    deliberate rather than incidental:
+
+    - `headline_title` is null for a stub — a stub has no headline, and null says
+      so honestly instead of faking one from the failure detail.
+    - `surge` rides ONLY when the issue carries it — absent, never null, on a
+      baseline run, matching how the orchestrator stamps it (`stamp_run_fields`).
+      It is load-bearing in the manifest: `surge.window` is what lets the dropdown
+      group an ASCO week under its conference name without opening five files.
+    """
+    block = issue.get("issue", {})
+    run = block.get("run", {})
+    headline = issue.get("headline")
+    stats = issue.get("stats") or {}
+
+    entry = {
+        "id": block.get("id"),
+        "published_at": block.get("published_at"),
+        "coverage_window": block.get("coverage_window"),
+        "status": run.get("status"),
+        "headline_title": headline.get("title") if isinstance(headline, dict) else None,
+        "stats": {k: stats[k] for k in MANIFEST_STATS_KEYS_V2 if k in stats},
+        "flags": _manifest_flags_v2(issue),
+    }
+    surge = run.get("surge")
+    if surge:
+        entry["surge"] = surge
+    return entry
+
+
+def _manifest_flags_v2(issue: dict) -> list[str]:
+    """The markers a reader should see BEFORE opening — typed, never grepped.
+
+    This is the concrete cash-out of spec/08 "Vocabulary homes": *"`MARKER`'s regex
+    is retired. v2 carries `degradation.kind` and `run.status` as typed fields, so
+    the chrome keys on the type and never greps the prose."* v3 conceded its regex
+    was "HEURISTIC, not a contract" and that a reworded marker silently degraded to
+    prose. Nothing here reads a `marker` string; every flag comes from a typed
+    field the pipeline already writes.
+
+    Four typed sources, all facts the issue carries:
+
+    1. Every `degradation.kind` anywhere in the issue — competitors, indications,
+       treatment landscapes. The walk is structural rather than a hand-listed set
+       of paths, because spec/07 attaches a degradation wherever an absence occurs
+       and a maintained path list would rot the first time a new section grew one.
+    2. The typed `kind` of every validator finding and critic advisory finding —
+       this is where `calendar_stale` is filed.
+    3. `sources_and_method.interest_list.rot_status == "stale"` → the whole-list
+       `interest_list_stale` rot line (spec/07 `interest_list`, [#55]).
+    4. `run.status`, when the status is itself a banner (spec/08's marker table).
+
+    Order is stable — the registered kinds in spec/08's table order, then any
+    unrecognised kind sorted — so a manifest diff is readable. Unrecognised kinds
+    are EMITTED, not dropped: spec/08 requires an unknown kind to render visibly,
+    and a flag list that silently filtered would defeat that in Python before the
+    page ever saw it.
+    """
+    kinds: set[str] = set(_walk_degradation_kinds(issue))
+
+    critic_report = issue.get("critic_report") or {}
+    validator_report = critic_report.get("validator_report") or {}
+    for finding in list(validator_report.get("findings") or []) + list(
+        critic_report.get("advisory_findings") or []
+    ):
+        if isinstance(finding, dict) and finding.get("kind"):
+            kinds.add(finding["kind"])
+
+    interest_list = (issue.get("sources_and_method") or {}).get("interest_list") or {}
+    if interest_list.get("rot_status") == "stale":
+        kinds.add("interest_list_stale")
+
+    status = (issue.get("issue") or {}).get("run", {}).get("status")
+    if status in FLAG_RUN_STATUSES:
+        kinds.add(status)
+
+    known = [k for k in FLAG_KIND_ORDER if k in kinds]
+    known += [s for s in FLAG_RUN_STATUSES if s in kinds]
+    return known + sorted(kinds - set(known))
+
+
+def _walk_degradation_kinds(node) -> list[str]:
+    """Every typed `degradation.kind` anywhere in the issue tree.
+
+    Structural, not path-listed, for the reason in `_manifest_flags_v2`: spec/07
+    hangs a `degradation` off whatever object the absence belongs to, so walking
+    is the only derivation that cannot rot when a new section grows one. A
+    `degradation` of null (the common case) contributes nothing.
+    """
+    found: list[str] = []
+    if isinstance(node, dict):
+        degradation = node.get("degradation")
+        if isinstance(degradation, dict) and degradation.get("kind"):
+            found.append(degradation["kind"])
+        for value in node.values():
+            found.extend(_walk_degradation_kinds(value))
+    elif isinstance(node, list):
+        for value in node:
+            found.extend(_walk_degradation_kinds(value))
+    return found
+
+
+# ---------------------------------------------------------------------------
+# Step 3b — the cross-program registry
+# ---------------------------------------------------------------------------
+
+
+def write_registry(root: Path, *, generated_at: str | None = None) -> Path:
+    """Rewrite `issues/index.json` WHOLESALE — config ⋈ state, config on the left.
+
+    The key behaviour of the whole file, and it is a join, not a patch (spec/08
+    "The program registry"):
+
+    - **Regenerated wholesale on every run.** A run touches ONE program but
+      rewrites EVERY row. That is what makes a stale row impossible by
+      construction rather than by locking — the same reconciliation the manifest
+      already uses, inherited rather than reinvented. Nothing here reads the
+      existing registry, precisely so nothing can carry forward from it.
+    - **Config is the LEFT side.** A program exists because it has a
+      `config/programs/<id>.toml`, not because it has published. So a program
+      that has never run still appears, with `latest_issue: null` and
+      `issue_count: 0`. The switcher shows it and the page renders its identity
+      card over a "no issues yet" empty state. Fail-visible over clean: a
+      detective that exists but is invisible is exactly the silent absence this
+      design refuses, and it is the program-altitude twin of *stubs appear*.
+    - **`sponsor` and `mechanism` ride here on purpose** — they are the
+      five-second test, and carrying them in the registry lets the identity card
+      paint before the issue is fetched (spec/08 "The data layer").
+
+    A stub reaching the registry needs no special case, and that is a property of
+    the join rather than a happy accident: the row exists because the `.toml`
+    exists, and `latest_issue` is whatever the newest file on disk is — a stub is
+    a file on disk. The program appears whether it has published, stubbed, or
+    never run at all.
+
+    A program whose `.toml` will not parse is SKIPPED with a warning rather than
+    taking the registry down: one broken config must not make every other
+    detective unreachable, which is the whole-page error spec/08 grades a registry
+    failure as.
+    """
+    root = Path(root)
+    programs_dir = root / "config" / "programs"
+    rows = []
+    for path in sorted(programs_dir.glob("*.toml")) if programs_dir.exists() else []:
+        try:
+            program = load_program(root / "config", path.stem)
+        except (KeyError, ValueError) as exc:
+            log.warning(
+                "registry: skipping %s — %s; every other program still lists",
+                path.name, exc,
+            )
+            continue
+        rows.append(_registry_row(root, program))
+
+    registry = {
+        "generated_at": generated_at or datetime.now().isoformat(),
+        "programs": rows,
+    }
+    path = registry_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_json(path, registry)
+    return path
+
+
+def _registry_row(root: Path, program) -> dict:
+    """One program switcher row — its config identity joined to its issues on disk.
+
+    The config half (`display_name`, `sponsor`, `mechanism`) is read fresh from the
+    `.toml` every run, so an owner's edit to the aperture reaches the switcher on
+    the next run without any migration. The state half is read from the program's
+    directory, NOT from its manifest: the manifest is itself derived, and deriving
+    the registry from another derived file would give a stale manifest two chances
+    to poison the switcher instead of none.
+
+    `flags` carries the LATEST issue's flags. The registry's job is the
+    pre-fetch triage signal — "should I look at this detective before I open it" —
+    and the newest issue is what that question is about; older issues' markers are
+    already visible in that program's own dropdown, one hop away.
+    """
+    issues_dir = program_issues_dir(root, program.id)
+    issues = _published_issue_files(issues_dir)
+
+    latest_id = None
+    latest_published_at = None
+    flags: list[str] = []
+    if issues:
+        latest_id, latest = issues[0]
+        latest_published_at = (latest.get("issue") or {}).get("published_at")
+        flags = _manifest_flags_v2(latest)
+
+    return {
+        "program_id": program.id,
+        "display_name": program.name,
+        "sponsor": program.sponsor,
+        "mechanism": program.mechanism,
+        "latest_issue": latest_id,
+        "latest_published_at": latest_published_at,
+        "issue_count": len(issues),
+        "flags": flags,
+    }
+
+
+def _published_issue_files(issues_dir: Path) -> list[tuple[str, dict]]:
+    """Every readable issue in a program's directory, newest first.
+
+    Newest-first by reverse filename sort, for the reason in
+    `regenerate_manifest_v2`: ISO date ids sort lexically into chronological
+    order, so no parse can fail and silently reorder which issue the switcher
+    calls "latest". Unreadable files are skipped — and are therefore not counted
+    either, which is the honest answer: `issue_count` counts issues the dashboard
+    can actually open.
+    """
+    issues_dir = Path(issues_dir)
+    if not issues_dir.exists():
+        return []
+    out = []
+    for path in sorted(issues_dir.glob("*.json"), reverse=True):
+        if path.name == "index.json":
+            continue
+        try:
+            out.append((path.stem, json.loads(path.read_text())))
+        except json.JSONDecodeError:
+            continue
+    return out
+
+
+# ---------------------------------------------------------------------------
+# The v2 recipe — the three writes, in order
+# ---------------------------------------------------------------------------
+
+
+def run_publish_stage_v2(
+    root: Path,
+    *,
+    issue: dict,
+    program_id: str,
+    run_id: str,
+    now: datetime | None = None,
+) -> PublishResultV2:
+    """Write the issue, its manifest, and the registry — the v2 emission seam.
+
+    Called BY run.py as its `publisher`, never by anything else. The order is
+    load-bearing and is the same argument v1's recipe makes: the issue is written
+    FIRST, and both derived files are rebuilt AFTER, so each is a projection of a
+    disk state that already includes what this run just published. Deriving them
+    first would publish a manifest that does not list its own issue.
+
+    Deliberately narrower than v1's `run_publish_stage`: stats derivation, the
+    state edits and the git commit all stay in `_main_v2`, which already owns
+    them. This is the EMISSION seam only — the three files — because that is what
+    run.py's seam contract asks for and widening it here would give the run two
+    owners of its commit.
+
+    May raise `PublishedIssueExists` when the date already holds a published issue
+    (spec/08 immutability). It raises BEFORE anything is written, so a refused
+    overwrite leaves the manifest and registry exactly as the real issue left
+    them — a clean fail, not a half-published one.
+
+    `now` stamps `generated_at` on both derived files; defaulting to None lets the
+    caller pass the run's own clock so all three artifacts agree on when the run
+    happened.
+    """
+    generated_at = (now or datetime.now()).isoformat()
+    issue_file = write_issue_v2(root, program_id, issue)
+    manifest = regenerate_manifest_v2(
+        program_issues_dir(root, program_id), program_id, generated_at=generated_at
+    )
+    registry = write_registry(root, generated_at=generated_at)
+    log.info(
+        "publish: %s → issue, manifest, and a wholesale registry rewrite",
+        issue_file.name,
+    )
+    return PublishResultV2(
+        issue_path=issue_file, manifest_path=manifest, registry_path=registry
+    )

@@ -11,6 +11,11 @@ judgment call belongs to a model (the manager interprets, the critic judges) or
 to a human (the owner seeds stances). If you find yourself writing an `if` that
 weighs significance, it belongs in a prompt.
 
+Two stage machines run side by side while the pivot lands. `run.py --program <id>`
+selects the **v2** per-program detective (`_main_v2`); without it, the **v1**
+market digest below runs unchanged. The dispatch is one `if` in main(), and v1 is
+deleted whole as its own ticket — no stage branches internally on schema version.
+
 Stages, and where each lands:
   0. gate       — this ticket
   1. prepare    — this ticket
@@ -26,13 +31,21 @@ Spec: SPEC.md, docs/spec/09-orchestrator.md
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 from datetime import date, datetime
 from pathlib import Path
 
+from researchswarm.apertures import plan_apertures
 from researchswarm.beats import load_beats
-from researchswarm.cadence import is_run_day, load_cadence
+from researchswarm.cadence import (
+    is_run_day,
+    is_run_day_v2,
+    load_cadence,
+    next_due_date_v2,
+    program_surge_v2,
+)
 from researchswarm.calendar import (
     load_calendar,
     resolve_surge,
@@ -41,21 +54,52 @@ from researchswarm.calendar import (
     verify_calendar,
     write_verified_dates,
 )
-from researchswarm.critique import run_critique_stage
+from researchswarm.critique import run_critique_stage, run_critique_stage_v2
 from researchswarm.manager import ManagerFailed, load_models
+from researchswarm.programs import (
+    load_edges,
+    load_entities,
+    load_interests,
+    load_program,
+    program_roster,
+)
 from researchswarm.prompts import RunContext, load_template
-from researchswarm.publish import git_commit_run, publish_stub, run_publish_stage
-from researchswarm.research import render_all_prompts, run_research_stage
+from researchswarm.publish import (
+    derive_full_stats,
+    git_commit_run,
+    PublishResultV2,
+    publish_stub,
+    run_publish_stage,
+    run_publish_stage_v2,
+    stamp_run_fields,
+)
+from researchswarm.research import (
+    render_all_prompts,
+    render_all_prompts_v2,
+    run_research_stage,
+    run_research_stage_v2,
+)
 from researchswarm.runs import (
     LOOKBACK_FLOOR,
+    latest_covering_issue,
     resolve_coverage_window,
     resolve_prior_quiet,
     resolve_run_id,
 )
 from researchswarm.state import check_entity_refs, load_state
+from researchswarm.state_edits import apply_state_edits_v2
 from researchswarm.stub import PublishedIssueExists
-from researchswarm.synthesis import IssueIdentity, run_synthesis_stage
-from researchswarm.validation import ValidationExhausted, run_validation_stage
+from researchswarm.synthesis import (
+    IssueIdentity,
+    run_synthesis_stage,
+    run_synthesis_stage_v2,
+)
+from researchswarm.validation import (
+    ValidationExhausted,
+    run_validation_stage,
+    run_validation_stage_v2,
+    state_view_v2,
+)
 from researchswarm.validator import CALENDAR_STALE_MARKER
 
 REPO_ROOT = Path(__file__).resolve().parent
@@ -94,6 +138,21 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--dry-run",
         action="store_true",
         help="Render prompts and stop. Calls no models, writes nothing.",
+    )
+    parser.add_argument(
+        "--program",
+        default=None,
+        help="Run the v2 per-program detective for this program id (a file in "
+        "config/programs/). Selects the v2 stage machine; without it run.py runs "
+        "the v1 market digest. Adding a program is one config file.",
+    )
+    parser.add_argument(
+        "--push",
+        action="store_true",
+        help="Spec/02's third trigger: a single, manual, out-of-cadence run for a "
+        "named program. Bypasses the cadence gate and changes nothing else — same "
+        "apertures, same gates, same rubric, a normal dated issue. Requires "
+        "--program; it is a per-program trigger, not a global one.",
     )
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args(argv)
@@ -157,7 +216,438 @@ def _resolve_surge_and_staleness(cadence, calendar, today, issues_dir):
     return resolve_surge(calendar, cadence.surge, today), False, None
 
 
-def main(argv: list[str] | None = None) -> int:
+# ---------------------------------------------------------------------------
+# The v2 stage machine — one program detective per run (spec/09)
+# ---------------------------------------------------------------------------
+
+# ⚑ KNOWN GAP, wired honestly rather than papered over. Spec/02 fires a surge for
+# "any program with a competitor in that window", but NOTHING in the system
+# currently defines the attendee set: config/calendar.toml carries a window's
+# name/dates/source and no competitor field, and no state file maps entities to
+# conference windows. cadence.program_surge_v2 therefore takes the attendee set as
+# a CALLER-SUPPLIED parameter, and this is that caller — so until the source of
+# that set is decided (a calendar field? an entity record field? a per-run scan
+# finding?), the honest value is the empty set and a program surge can never fire.
+# The seam is real and the intersection is live code; only the data is missing.
+# Inventing an attendee source here would make surge fire on a guess, which is
+# precisely what spec/02's require_verified_dates guard exists to forbid.
+COMPETITORS_IN_WINDOW_V2: frozenset[str] = frozenset()
+
+# ⚑ The researcher model for the v2 aperture fan-out. models.toml grew a
+# `researchers` key with the pivot (v1 read a per-BEAT model from beats.toml, and
+# beats.toml is gone), and the fallback matches synthesis.run_synthesis_stage_v2's
+# so the id INVOKED and the id RECORDED in the issue's models block are one value.
+RESEARCHER_MODEL_DEFAULT_V2 = "claude-sonnet-5"
+
+
+def _load_state_json_v2(path: Path) -> dict:
+    """Read one v2 state file, failing by NAME — the config-error voice."""
+    if not path.exists():
+        raise FileNotFoundError(f"state file not found: {path}")
+    try:
+        return json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{path.name} is not valid JSON: {exc}") from exc
+
+
+def _fail_run_v2(stage: str, detail: str) -> int:
+    """A v2 run that died. Logs where and why, and returns EXIT_RUN_FAILED.
+
+    v1's twin publishes a failed-run stub here. v2 still does not, and the reason
+    has narrowed: #83 settled the three PUBLISHING shapes (issue path, manifest,
+    registry), but a stub is "the same schema with empty sections, status failed,
+    and failure.stage naming where it died" (spec/09 failure handling) — an
+    EMITTED per-program issue, which needs the v2 `program` block (spec/07
+    `program`) that `stub.write_failed_stub` does not write. That stub writer is
+    its own ticket; inventing its shape here is the thing this run is gated on not
+    doing. The failure stays loud in the log and in the exit code.
+
+    What #83 DID settle is that this costs the program its *visibility* only in the
+    dropdown, not in the switcher: the registry is a wholesale config ⋈ state join
+    with config on the left, so a program whose only run failed — or which has
+    never run at all — still appears, with `latest_issue: null`. Once the v2 stub
+    writer lands, the stub reaches the registry for free, with no special case.
+    """
+    log.error("run failed at %s — %s", stage, detail)
+    log.error(
+        "no stub written: the v2 stub is an emitted issue carrying the v2 program "
+        "block, and that stub writer is its own ticket"
+    )
+    return EXIT_RUN_FAILED
+
+
+def _published_paths_v2(published) -> tuple[Path, ...]:
+    """Normalise whatever came back through the publisher seam into paths to stage.
+
+    The wired publisher returns a `PublishResultV2` (three files). The seam
+    contract, though, is documented as "returns the path it wrote (or None)", and
+    an injected double is entitled to honour exactly that — a test publisher that
+    writes one file and returns its path must not have to know about a result
+    object. So both are accepted: the seam keeps its narrow published contract
+    while the real implementation can hand back everything it wrote.
+    """
+    if published is None:
+        return ()
+    if isinstance(published, PublishResultV2):
+        return published.paths
+    return (Path(published),)
+
+
+def _default_publisher_v2(now: datetime):
+    """The wired publisher: `publish.run_publish_stage_v2`, bound to this run's clock.
+
+    The seam stays a seam — `publisher=` still overrides — but its DEFAULT is now
+    the real emitter rather than a warning. #83 decided the three shapes the seam
+    was blocked on (spec/08 "The program registry", "The issue manifest", "The
+    data layer"), so there is nothing left to invent and the run publishes.
+
+    The closure exists only to carry `now` across the seam's fixed signature
+    (`issue`, `program_id`, `root`, `run_id`). Threading the run's own clock is
+    what makes the issue, its manifest and the registry agree on when the run
+    happened, instead of three near-simultaneous `datetime.now()` calls.
+
+    `publish.py` is still called BY run.py and never calls git itself: the single
+    commit below stays run.py's, so the sole-writer invariant holds (spec/08).
+    """
+
+    def publisher(*, issue, program_id, root, run_id):
+        return run_publish_stage_v2(
+            root, issue=issue, program_id=program_id, run_id=run_id, now=now
+        )
+
+    return publisher
+
+
+def _main_v2(args, *, root: Path, now: datetime, publisher=None) -> int:
+    """Stages 0-6 for one program detective. The v2 twin of `main`'s body.
+
+    Additive beside v1 and dispatch-free inside each stage, exactly as every other
+    v2 twin on this branch (research, synthesis, critique, validation, state
+    edits): `--program` chooses this whole function, so no stage has to ask which
+    schema it is serving. v1 is deleted whole, as its own ticket.
+
+    `publisher` is stage 6's EMISSION seam, called as
+    `publisher(issue=..., program_id=..., root=..., run_id=...)`. It now DEFAULTS
+    to the real emitter (`publish.run_publish_stage_v2`) rather than to a warning:
+    #83 decided the issue path, the per-program manifest and the cross-program
+    registry (spec/08), so there is nothing left to invent. The seam survives its
+    unblocking — an injected publisher still overrides — because that is what lets
+    the whole spine be tested without writing files.
+    """
+    today = now.date()
+    config_dir = root / "config"
+    state_dir = root / "state"
+
+    # --- Stage 0: the gate -------------------------------------------------
+    # Same discipline as v1: everything the gate needs is read from config and
+    # from the issues already on disk, so a no-op day exits in milliseconds
+    # without a network call, a model call, or a trace.
+    try:
+        program = load_program(config_dir, args.program)
+        interests = load_interests(config_dir)
+        models_config = load_models(config_dir / "models.toml")
+        cadence = load_cadence(config_dir / "cadence.toml")
+        calendar = load_calendar(config_dir / "calendar.toml")
+        edges = load_edges(state_dir, program.id)
+        entities = load_entities(state_dir)
+        thesis = _load_state_json_v2(state_dir / "thesis.json")
+        catalyst_queue = _load_state_json_v2(
+            state_dir / "programs" / program.id / "catalyst-queue.json"
+        )
+    except (FileNotFoundError, ValueError, KeyError) as exc:
+        return _config_error(exc)
+
+    issues_dir = root / "issues" / program.id
+    roster = program_roster(program, edges)
+    log.info(
+        "program %s: %d typed edge(s), %d roster entit%s, %d shared entity record(s), "
+        "interest list v%d%s",
+        program.id,
+        len(edges),
+        len(roster),
+        "y" if len(roster) == 1 else "ies",
+        len(entities),
+        interests.version,
+        " (STALE)" if interests.is_stale(today) else "",
+    )
+
+    # Surge, in two steps that must not be collapsed. Step one is the WINDOW: is a
+    # verified, fresh conference window live today (and is the calendar itself
+    # trustworthy)? That is global and reuses v1's resolver, guards and staleness
+    # rule unchanged. Step two is the PROGRAM: does that window hold one of THIS
+    # program's competitors? An ASH window is a real surge for a heme program and a
+    # dead week for HMBD-001 (spec/02).
+    window_surge, calendar_stale, stale_detail = _resolve_surge_and_staleness(
+        cadence, calendar, today, issues_dir
+    )
+    surge = program_surge_v2(window_surge, roster, COMPETITORS_IN_WINDOW_V2)
+    if window_surge is not None and surge is None:
+        log.info(
+            "conference window %s is live, but the attendee set is undefined "
+            "(calendar.toml has no competitor field and no state file maps entities "
+            "to windows) — a program surge CANNOT fire until that source is decided",
+            window_surge.window,
+        )
+    if calendar_stale:
+        log.warning("%s (%s)", CALENDAR_STALE_MARKER, stale_detail)
+
+    # The interval is measured from the last issue that actually COVERED days,
+    # walking past stubs — the same join the coverage window uses. A stubbed cycle
+    # therefore leaves the program still due, and the next run widens its window
+    # over the missed days rather than dropping them (spec/02, spec/09).
+    previous = latest_covering_issue(issues_dir).payload
+    last_issue_date = None
+    if previous is not None:
+        try:
+            last_issue_date = date.fromisoformat(previous["issue"]["id"])
+        except (KeyError, TypeError, ValueError):
+            log.warning("previous issue carries no parseable id — treating as a cold start")
+
+    try:
+        decision = is_run_day_v2(
+            program,
+            today,
+            last_issue_date=last_issue_date,
+            surge_state=surge,
+            push=args.push,
+        )
+    except ValueError as exc:  # an unknown baseline is a config typo, not a no-op
+        return _config_error(exc)
+
+    if not decision.run and not args.force:
+        due = "run #1" if last_issue_date is None else next_due_date_v2(
+            last_issue_date, decision.cadence
+        )
+        log.info(
+            "%s is not a run day for %s (%s cadence, %s) — next due %s — no-op",
+            today, program.id, decision.cadence, decision.reason, due,
+        )
+        return EXIT_OK
+    log.info(
+        "%s is a run day for %s: %s (%s cadence)",
+        today, program.id, decision.reason, decision.cadence,
+    )
+
+    # --- Stage 1: prepare --------------------------------------------------
+    run_id = resolve_run_id(now)
+    log.info("run_id=%s today=%s program=%s", run_id, today, program.id)
+
+    window = resolve_coverage_window(
+        issues_dir, today=today, cold_start_days=program.cold_start_lookback_days
+    )
+    if window.previous_issue:
+        log.info("coverage %s → %s (joins %s)", window.from_, window.to, window.previous_issue)
+    elif window.baseline_expired:
+        log.warning(
+            "no issue carrying a coverage window within the last %d — cold-start window %s → %s",
+            LOOKBACK_FLOOR, window.from_, window.to,
+        )
+    else:
+        log.info("no previous issue — run #1, cold-start window %s → %s", window.from_, window.to)
+
+    # NOT WIRED, and deliberately not faked: the registry watch (spec/09 stage 1 —
+    # poll ClinicalTrials.gov v2 by lastUpdatePostDate for the program's tracked NCT
+    # set and hand the diff to the biology/arena apertures). No NCT set exists in
+    # config or state to poll, and no module implements the poll. Its absence
+    # narrows what the apertures see; it does not make the run dishonest.
+    log.info("registry watch not wired — apertures scan without a registry diff")
+
+    apertures = plan_apertures(program)
+    active = [a for a in apertures if a.active]
+    log.info(
+        "apertures: %d planned, %d active (%s)",
+        len(apertures), len(active), ", ".join(a.id for a in active),
+    )
+
+    ctx = RunContext(
+        run_id=run_id,
+        coverage_window_from=window.from_.isoformat(),
+        coverage_window_to=window.to.isoformat(),
+        surge=surge,
+    )
+
+    try:
+        researcher_template = load_template(root / "prompts" / "researcher-v2.md")
+        manager_template = load_template(root / "prompts" / "manager-v2.md")
+        retry_template = load_template(root / "prompts" / "manager-retry.md")
+        critic_template = load_template(root / "prompts" / "critic-v2.md")
+        critic_retry_template = load_template(root / "prompts" / "critic-retry.md")
+    except (FileNotFoundError, ValueError) as exc:
+        return _config_error(exc)
+
+    if args.dry_run:
+        rendered = render_all_prompts_v2(
+            active, researcher_template, program=program, interests=interests,
+            edges=edges, thesis=thesis, ctx=ctx,
+        )
+        for aperture_id, prompt in rendered.items():
+            log.info("[dry-run] %s: rendered %d chars, no placeholders left", aperture_id, len(prompt))
+        log.info("[dry-run] complete — nothing called, nothing written")
+        return EXIT_OK
+
+    # --- Stage 2: research -------------------------------------------------
+    # The known-entity set is WIDE (every shared record plus this program's
+    # roster): it answers "does this entity_id resolve to anything", which is the
+    # findings-contract's dangling check. The narrow roster travels separately to
+    # the validator, where it is the coverage accountability set.
+    known_entity_ids = set(entities) | roster
+    researcher_model = models_config.get("researchers", RESEARCHER_MODEL_DEFAULT_V2)
+
+    log.info("fanning out %d researcher(s) on %s", len(active), researcher_model)
+    stage = run_research_stage_v2(
+        apertures, researcher_template, ctx, root,
+        program=program, interests=interests, edges=edges, thesis=thesis,
+        known_entity_ids=known_entity_ids, model=researcher_model,
+    )
+
+    if stage.all_failed:
+        return _fail_run_v2(
+            "research",
+            f"no aperture produced findings ({len(stage.apertures_degraded)} degraded) — "
+            "see the run log",
+        )
+    log.info(
+        "research complete: %d aperture(s) with findings, %d degraded",
+        len(stage.findings_by_aperture), len(stage.apertures_degraded),
+    )
+    if stage.apertures_degraded:
+        log.warning("apertures_degraded: %s", ", ".join(stage.apertures_degraded))
+
+    # --- Stage 3: synthesize ----------------------------------------------
+    identity = IssueIdentity(ctx=ctx, issue_id=today.isoformat(), published_at=now.isoformat())
+    try:
+        result, draft_path = run_synthesis_stage_v2(
+            root,
+            identity=identity,
+            program=program,
+            interests=interests,
+            apertures=apertures,
+            findings_by_aperture=stage.findings_by_aperture,
+            apertures_degraded=stage.apertures_degraded,
+            thesis=thesis,
+            catalyst_queue=catalyst_queue,
+            edges=edges,
+            entities=entities,
+            prior_quiet=resolve_prior_quiet(issues_dir),
+            models_config=models_config,
+            manager_template=manager_template,
+        )
+    except ManagerFailed as exc:
+        return _fail_run_v2("synthesis", str(exc))
+
+    log.info(
+        "manager: draft %s (%d turn(s), $%.4f, attempt %d)",
+        draft_path.relative_to(root), result.num_turns, result.cost_usd, result.attempts,
+    )
+
+    # --- Stage 4: validate -------------------------------------------------
+    try:
+        validation = run_validation_stage_v2(
+            draft=result.draft,
+            draft_path=draft_path,
+            state=state_view_v2(known_entity_ids, thesis, catalyst_queue),
+            roster=roster,
+            issues_dir=issues_dir,
+            retry_template=retry_template,
+            model=models_config["manager"],
+            run_id=run_id,
+            thesis_version=thesis.get("version"),
+            calendar_stale=calendar_stale,
+        )
+    except (ManagerFailed, ValidationExhausted) as exc:
+        return _fail_run_v2("validation", str(exc))
+
+    log.info(
+        "validation passed: %d retr%s, %d advisory finding(s)",
+        validation.retries_used,
+        "y" if validation.retries_used == 1 else "ies",
+        len(validation.advisory),
+    )
+
+    # --- Stage 5: critique -------------------------------------------------
+    # As in v1 there is deliberately NO try/except laundering a critic failure into
+    # a stub: an unreachable or unparseable critic already resolves to not_run and
+    # publishes with a banner, and a genuine bug in this wiring should escape loudly.
+    critic = run_critique_stage_v2(
+        root,
+        draft=validation.draft,
+        program=program,
+        edges=edges,
+        entities=entities,
+        thesis=thesis,
+        findings_by_aperture=stage.findings_by_aperture,
+        run_id=run_id,
+        issues_dir=issues_dir,
+        critic_template=critic_template,
+        retry_template=critic_retry_template,
+        model=models_config["critic"],
+        manager_model=models_config["manager"],
+        draft_path=draft_path,
+        thesis_version=thesis.get("version"),
+        schema_file=root / "prompts" / "critic-output-schema-v2.json",
+        surge=surge,
+    )
+    log.info(
+        "critic: %s → %s (%d retr%s)%s",
+        critic.verdict, critic.status, critic.retries_used,
+        "y" if critic.retries_used == 1 else "ies",
+        f" ({critic.reason})" if critic.reason else "",
+    )
+
+    # --- Stage 6: derived stats, state edits, commit -----------------------
+    # Spec/09 stage 6, in its stated order — with steps 2 and 3 (write the issue,
+    # regenerate the manifest) behind the publisher seam.
+    issue = critic.draft
+    stats = derive_full_stats(issue, issues_dir)
+    stamp_run_fields(issue, stats, critic=critic, surge=surge)
+    draft_path.write_text(json.dumps(issue, indent=2) + "\n")
+    log.info("stats derived from the arrays: %s", stats)
+
+    # The three files the emission writes (spec/08): the immutable issue, its
+    # per-program manifest, and the wholesale-regenerated cross-program registry.
+    # ALL THREE are staged below — the manifest and registry are what the
+    # dashboard actually fetches, so a commit carrying only the issue would
+    # publish something no reader can reach.
+    published = (publisher or _default_publisher_v2(now))(
+        issue=issue, program_id=program.id, root=root, run_id=run_id
+    )
+    artifacts = _published_paths_v2(published)
+    log.info(
+        "published %s",
+        ", ".join(str(Path(p).relative_to(root)) for p in artifacts) or "nothing",
+    )
+
+    touched = apply_state_edits_v2(
+        root, issue,
+        program_id=program.id,
+        entities=entities,
+        edges=edges,
+        thesis=thesis,
+        catalyst_queue=catalyst_queue,
+        run_id=run_id,
+        now=now,
+    )
+    log.info(
+        "state edits: %s",
+        ", ".join(str(p.relative_to(root)) for p in touched) or "none (a quiet cycle)",
+    )
+
+    # One commit for the whole run, citing the run_id (spec/09 stage 6 step 5). A
+    # failed commit is NOT a failed run: the artifacts are on disk either way.
+    committed = git_commit_run(
+        root,
+        run_id,
+        [p for p in [*touched, *artifacts] if p is not None],
+        message=f"run {run_id}: {program.id} {today.isoformat()} ({critic.status})",
+    )
+    log.info(
+        "run %s complete (%s)%s", run_id, critic.status,
+        "" if committed else " — commit skipped (artifacts are on disk)",
+    )
+    return EXIT_OK
+
+
+def main(argv: list[str] | None = None, *, publisher=None) -> int:
     args = _parse_args(argv)
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
@@ -172,6 +662,16 @@ def main(argv: list[str] | None = None) -> int:
         # uses the fake one, and the artifact disagrees with itself.
         now = now.replace(year=args.today.year, month=args.today.month, day=args.today.day)
     today = now.date()
+
+    # The version dispatch, and the only one: `--program` names a v2 program
+    # detective and selects the v2 stage machine WHOLE. v1 below is untouched and
+    # is deleted as its own ticket.
+    if args.program:
+        return _main_v2(args, root=root, now=now, publisher=publisher)
+    if args.push:
+        return _config_error(
+            ValueError("--push is a per-program trigger — it requires --program <id>")
+        )
 
     # --- Stage 0: the gate -------------------------------------------------
     # Exits before touching anything else. The scheduler is dumb; this is where

@@ -2,15 +2,18 @@
 
 Asset for the dashboard tickets [#8](https://github.com/cmengu/Research-Swarm/issues/8) (v1–v3 market-digest design) and [#61](https://github.com/cmengu/Research-Swarm/issues/61) (v4 per-program detective IA). It now renders the **v2.0.0 program-issue schema** ([#60](https://github.com/cmengu/Research-Swarm/issues/60)) — the inline data is a **verbatim copy** of [`docs/schema/sample-issue-hmbd-001-2026-07-18.json`](../docs/schema/sample-issue-hmbd-001-2026-07-18.json) (real public HMBD-001 facts; read-throughs illustrative).
 
-Run it: open `dashboard/index.html` directly, or `cd dashboard && python3 -m http.server 8899` → http://localhost:8899
+Run it two ways, and they deliberately do different things:
 
-**The prototype is self-contained**: the sample issue is inlined in a `<script>` block, so the page works with no server and no sibling files. `_sample.js` is kept only as the readable source of that data. Production replaces the inline block with `fetch('../issues/<id>.json')` — at which point a server (or GitHub Pages) is required again, because `fetch` on `file://` is blocked.
+- **Double-click `dashboard/index.html`** (`file://`) → **prototype mode**: the inlined sample, under a persistent banner saying so. No server, no sibling files, zero fetches.
+- **Serve the repo root** (`python3 -m http.server` from the repo root, then open `/dashboard/`) → **production**: the page fetches published data.
+
+**The page is self-contained either way** — one file, no framework, no build step, no external asset, no sibling file. The sample is *inlined* so it always travels, and *protocol-gated* so it can never masquerade as published data.
 
 ## Stack decision
 
 **Single static HTML file, no framework, no build step.** Vanilla JS renders `issue.json` into the DOM. Rationale: the payload is one document per cycle, rendered once — there is no state to manage and no interactivity beyond a dropdown and anchors. A framework would add a build step to a repo whose whole point is "clone and run". GitHub-Pages-compatible by construction (static files, relative paths).
 
-Production swaps `<script src="_sample.js">` for `fetch('../issues/<id>.json')` and populates the picker from an `issues/index.json` manifest.
+The data layer is **three hops** — registry → program manifest → issue. See "v5 changes" below.
 
 ## Visual system
 
@@ -82,9 +85,53 @@ The seven questions #61 asked, and how the prototype answers each:
 
 Rendered headless in Chrome against the published file (`--dump-dom` + screenshot): the inline `ISSUE` is a byte-verbatim copy of the schema sample (asserted in CI-style check), JS parses, **20/20 content checks pass**, every render container populates (no renderer threw), and the program-identity/house-view layout confirmed visually in both themes. No horizontal body scroll.
 
+## v5 changes (18 Jul 2026, the data layer — tickets [#81](https://github.com/cmengu/Research-Swarm/issues/81) + [#82](https://github.com/cmengu/Research-Swarm/issues/82))
+
+Restores the data layer v4's IA rewrite dropped, per [spec/08](../docs/spec/08-publishing-and-dashboard.md). **The design system is untouched** — this ticket restored plumbing, it did not redesign anything.
+
+**Three hops**: `issues/index.json` (the cross-program registry) → `issues/<program_id>/index.json` (that program's issue manifest) → `issues/<program_id>/<date>.json` (the issue). **First paint does not wait for the issue**: the registry alone renders the program switcher *and* the identity card — which is exactly what `sponsor` and `mechanism` are doing in the registry — and the issue body shows a skeleton until its fetch lands.
+
+**The prototype/production split.** The page branches on `location.protocol`, because that is the one fact that distinguishes the two situations:
+
+| | `file://` | `http(s)://` |
+|---|---|---|
+| Data | the inlined sample | fetched |
+| Says so | persistent prototype banner + kicker chip | — |
+| On failure | n/a (nothing is fetched) | error state, with the serve-over-HTTP hint |
+
+**The inlined sample is never substituted for a failed fetch.** That is the whole lesson of the `_sample.js` incident, and it is not that mistake wearing a new hat: the original failure was an *external* asset that did not travel, producing an empty page that looked deliberate. Here the sample is inlined (so it always travels) and protocol-gated (so it cannot pose as published data). The failure mode that shipped an empty page was **silence** — and a fetched page that quietly falls back to a sample is silence too. Prototype mode announces itself; a failed fetch announces itself.
+
+**Failure is graded by stage**, because the stages fail differently:
+
+| Fails | Page shows |
+|---|---|
+| Registry | Whole-page error — nothing can be labelled, not even the switcher |
+| Program manifest | Switcher renders; that program's issue list errors; **other programs stay selectable** |
+| Issue | Identity card and switcher hold; the issue body errors, naming the issue id that failed |
+
+**The pickers fetch at their real depths**: changing the *issue* is one hop; changing the *program* is two (its manifest, then its latest issue) — the registry is already in hand and is **not** re-fetched. Both are verified by fetch-count assertions.
+
+**First-publish bootstrap**: a program with `latest_issue: null` still appears in the switcher (a program exists because it has a `.toml`, not because it has published), its identity card renders from the registry, and the issue body is an explicit empty state. Run #1 is not special-cased.
+
+**Vocabulary homes restored** (#82) — `STATUS`, `FLAG_LABEL`, `FINDING`, `BANNER`, `DEGRADATION`, with v3's "one home, no bare literals elsewhere" discipline. The frontend owns its reader-facing wording and Python emits no vocabulary block; the duplication is deliberate, because it is wording, not truth. Two changes v2 earns:
+
+- **`MARKER`'s regex is retired.** v3 conceded it was "HEURISTIC, not a contract" and a reworded marker silently degraded to prose. v2 carries `degradation.kind` and `run.status` as **typed** fields, so the chrome keys on the type and never greps prose.
+- **An unknown kind renders visibly** — a neutral chip carrying the raw kind — rather than v3's render-nothing default. A marker the page does not recognise is exactly when the reader most needs to know something was raised.
+- **`BEAT_SECTIONS`' successor is derived, not hand-listed**: an aperture's scope *is* the indication id, so which sections a dead aperture leaves thin follows from its scope rather than from a table that rots.
+
+### v5 verification
+
+No browser available, so verified statically and by execution under a minimal DOM shim:
+
+- **Zero external asset references and zero sibling-file dependencies** (no `<link>`, no `<script src>`, no `@import`, no `url()`); `dashboard/` contains only `index.html` and this README.
+- `node --check` on both extracted `<script>` blocks and on the concatenated program.
+- **The `file://` path executes with `fetch` stubbed to throw** — it never fires. Banner shown, identity card painted, all 13 render containers populated, both pickers built.
+- **All five `http://` scenarios asserted**: happy, dead registry, dead manifest, dead issue, first-publish. Every failure scenario additionally asserts the **inlined sample did not leak** into the page.
+- Fetch-count assertions for picker depth (1 hop / 2 hops, registry not re-fetched), plus the unknown-degradation chip, the failed-run stub, and `labelFor`'s status/flag/surge wording.
+
 ## Still open (for the spec)
 
 - Rail holds nav + stats; a horizontal stats bar atop the main column is the untested alternative.
-- Issue picker needs a per-program `issues/<program_id>/index.json` manifest contract (the noun changed; every program has its own history).
+- ~~Issue picker needs a per-program `issues/<program_id>/index.json` manifest contract.~~ **Resolved in v5** — that contract plus the cross-program registry are specified in [spec/08](../docs/spec/08-publishing-and-dashboard.md) and consumed by the page.
 - The interest editor is a **separate local runtime surface** ([#55](https://github.com/cmengu/Research-Swarm/issues/55)), deliberately not part of this static digest — the digest stays read-only.
 - Multi-program packaging (one digest, N programs) is deferred to [#59](https://github.com/cmengu/Research-Swarm/issues/59); the program switcher is stubbed for the single pilot program.
