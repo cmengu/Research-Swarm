@@ -332,14 +332,49 @@ class TestFlagsAreTyped:
             "published_uncritiqued",
         ]
 
-    def test_an_unknown_kind_is_emitted_not_dropped(self, root):
-        """Spec/08: an unknown kind must render VISIBLY — a marker the page does
-        not recognise is exactly when the reader most needs to know one was
-        raised. Filtering it out in Python would defeat that before the page ever
-        saw it."""
+    def test_a_kind_outside_the_reader_facing_table_is_scoped_out(self, root):
+        """`flags` is spec/08's reader-facing-marker table, not every kind raised.
+
+        Spec/08 scopes flags to "markers the reader should see before opening".
+        The first published registry leaked `dangling_entity` and `uncited_claim`
+        — BLOCKING validator kinds (spec/07 §6) — into that list. A blocking kind
+        cannot reach a published issue as an open defect, so in a manifest it
+        means "caught and fixed", which is provenance, not triage.
+
+        Spec/08's "an unknown kind renders visibly" rule is about the PAGE's
+        chrome, not this list; the full record stays in the issue's own
+        `critic_report.validator_report`.
+        """
         issue = _issue("2026-07-18")
         issue["competitors"] = [{"degradation": {"kind": "some_future_kind"}}]
-        assert _manifest_flags_v2(issue) == ["some_future_kind"]
+        assert _manifest_flags_v2(issue) == []
+
+    def test_blocking_validator_kinds_never_reach_the_flags(self, root):
+        """The exact leak the review found in the published `issues/index.json`."""
+        issue = _issue("2026-07-18")
+        issue["critic_report"] = {
+            "validator_report": {
+                "findings": [
+                    {"kind": "calendar_stale"},
+                    {"kind": "dangling_entity"},
+                    {"kind": "uncited_claim"},
+                    {"kind": "malformed_treatment_landscape"},
+                ]
+            }
+        }
+        assert _manifest_flags_v2(issue) == ["calendar_stale"]
+
+    def test_the_allowed_set_has_exactly_one_home(self):
+        """One named constant, derived from spec/08's reader-facing-marker table."""
+        from researchswarm.publish import READER_FACING_FLAG_KINDS
+
+        assert READER_FACING_FLAG_KINDS == (
+            "calendar_stale",
+            "arena_scan_failed",
+            "arena_scan_dormant",
+            "china_feed_partial",
+            "interest_list_stale",
+        )
 
     def test_a_clean_published_issue_raises_nothing(self, root):
         assert _manifest_flags_v2(_issue("2026-07-18")) == []
@@ -415,9 +450,12 @@ class TestTheRecipe:
     def test_all_three_artifacts_share_one_generated_at(self, root):
         """The run's own clock is threaded through, so the artifacts agree on when
         the run happened instead of drifting across three now() calls."""
+        from researchswarm.publish import stamp_generated_at
+
         _publish(root, _issue("2026-07-18"))
-        assert _read(root / "issues" / PROGRAM / "index.json")["generated_at"] == NOW.isoformat()
-        assert _read(root / "issues" / "index.json")["generated_at"] == NOW.isoformat()
+        want = stamp_generated_at(NOW)
+        assert _read(root / "issues" / PROGRAM / "index.json")["generated_at"] == want
+        assert _read(root / "issues" / "index.json")["generated_at"] == want
 
     def test_publishing_one_program_does_not_disturb_anothers_manifest(self, root):
         """The registry is cross-program; the MANIFEST is not. A run rewrites every

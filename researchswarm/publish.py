@@ -76,6 +76,33 @@ UNCRITIQUED_VERDICT = NOT_RUN
 FLAG_ADVISORY_KINDS = ("calendar_stale", "continuity_baseline_expired")
 
 
+def stamp_generated_at(now: datetime | None = None) -> str:
+    """`generated_at` for a derived file — timezone-AWARE, second precision.
+
+    Spec/08 shows the shape twice, in the program registry and in the issue
+    manifest, and both read `"2026-07-18T07:41:00+08:00"`. A bare
+    `datetime.now().isoformat()` produces `"2026-07-18T22:58:38.196694"` — naive
+    and microsecond-precise — which is what the first published `issues/index.json`
+    actually carried.
+
+    Both halves of the gap matter to a reader:
+
+    - **The offset is the load-bearing half.** These files are read by a dashboard
+      and diffed by a human; a naive stamp is unanchored, so "is this registry
+      newer than that manifest" stops being answerable the moment anything crosses
+      a machine or a DST boundary. `astimezone()` binds a naive local clock to the
+      system's real offset without shifting the instant.
+    - **Microseconds are noise.** They are precision the field does not have and
+      no reader uses, and they make every regeneration a diff even when the second
+      is unchanged.
+
+    Taking `now` rather than reading the clock is what lets one run stamp its
+    issue, its manifest and its registry with a single instant, instead of three
+    near-simultaneous calls that disagree in the last digits.
+    """
+    return (now or datetime.now()).astimezone().replace(microsecond=0).isoformat()
+
+
 @dataclass(frozen=True)
 class PublishResult:
     """What stage 6 hands back: where the issue landed, the status it published
@@ -198,6 +225,48 @@ def write_issue(root: Path, issue) -> Path:
 # ---------------------------------------------------------------------------
 
 
+def iter_issue_files(issues_dir: Path):
+    """(stem, payload) for every readable issue in a directory, NEWEST FIRST.
+
+    The one walk over an issues directory. Three v2↔v2 call sites had grown a
+    byte-identical copy of it. The two V2 sites — `regenerate_manifest_v2` and
+    `_registry_row`'s history walk — are routed through here, because v2↔v2 duplication
+    earns no "v1 is deleted later" exemption: both encode the same three
+    decisions, so a change to either is a silent divergence in the other.
+
+    v1's `regenerate_manifest` is the THIRD copy and is deliberately left alone.
+    Routing it through here would give frozen v1 code a new dependency, which is
+    the invariant this branch is restoring elsewhere (`_apply_promotions`); v1 is
+    deleted whole, and its copy dies with it.
+
+    The three decisions, in one home:
+
+    - **Newest-first falls out of a REVERSE FILENAME SORT.** Issue ids are ISO
+      dates, so lexical order IS chronological order for `YYYY-MM-DD` — no parse
+      can fail and silently reorder which issue the switcher calls "latest".
+    - **`index.json` is skipped.** The manifest lives in the same directory it
+      indexes; walking it would list the index as an issue.
+    - **An unreadable file is SKIPPED, not fatal** (spec/08). One corrupt byte
+      must not stop the dropdown listing every other issue — and a file that is
+      skipped is therefore also not counted, which is the honest answer:
+      `issue_count` counts issues the dashboard can actually open.
+
+    A directory that does not exist yields nothing rather than raising: a program
+    that has never published is an empty history, not an error.
+    """
+    issues_dir = Path(issues_dir)
+    if not issues_dir.exists():
+        return
+    for path in sorted(issues_dir.glob("*.json"), reverse=True):
+        if path.name == "index.json":
+            continue
+        try:
+            payload = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            continue  # an unreadable issue is not a dropdown entry
+        yield path.stem, payload
+
+
 def regenerate_manifest(issues_dir: Path, *, generated_at: str | None = None) -> Path:
     """Rewrite issues/index.json from every issue on disk, newest first.
 
@@ -219,7 +288,7 @@ def regenerate_manifest(issues_dir: Path, *, generated_at: str | None = None) ->
         entries.append(_manifest_entry(issue))
 
     manifest = {
-        "generated_at": generated_at or datetime.now().isoformat(),
+        "generated_at": generated_at or stamp_generated_at(),
         "issues": entries,
     }
     path = issues_dir / "index.json"
@@ -520,13 +589,30 @@ FLAG_RUN_STATUSES = (
     FAILED_STATUS,
 )
 
-# The typed degradation/finding kinds the pipeline can raise, in the order
-# spec/08's marker table lists them. This is an ORDERING, not a filter: an
-# unrecognised kind is still emitted (sorted, after these), because spec/08
-# "Vocabulary homes" is explicit that an unknown kind must render visibly rather
-# than vanish — a marker the page does not recognise is exactly when the reader
-# most needs to know something was raised.
-FLAG_KIND_ORDER = (
+# The READER-FACING markers, derived from spec/08's marker table — every row of
+# it that is raised by a typed `degradation.kind` or a validator/critic advisory,
+# in the order the table lists them. This is the ALLOWED SET as well as the
+# ordering, and it is one named constant because it is one rule.
+#
+# It is a filter, and the review found out why. The first published
+# `issues/index.json` carried
+# `["calendar_stale", "arena_scan_dormant", "dangling_entity", "uncited_claim"]`.
+# The last two are BLOCKING validator kinds (spec/07 §6). A blocking kind cannot
+# reach a published issue as an unresolved defect — the gate would have stopped
+# it — so what it means in a manifest is "something was caught and fixed", which
+# is provenance, not triage. spec/08 scopes `flags` to "markers the reader should
+# see before opening", and "a claim was uncited before the manager fixed it" is
+# not a reason to open, or not open, an issue. The blocking record lives in the
+# issue's own `critic_report.validator_report`, where a reader who wants the
+# forensics can find it, unabridged.
+#
+# What is NOT sacrificed is spec/08 "Vocabulary homes": an unknown kind must
+# render visibly rather than vanish. That rule is about the PAGE's chrome — a
+# marker the dashboard does not recognise still draws as a neutral chip. It was
+# never a licence for the manifest to promote every kind in the pipeline to a
+# triage signal, and reading it that way is what put two blocking kinds in a
+# reader's dropdown.
+READER_FACING_FLAG_KINDS = (
     "calendar_stale",
     "arena_scan_failed",
     "arena_scan_dormant",
@@ -638,19 +724,11 @@ def regenerate_manifest_v2(
     fail and reorder the dropdown.
     """
     issues_dir = Path(issues_dir)
-    entries = []
-    for path in sorted(issues_dir.glob("*.json"), reverse=True):
-        if path.name == "index.json":
-            continue
-        try:
-            issue = json.loads(path.read_text())
-        except json.JSONDecodeError:
-            continue  # an unreadable issue is not a dropdown entry
-        entries.append(_manifest_entry_v2(issue))
+    entries = [_manifest_entry_v2(issue) for _, issue in iter_issue_files(issues_dir)]
 
     manifest = {
         "program_id": program_id,
-        "generated_at": generated_at or datetime.now().isoformat(),
+        "generated_at": generated_at or stamp_generated_at(),
         "issues": entries,
     }
     issues_dir.mkdir(parents=True, exist_ok=True)
@@ -715,11 +793,12 @@ def _manifest_flags_v2(issue: dict) -> list[str]:
        `interest_list_stale` rot line (spec/07 `interest_list`, [#55]).
     4. `run.status`, when the status is itself a banner (spec/08's marker table).
 
-    Order is stable — the registered kinds in spec/08's table order, then any
-    unrecognised kind sorted — so a manifest diff is readable. Unrecognised kinds
-    are EMITTED, not dropped: spec/08 requires an unknown kind to render visibly,
-    and a flag list that silently filtered would defeat that in Python before the
-    page ever saw it.
+    The result is SCOPED to `READER_FACING_FLAG_KINDS` plus the banner statuses —
+    spec/08's reader-facing-marker table, and nothing else. Order follows that
+    table, so a manifest diff is readable. See that constant for why the scope is
+    a filter rather than only an ordering: unscoped, the first published registry
+    leaked `dangling_entity` and `uncited_claim`, two BLOCKING validator kinds
+    (spec/07 §6), into a list whose whole job is "should I open this".
     """
     kinds: set[str] = set(_walk_degradation_kinds(issue))
 
@@ -739,9 +818,9 @@ def _manifest_flags_v2(issue: dict) -> list[str]:
     if status in FLAG_RUN_STATUSES:
         kinds.add(status)
 
-    known = [k for k in FLAG_KIND_ORDER if k in kinds]
-    known += [s for s in FLAG_RUN_STATUSES if s in kinds]
-    return known + sorted(kinds - set(known))
+    flags = [k for k in READER_FACING_FLAG_KINDS if k in kinds]
+    flags += [s for s in FLAG_RUN_STATUSES if s in kinds]
+    return flags
 
 
 def _walk_degradation_kinds(node) -> list[str]:
@@ -818,7 +897,7 @@ def write_registry(root: Path, *, generated_at: str | None = None) -> Path:
         rows.append(_registry_row(root, program))
 
     registry = {
-        "generated_at": generated_at or datetime.now().isoformat(),
+        "generated_at": generated_at or stamp_generated_at(),
         "programs": rows,
     }
     path = registry_path(root)
@@ -843,7 +922,10 @@ def _registry_row(root: Path, program) -> dict:
     already visible in that program's own dropdown, one hop away.
     """
     issues_dir = program_issues_dir(root, program.id)
-    issues = _published_issue_files(issues_dir)
+    # `iter_issue_files` skips what it cannot parse, so an unreadable file is
+    # also not COUNTED — the honest answer: `issue_count` counts issues the
+    # dashboard can actually open.
+    issues = list(iter_issue_files(issues_dir))
 
     latest_id = None
     latest_published_at = None
@@ -863,30 +945,6 @@ def _registry_row(root: Path, program) -> dict:
         "issue_count": len(issues),
         "flags": flags,
     }
-
-
-def _published_issue_files(issues_dir: Path) -> list[tuple[str, dict]]:
-    """Every readable issue in a program's directory, newest first.
-
-    Newest-first by reverse filename sort, for the reason in
-    `regenerate_manifest_v2`: ISO date ids sort lexically into chronological
-    order, so no parse can fail and silently reorder which issue the switcher
-    calls "latest". Unreadable files are skipped — and are therefore not counted
-    either, which is the honest answer: `issue_count` counts issues the dashboard
-    can actually open.
-    """
-    issues_dir = Path(issues_dir)
-    if not issues_dir.exists():
-        return []
-    out = []
-    for path in sorted(issues_dir.glob("*.json"), reverse=True):
-        if path.name == "index.json":
-            continue
-        try:
-            out.append((path.stem, json.loads(path.read_text())))
-        except json.JSONDecodeError:
-            continue
-    return out
 
 
 # ---------------------------------------------------------------------------
@@ -925,7 +983,7 @@ def run_publish_stage_v2(
     caller pass the run's own clock so all three artifacts agree on when the run
     happened.
     """
-    generated_at = (now or datetime.now()).isoformat()
+    generated_at = stamp_generated_at(now)
     issue_file = write_issue_v2(root, program_id, issue)
     manifest = regenerate_manifest_v2(
         program_issues_dir(root, program_id), program_id, generated_at=generated_at

@@ -270,6 +270,45 @@ class TestTheGate:
             ["--program", "no-such-drug", "--root", str(fake_repo)]
         ) == run.EXIT_CONFIG_ERROR
 
+    def test_a_models_toml_missing_a_subscripted_role_is_a_config_error(self, fake_repo):
+        """Stage 0 proves every role it will LATER subscript (spec/09 stage 0).
+
+        `models_config["manager"]` is not read until stages 4 and 5, so a missing
+        role used to sail through the config gate and surface as a raw KeyError
+        traceback mid-run — after the research fan-out had already been paid for.
+        """
+        models = fake_repo / "config" / "models.toml"
+        for role in run.REQUIRED_MODEL_ROLES_V2:
+            original = models.read_text()
+            models.write_text(
+                "\n".join(
+                    line for line in original.splitlines() if not line.startswith(f"{role} ")
+                )
+            )
+            assert _run(fake_repo, "--dry-run") == run.EXIT_CONFIG_ERROR, role
+            models.write_text(original)
+
+    def test_the_role_gate_names_the_role_and_the_file(self):
+        """The config VOICE, not a KeyError — the operator is told what to add."""
+        with pytest.raises(ValueError) as exc:
+            run._require_model_roles_v2({"critic": "codex"})
+        assert "[models].manager" in str(exc.value)
+        assert "models.toml" in str(exc.value)
+
+    def test_the_researcher_default_has_exactly_one_home(self):
+        """run.py's fallback and the id the issue RECORDS are one value (#7)."""
+        from researchswarm.synthesis import RESEARCHER_MODEL_DEFAULT
+
+        assert run.RESEARCHER_MODEL_DEFAULT_V2 is RESEARCHER_MODEL_DEFAULT
+
+    def test_the_v2_state_loader_is_the_shared_one(self):
+        """`_load_state_json_v2` was a byte-copy of an UNMODIFIED v1 helper, so
+        reusing it costs no v1 edit and the delete-later exemption does not apply."""
+        from researchswarm.state import _load_json
+
+        assert run.load_state_json is _load_json
+        assert not hasattr(run, "_load_state_json_v2")
+
     def test_an_unknown_baseline_is_a_config_error_not_a_silent_no_op(self, fake_repo):
         """A typo that silently never runs is the failure this system refuses."""
         config = fake_repo / "config" / "programs" / "hmbd-001.toml"

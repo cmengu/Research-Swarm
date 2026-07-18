@@ -27,6 +27,14 @@ from researchswarm.prompts import RunContext, render_manager_prompt, render_mana
 from researchswarm.research import ResearchStage, load_findings
 from researchswarm.state import State
 
+# ⚑ The researcher model for the v2 aperture fan-out, in ONE home. models.toml
+# grew a `researchers` key with the pivot (v1 read a per-BEAT model from
+# beats.toml, and beats.toml is gone), so this is the fallback when it is unset.
+# It lives here, beside the models block that RECORDS it, and run.py imports it
+# for the invocation — so the id invoked and the id published are one value by
+# construction rather than by two literals agreeing.
+RESEARCHER_MODEL_DEFAULT = "claude-sonnet-5"
+
 
 @dataclass(frozen=True)
 class IssueIdentity:
@@ -139,7 +147,7 @@ def run_synthesis_stage_v2(
     """
     run_id = identity.ctx.run_id
     models = {
-        "researchers": models_config.get("researchers", "claude-sonnet-5"),
+        "researchers": models_config.get("researchers", RESEARCHER_MODEL_DEFAULT),
         "manager": models_config["manager"],
         "critic": models_config.get("critic"),
     }

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-18T22:58:38.196694",
+  "generated_at": "2026-07-19T00:38:18+08:00",
   "programs": [
     {
       "program_id": "hmbd-001",
@@ -11,9 +11,7 @@
       "issue_count": 1,
       "flags": [
         "calendar_stale",
-        "arena_scan_dormant",
-        "dangling_entity",
-        "uncited_claim"
+        "arena_scan_dormant"
       ]
     }
   ]

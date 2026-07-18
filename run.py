@@ -86,10 +86,11 @@ from researchswarm.runs import (
     resolve_prior_quiet,
     resolve_run_id,
 )
-from researchswarm.state import check_entity_refs, load_state
+from researchswarm.state import _load_json as load_state_json, check_entity_refs, load_state
 from researchswarm.state_edits import apply_state_edits_v2
 from researchswarm.stub import PublishedIssueExists
 from researchswarm.synthesis import (
+    RESEARCHER_MODEL_DEFAULT,
     IssueIdentity,
     run_synthesis_stage,
     run_synthesis_stage_v2,
@@ -237,17 +238,37 @@ COMPETITORS_IN_WINDOW_V2: frozenset[str] = frozenset()
 # `researchers` key with the pivot (v1 read a per-BEAT model from beats.toml, and
 # beats.toml is gone), and the fallback matches synthesis.run_synthesis_stage_v2's
 # so the id INVOKED and the id RECORDED in the issue's models block are one value.
-RESEARCHER_MODEL_DEFAULT_V2 = "claude-sonnet-5"
+RESEARCHER_MODEL_DEFAULT_V2 = RESEARCHER_MODEL_DEFAULT
+
+# Every model role `_main_v2` later reads by SUBSCRIPT rather than `.get()`. The
+# Stage-0 gate proves all of them present before a single token is spent, because
+# the alternative is what the review found: `models_config["manager"]` is not read
+# until stages 4 and 5, so a models.toml missing that role sailed through the
+# config gate and surfaced as a raw KeyError traceback mid-run — after the
+# research fan-out had already been paid for, and in the voice of a crash rather
+# than the clean `_config_error` every other config problem gets.
+#
+# The roles read with a DEFAULT (`researchers`) or handled inline (`verifier`,
+# whose absence degrades calendar verification rather than failing the run) are
+# deliberately not here: a role with a fallback has nothing to gate on.
+REQUIRED_MODEL_ROLES_V2 = ("manager", "critic")
 
 
-def _load_state_json_v2(path: Path) -> dict:
-    """Read one v2 state file, failing by NAME — the config-error voice."""
-    if not path.exists():
-        raise FileNotFoundError(f"state file not found: {path}")
-    try:
-        return json.loads(path.read_text())
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"{path.name} is not valid JSON: {exc}") from exc
+def _require_model_roles_v2(models_config: dict) -> None:
+    """Every subscripted model role is present at Stage 0, or the run never starts.
+
+    Fails in the config voice (`ValueError` → `_config_error` → exit 2), naming
+    the role and the file, so the operator is told what to add rather than shown
+    a KeyError from four stages away (spec/09 stage 0: the gate reads everything
+    it needs from config, so a bad config costs milliseconds, not a fan-out).
+    """
+    missing = [role for role in REQUIRED_MODEL_ROLES_V2 if not models_config.get(role)]
+    if missing:
+        raise ValueError(
+            "config/models.toml: [models]."
+            + ", [models].".join(missing)
+            + f" {'is' if len(missing) == 1 else 'are'} required"
+        )
 
 
 def _fail_run_v2(stage: str, detail: str) -> int:
@@ -346,12 +367,13 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None) -> int:
         program = load_program(config_dir, args.program)
         interests = load_interests(config_dir)
         models_config = load_models(config_dir / "models.toml")
+        _require_model_roles_v2(models_config)
         cadence = load_cadence(config_dir / "cadence.toml")
         calendar = load_calendar(config_dir / "calendar.toml")
         edges = load_edges(state_dir, program.id)
         entities = load_entities(state_dir)
-        thesis = _load_state_json_v2(state_dir / "thesis.json")
-        catalyst_queue = _load_state_json_v2(
+        thesis = load_state_json(state_dir / "thesis.json")
+        catalyst_queue = load_state_json(
             state_dir / "programs" / program.id / "catalyst-queue.json"
         )
     except (FileNotFoundError, ValueError, KeyError) as exc:
