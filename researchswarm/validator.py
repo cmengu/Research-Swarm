@@ -502,7 +502,7 @@ def _check_degradation_validity(issue, state, beats_failed, problems):
 
 
 def derive_stats(issue) -> dict:
-    """The six array-derived stats counts, computed from the issue's arrays.
+    """The array-derived stats counts, computed from the issue's arrays.
 
     The single home for how a count is taken from the issue, shared by the two
     components that must never disagree about it: the **publisher** stamps this
@@ -513,10 +513,18 @@ def derive_stats(issue) -> dict:
     exact lie `stats` is derived to prevent ([07]: "stats is derived, never
     authored"). So it lives here once.
 
-    `previous_issue` is deliberately NOT here: it is not a count of this issue's
+    Dispatches on `schema_version`: a v2.0.0 issue counts the program-detective
+    arrays ([07] v2 `stats` shape); anything else keeps the v1 market-digest
+    counts. Both exclude `previous_issue` — it is not a count of this issue's
     arrays but a walk back over the issues on disk, which is IO the pure
     validator does not do. The publisher adds it after this ([07] stats shape).
     """
+    if issue.get("schema_version") == SCHEMA_VERSION_V2:
+        return _derive_stats_v2(issue)
+    return _derive_stats_v1(issue)
+
+
+def _derive_stats_v1(issue) -> dict:
     quiet = issue.get("quiet_this_cycle", {})
     return {
         "tracked_updates": len(issue.get("watchlist") or []),
@@ -680,6 +688,484 @@ def _citation_urls(item):
     return urls
 
 
+# ===========================================================================
+# issue.json v2.0.0 — the per-program detective path
+# ===========================================================================
+#
+# The top-level noun changed (a market-wide digest became a per-program
+# detective), so v2 is a major bump, not a delta ([07] v2.0.0). The v1 checks
+# above are left untouched and the two paths run side by side, dispatched on the
+# issue's own `schema_version`, so the engine can migrate one stage at a time
+# without a red tree. When the manager and publisher emit v2, the v1 path retires.
+#
+# What v2 adds over the ported spine checks is the ADMISSION RULE made mechanical
+# ([07] "what the validator checks"): every typed competitor and house item must
+# carry a structured read-through, so "no read-through" is a deterministic block,
+# not a critic judgment. Four new blocking kinds enforce it.
+
+SCHEMA_VERSION_V2 = "2.0.0"
+
+# The typed relation set ([07] the read-through). The four PROGRAM relations are
+# the only ones a `competitors[]` entry may carry; `platform_threat` is company-
+# unit and lives in the house view, never on the program's competitor list.
+PROGRAM_RELATIONS = frozenset(
+    {"mechanism_twin", "target_twin", "setting_rival", "benchmark_soc"}
+)
+HOUSE_LENSES = frozenset({"partnership_bd", "threat_financing"})
+ALL_RELATIONS = PROGRAM_RELATIONS | frozenset({"platform_threat"})
+
+# Top-level sections a v2 issue must carry. Absent the roster (deferred to the
+# state-shape build), coverage is not policed here — but the spine sections that
+# make an issue readable are: a detective issue with no competitors, no
+# indications or no house view is not an issue.
+REQUIRED_SECTIONS_V2 = (
+    "headline",
+    "tldr_bullets",
+    "competitors",
+    "indications",
+    "house_view",
+    "quiet_this_cycle",
+    "sources_and_method",
+)
+QUIET_KEYS_V2 = ("no_news", "critic_catches", "open_threads")
+
+
+def _iter_competitor_items_v2(issue):
+    """(item, where) for every typed program item obliged to carry a read_through.
+
+    The competitors[], each indication arena's rivals and SOC, and the discovery
+    proposals — the items whose read-through answers "why is this a competitor."
+    House items are walked separately because they carry a `lens`, not a `relation`.
+    """
+    for i, c in enumerate(issue.get("competitors") or []):
+        if isinstance(c, dict):
+            yield c, f"competitors[{_ref(c, i)}]"
+    for ind in issue.get("indications") or []:
+        if not isinstance(ind, dict):
+            continue
+        iid = ind.get("indication_id", "?")
+        arena = ind.get("arena") or {}
+        for key in ("setting_rivals", "benchmark_soc"):
+            for i, item in enumerate(arena.get(key) or []):
+                if isinstance(item, dict):
+                    yield item, f"indications[{iid}].arena.{key}[{_ref(item, i)}]"
+    for i, c in enumerate(issue.get("newly_discovered") or []):
+        if isinstance(c, dict):
+            yield c, f"newly_discovered[{_ref(c, i)}]"
+
+
+def _iter_house_items_v2(issue):
+    """(item, where) for every house-view lens item obliged to carry a read_through."""
+    house = issue.get("house_view") or {}
+    for key in ("partnership_bd", "threat_financing"):
+        for i, item in enumerate(house.get(key) or []):
+            if isinstance(item, dict):
+                yield item, f"house_view.{key}[{_ref(item, i)}]"
+
+
+def _iter_intel_objects_v2(issue):
+    """(obj, where) for the affirmative content objects that MUST carry sources[].
+
+    Headline, competitors, arena rivals/SOC, house lens items, and discovery
+    proposals — every object making a factual claim a reader acts on. Themes cite
+    via entity_refs rather than sources[] (unchanged from v1), and the queue,
+    critic catches, and dropped receipts are provenance objects walked only by the
+    malformed check, so they are excluded here exactly as v1 excluded their kin.
+    """
+    headline = issue.get("headline")
+    if isinstance(headline, dict) and headline:
+        yield headline, "headline"
+    yield from _iter_competitor_items_v2(issue)
+    yield from _iter_house_items_v2(issue)
+
+
+def _iter_all_sources_v2(issue):
+    """(source, where) for EVERY source object anywhere in a v2 issue.
+
+    The widest walk — what malformed_source and the derived source count both
+    need to see. Reuses the intel-object walk, then adds the singleton sources the
+    intel walk excludes: treatment-landscape efficacy sources, the dropped-receipt
+    sources, the queue's own sources, and the critic's finding receipts.
+    """
+    for obj, where in _iter_intel_objects_v2(issue):
+        yield from _sources_of(obj, where)
+
+    # theme items may carry sources[] even though they are not obliged to
+    for i, theme in enumerate(issue.get("house_view", {}).get("themes_and_signals") or []):
+        if isinstance(theme, dict):
+            yield from _sources_of(theme, f"house_view.themes_and_signals[{i}]")
+
+    # treatment-landscape efficacy numbers — primary-source-only, one per line
+    for ind in issue.get("indications") or []:
+        if not isinstance(ind, dict):
+            continue
+        iid = ind.get("indication_id", "?")
+        for j, line in enumerate(ind.get("treatment_landscape", {}).get("lines") or []):
+            if isinstance(line, dict) and line.get("efficacy_source") is not None:
+                yield line["efficacy_source"], f"indications[{iid}].treatment_landscape.lines[{j}].efficacy_source"
+
+    # dropped-with-receipt: the source is the receipt the critic's rule reads
+    for i, dropped in enumerate(
+        issue.get("quiet_this_cycle", {}).get("dropped_with_receipt") or []
+    ):
+        if isinstance(dropped, dict) and dropped.get("source") is not None:
+            yield dropped["source"], f"quiet_this_cycle.dropped_with_receipt[{i}].source"
+
+    # critic catches carry the sources that refuted a claim
+    for i, catch in enumerate(
+        issue.get("quiet_this_cycle", {}).get("critic_catches") or []
+    ):
+        if isinstance(catch, dict):
+            yield from _sources_of(catch, f"quiet_this_cycle.critic_catches[{i}]")
+
+    # the catalyst queue and the critic's blocking-finding receipts — unchanged
+    for i, item in enumerate(issue.get("catalyst_queue", {}).get("items") or []):
+        if not isinstance(item, dict):
+            continue
+        where = f"catalyst_queue.items[{item.get('id', i)}]"
+        yield from _sources_of(item, where)
+        window_source = item.get("window_source")
+        if window_source is not None:
+            yield window_source, f"{where}.window_source"
+        for j, slip in enumerate(item.get("slip_log") or []):
+            if isinstance(slip, dict) and slip.get("source") is not None:
+                yield slip["source"], f"{where}.slip_log[{j}].source"
+    for i, finding in enumerate(
+        issue.get("critic_report", {}).get("blocking_findings") or []
+    ):
+        if isinstance(finding, dict) and finding.get("source") is not None:
+            yield finding["source"], f"critic_report.blocking_findings[{i}].source"
+
+
+def _iter_entity_refs_v2(issue):
+    """(entity_id, where) for every entity reference in a v2 issue."""
+    headline = issue.get("headline")
+    if isinstance(headline, dict):
+        for ref in headline.get("entity_refs") or []:
+            yield ref, "headline.entity_refs"
+
+    for i, bullet in enumerate(issue.get("tldr_bullets") or []):
+        if isinstance(bullet, dict):
+            for ref in bullet.get("entity_refs") or []:
+                yield ref, f"tldr_bullets[{i}].entity_refs"
+
+    for item, where in _iter_competitor_items_v2(issue):
+        if item.get("entity_id"):
+            yield item["entity_id"], f"{where}.entity_id"
+    for item, where in _iter_house_items_v2(issue):
+        if item.get("entity_id"):
+            yield item["entity_id"], f"{where}.entity_id"
+
+    quiet = issue.get("quiet_this_cycle", {})
+    for key in ("no_news", "open_threads", "dropped_with_receipt"):
+        for i, entry in enumerate(quiet.get(key) or []):
+            if isinstance(entry, dict) and entry.get("entity_id"):
+                yield entry["entity_id"], f"quiet_this_cycle.{key}[{i}].entity_id"
+
+    for i, theme in enumerate(issue.get("house_view", {}).get("themes_and_signals") or []):
+        if isinstance(theme, dict):
+            for ref in theme.get("evidence_refs") or []:
+                yield ref, f"house_view.themes_and_signals[{i}].evidence_refs"
+
+    for i, update in enumerate(issue.get("thesis_updates") or []):
+        if isinstance(update, dict):
+            for ref in update.get("triggered_by") or []:
+                yield ref, f"thesis_updates[{i}].triggered_by"
+
+    for i, item in enumerate(issue.get("catalyst_queue", {}).get("items") or []):
+        if isinstance(item, dict):
+            for ref in item.get("entity_ids") or []:
+                yield ref, f"catalyst_queue.items[{item.get('id', i)}].entity_ids"
+
+
+def _check_uncited_claim_v2(issue, problems):
+    """Every affirmative content object carries at least one source[]."""
+    for obj, where in _iter_intel_objects_v2(issue):
+        if obj and not _has_source(obj):
+            problems.append(Finding("uncited_claim", where, "no sources[]"))
+
+
+def _check_malformed_source_v2(issue, problems):
+    """Every source object anywhere carries the four core fields, tier valid."""
+    for source, where in _iter_all_sources_v2(issue):
+        if not isinstance(source, dict):
+            problems.append(
+                Finding("malformed_source", where, "source must be an object, not a string")
+            )
+            continue
+        for field_name in SOURCE_FIELDS:
+            if not source.get(field_name):
+                problems.append(
+                    Finding("malformed_source", where, f"missing required field {field_name!r}")
+                )
+        tier = source.get("tier")
+        if tier and tier not in SOURCE_TIERS:
+            problems.append(
+                Finding("malformed_source", where, f"tier {tier!r} not in {sorted(SOURCE_TIERS)}")
+            )
+
+
+def _check_dangling_entity_v2(issue, state, problems):
+    """Every entity reference resolves to a known entity or a discovery slug.
+
+    Known = the state roster UNION the entity_ids this issue declares in
+    newly_discovered — a discovery entry introduces itself, exactly as v1's
+    new_on_radar did. Anything else dangling blocks.
+    """
+    self_introduced = {
+        entry.get("entity_id")
+        for entry in issue.get("newly_discovered") or []
+        if isinstance(entry, dict) and entry.get("entity_id")
+    }
+    known = state.entity_ids | self_introduced
+    for ref, where in _iter_entity_refs_v2(issue):
+        if ref not in known:
+            problems.append(Finding("dangling_entity", where, f"entity_id {ref!r} resolves to nothing"))
+
+
+def _check_empty_section_v2(issue, state, problems):
+    """Each required top-level section is present and non-empty.
+
+    The one implicit exemption survives from v1: `competitors` may be empty when
+    every tracked entity sits in quiet_this_cycle.no_news (a genuinely quiet
+    cycle, decidable from the issue alone). Per-indication arena dormancy and the
+    new degradation-register rows are deferred to the researcher/degradation build
+    that actually emits apertures — an empty arena is not policed here yet.
+    """
+    for section in REQUIRED_SECTIONS_V2:
+        if not _section_empty_v2(issue, section):
+            continue
+        if section == "competitors" and _trigger_quiet_cycle(
+            {}, issue=issue, state=state, beats_failed=[]
+        ):
+            continue
+        problems.append(
+            Finding("empty_section", section, "required section is empty and no registered degradation explains it")
+        )
+
+
+def _section_empty_v2(issue, section):
+    value = issue.get(section)
+    if section == "quiet_this_cycle":
+        return not isinstance(value, dict) or any(
+            key not in value for key in QUIET_KEYS_V2
+        )
+    if section in ("headline", "sources_and_method", "house_view"):
+        return not value  # a non-null object is required
+    return not value  # tldr_bullets, competitors, indications — a non-empty list
+
+
+def _check_missing_read_through(issue, problems):
+    """The admission rule, made mechanical ([07]).
+
+    Every typed competitor and house item publishes with a read-through or it does
+    not publish. Deterministic parts only: the read_through object is present, its
+    `text` is non-empty, and its typed key (`relation` for program items, `lens`
+    for house items) is inside its enum. Whether the prose earns its place is the
+    critic's `weak_read_through` advisory, not this gate.
+    """
+    for item, where in _iter_competitor_items_v2(issue):
+        rt = item.get("read_through")
+        if not isinstance(rt, dict):
+            problems.append(Finding("missing_read_through", where, "no read_through"))
+            continue
+        if not (rt.get("text") or "").strip():
+            problems.append(Finding("missing_read_through", where, "read_through.text is empty"))
+        relation = rt.get("relation")
+        if relation not in ALL_RELATIONS:
+            problems.append(
+                Finding("missing_read_through", where, f"read_through.relation {relation!r} is outside the enum")
+            )
+
+    for item, where in _iter_house_items_v2(issue):
+        rt = item.get("read_through")
+        if not isinstance(rt, dict):
+            problems.append(Finding("missing_read_through", where, "no read_through"))
+            continue
+        if not (rt.get("text") or "").strip():
+            problems.append(Finding("missing_read_through", where, "read_through.text is empty"))
+        lens = rt.get("lens")
+        if lens not in HOUSE_LENSES:
+            problems.append(
+                Finding("missing_read_through", where, f"read_through.lens {lens!r} is outside the enum")
+            )
+
+
+def _check_untyped_competitor(issue, problems):
+    """A competitors[] entry carries one of the four PROGRAM relations, and no other.
+
+    The competitor list is program-level: only mechanism/target twins and the
+    indication-level setting/benchmark relations belong. A `platform_threat` is
+    company-unit and must live in the house view — placing it in competitors[] is
+    the one misplacement this check names explicitly ([07] the platform_threat
+    asymmetry).
+    """
+    for i, c in enumerate(issue.get("competitors") or []):
+        if not isinstance(c, dict):
+            continue
+        where = f"competitors[{_ref(c, i)}]"
+        relation = (c.get("read_through") or {}).get("relation")
+        if relation == "platform_threat":
+            problems.append(
+                Finding("untyped_competitor", where, "platform_threat is company-unit — it belongs in house_view, not competitors[]")
+            )
+        elif relation not in PROGRAM_RELATIONS:
+            problems.append(
+                Finding("untyped_competitor", where, f"relation {relation!r} is not one of the four program relations")
+            )
+
+
+def _check_blind_spot_overflow(issue, problems):
+    """The house blind-spot list is capped, and overflow is never silent ([07]).
+
+    When more blind spots exist than the cap, the extras are not dropped — the
+    list carries an `overflow` receipt. A `ranked` longer than `cap` with no
+    receipt is exactly the silent truncation the admission rule forbids.
+    """
+    blind_spots = issue.get("house_view", {}).get("blind_spots")
+    if not isinstance(blind_spots, dict):
+        return
+    cap = blind_spots.get("cap")
+    ranked = blind_spots.get("ranked") or []
+    if isinstance(cap, int) and len(ranked) > cap and not blind_spots.get("overflow"):
+        problems.append(
+            Finding(
+                "blind_spot_overflow",
+                "house_view.blind_spots",
+                f"{len(ranked)} ranked blind spots exceed cap {cap} with no overflow receipt",
+            )
+        )
+
+
+def _check_landscape_number_unsourced(issue, problems):
+    """Treatment-landscape efficacy numbers are primary-source-only ([07], #57).
+
+    Trade press may flag a number, never set it. A landscape line that carries an
+    `efficacy_source` whose tier is not `primary` is a benchmark number resting on
+    secondary coverage — stricter than the general admission bar, and it blocks.
+    A line with no efficacy_source claims no number and is untouched.
+    """
+    for ind in issue.get("indications") or []:
+        if not isinstance(ind, dict):
+            continue
+        iid = ind.get("indication_id", "?")
+        for j, line in enumerate(ind.get("treatment_landscape", {}).get("lines") or []):
+            if not isinstance(line, dict):
+                continue
+            source = line.get("efficacy_source")
+            if source is None:
+                continue
+            tier = source.get("tier") if isinstance(source, dict) else None
+            if tier != "primary":
+                problems.append(
+                    Finding(
+                        "landscape_number_unsourced",
+                        f"indications[{iid}].treatment_landscape.lines[{j}]",
+                        f"efficacy number sourced to tier {tier!r}, not 'primary'",
+                    )
+                )
+
+
+def _derive_stats_v2(issue) -> dict:
+    """The program-detective stats counts ([07] v2 `stats`).
+
+    `sources_cited` counts the affirmative reader-facing intelligence — headline,
+    competitors, arena, treatment-landscape efficacy numbers, and the house view
+    — which is the set the `source_tier_counts` tiers; provenance sources (the
+    queue, dropped receipts, critic catches) are not the digest's cited evidence.
+    `previous_issue` is a disk walk the publisher adds, not a count.
+    """
+    house = issue.get("house_view", {})
+    quiet = issue.get("quiet_this_cycle", {})
+    return {
+        "competitors_moved": len(issue.get("competitors") or []),
+        "competitors_quiet": len(quiet.get("no_news") or []),
+        "newly_discovered": len(issue.get("newly_discovered") or []),
+        "indications_covered": len(issue.get("indications") or []),
+        "house_items": (
+            len(house.get("partnership_bd") or [])
+            + len(house.get("threat_financing") or [])
+            + len(house.get("themes_and_signals") or [])
+        ),
+        "blind_spots_ranked": len(house.get("blind_spots", {}).get("ranked") or []),
+        "sources_cited": _count_intel_sources_v2(issue),
+        "critic_catches": len(quiet.get("critic_catches") or []),
+    }
+
+
+def _count_intel_sources_v2(issue) -> int:
+    """Sources on the affirmative reader-facing intelligence — the tiered set.
+
+    Headline + competitors + arena + house (incl. themes) + one per landscape
+    efficacy number. Deliberately narrower than both the malformed-source walk
+    (which must see every source object, including provenance) and the
+    uncited-claim set (which includes discovery proposals): `newly_discovered` is
+    a PROPOSAL, not yet cited intelligence, so its sources do not count toward
+    what the reader is told is "cited." This is the set `source_tier_counts` tiers.
+    """
+    total = len(issue.get("headline", {}).get("sources") or [])
+    for ind in issue.get("indications") or []:
+        if not isinstance(ind, dict):
+            continue
+        arena = ind.get("arena") or {}
+        for key in ("setting_rivals", "benchmark_soc"):
+            for item in arena.get(key) or []:
+                if isinstance(item, dict):
+                    total += len(item.get("sources") or [])
+        for line in ind.get("treatment_landscape", {}).get("lines") or []:
+            if isinstance(line, dict) and line.get("efficacy_source") is not None:
+                total += 1
+    for c in issue.get("competitors") or []:
+        if isinstance(c, dict):
+            total += len(c.get("sources") or [])
+    for item, _ in _iter_house_items_v2(issue):
+        total += len(item.get("sources") or [])
+    for theme in issue.get("house_view", {}).get("themes_and_signals") or []:
+        if isinstance(theme, dict):
+            total += len(theme.get("sources") or [])
+    return total
+
+
+def _validate_issue_v2(issue, *, state, queue_baseline, baseline_expired, calendar_stale):
+    """The v2.0.0 check-suite: the ported spine checks plus the four new
+    admission checks ([07]). Same all-problems-at-once contract as v1, same
+    ValidationResult, never raises.
+
+    The queue tamper-evidence and derived-stats checks are shared with v1
+    unchanged — the catalyst queue shape did not change, and `derive_stats`
+    dispatches on version, so the shared checks compare v2 arrays to v2 counts.
+    """
+    blocking: list[Finding] = []
+
+    _check_uncited_claim_v2(issue, blocking)
+    _check_malformed_source_v2(issue, blocking)
+    _check_dangling_entity_v2(issue, state, blocking)
+    _check_empty_section_v2(issue, state, blocking)
+    _check_derived_stats_mismatch(issue, blocking)
+    _check_queue_tamper(issue, queue_baseline, blocking)
+
+    _check_missing_read_through(issue, blocking)
+    _check_untyped_competitor(issue, blocking)
+    _check_blind_spot_overflow(issue, blocking)
+    _check_landscape_number_unsourced(issue, blocking)
+
+    advisory: list[Finding] = []
+    if baseline_expired:
+        advisory.append(
+            Finding(
+                "continuity_baseline_expired",
+                "catalyst_queue",
+                "backwards search hit the 12-issue floor without a snapshot to compare against",
+            )
+        )
+    if calendar_stale:
+        advisory.append(
+            Finding("calendar_stale", "conference_calendar", CALENDAR_STALE_MARKER)
+        )
+
+    return ValidationResult(blocking=tuple(blocking), advisory=tuple(advisory))
+
+
 # ---------------------------------------------------------------------------
 # The entry point
 # ---------------------------------------------------------------------------
@@ -720,7 +1206,22 @@ def validate_issue(
     — not by the model — because a stale calendar is the one failure that would
     otherwise be SILENT (spec/02): the marker must ride on every issue whether or
     not the Codex critic runs, so the deterministic gate is where it belongs.
+
+    An issue stamped `schema_version` 2.0.0 is a per-program detective issue and
+    routes to the v2 check-suite ([07] v2.0.0); anything else keeps the v1
+    market-digest path. The dispatch is on the issue's OWN version, not a global
+    constant, so the two schemas can be validated side by side while the rest of
+    the engine migrates.
     """
+    if issue.get("schema_version") == SCHEMA_VERSION_V2:
+        return _validate_issue_v2(
+            issue,
+            state=state,
+            queue_baseline=queue_baseline,
+            baseline_expired=baseline_expired,
+            calendar_stale=calendar_stale,
+        )
+
     if beats_failed is None:
         beats_failed = issue.get("sources_and_method", {}).get("beats_failed") or []
 
