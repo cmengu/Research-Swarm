@@ -59,9 +59,14 @@ from researchswarm.critic import (
     match_survivor_key,
     rebuttal_record,
     run_critic,
+    run_critic_v2,
 )
 from researchswarm.manager import ManagerFailed, run_manager
-from researchswarm.prompts import render_critic_prompt, render_critic_retry_prompt
+from researchswarm.prompts import (
+    render_critic_prompt,
+    render_critic_prompt_v2,
+    render_critic_retry_prompt,
+)
 from researchswarm.research import load_findings
 from researchswarm.runs import latest_covering_issue
 from researchswarm.state import State
@@ -313,6 +318,222 @@ def run_critique_stage(
         _log_edited_sections(prior_draft, draft, retries_used + 1)
         # Re-persist so the draft on disk always matches the one under judgment
         # (run.py is the sole writer; the edited draft replaces the one it wrote).
+        draft_path.write_text(json.dumps(draft, indent=2) + "\n")
+        retries_used += 1
+
+
+def run_critique_stage_v2(
+    root: Path,
+    *,
+    draft: dict,
+    program,
+    edges,
+    entities: dict,
+    thesis: dict,
+    findings_by_aperture: dict[str, dict],
+    run_id: str,
+    issues_dir: Path,
+    critic_template: str,
+    retry_template: str,
+    model: str,
+    manager_model: str,
+    draft_path: Path,
+    thesis_version,
+    schema_file: Path | None = None,
+    surge: "SurgeState | None" = None,
+    timeout: int = 900,
+    runner=subprocess.run,
+    manager_runner=subprocess.run,
+) -> CritiqueStageResult:
+    """The v2 critique stage — the per-program detective's gate (spec/06, spec/07).
+
+    The v2 twin of `run_critique_stage`, additive beside it and dispatch-free in the
+    same idiom as `run_synthesis_stage_v2`: run.py's v2 orchestration chooses this,
+    so the two never branch inside one function.
+
+    **The machinery is deliberately identical**, because spec/07 says the v2 schema
+    "does not re-open the machinery" — same two-retry budget, same receipt rule,
+    same rebuttal join, same verdict→run.status map, same degrade-don't-crash
+    behaviour when the retry manager dies. Re-deriving any of that here would be a
+    second place for the retry contract to drift. What differs is only the INPUTS
+    it assembles for the rubric:
+
+      - the v2 rubric (`prompts/critic-v2.md`) via `render_critic_prompt_v2`, whose
+        centrepiece is the `weak_read_through` ADVISORY — the quality half of the
+        admission rule, whose presence half the free validator already blocked.
+      - `run_critic_v2`, which sorts against the v2 blocking set: `relation_miscast`
+        joined it, and a v2 pass sorted against v1's set would silently demote a
+        miscast competitor into an advisory and publish it clean.
+      - the split v2 state (`program`, `edges`, `entities`, `thesis`) in place of a
+        single flat `State`.
+      - findings arriving IN MEMORY as `findings_by_aperture`, not loaded from disk
+        here — aperture ids carry a colon (`arena_scan:<indication>`), an unsafe
+        filename character, so on-disk naming is the research stage's call and this
+        stage stays agnostic to it (exactly as `run_synthesis_stage_v2` does).
+        The corpus is still evidence, not context: it is what the `dropped_story`
+        receipt rule is enforced against (spec/04 "this corpus is evidence"), and it
+        is serialised here into the same `findings_corpus` string the receipt rule
+        greps, so what the critic READ and what the orchestrator CHECKS are one
+        value.
+
+    `issues_dir` is this PROGRAM's issue directory (`issues/<program_id>/`), since
+    v2 stores issues per program; the previous issue joins to the most recent
+    COVERING one, walking past stubs, and is fetched once because retries do not
+    change it.
+
+    The retry prompt reuses `prompts/critic-retry.md` unchanged: it hands the
+    manager exactly its own prior draft plus the surviving blocking findings, and
+    neither of those is schema-shaped. The manager's SEAM validation dispatches on
+    the draft's own schema_version, so a v2 redraft is already held to the v2
+    contract with no change here.
+    """
+    previous_issue = latest_covering_issue(issues_dir).payload
+    findings_corpus = json.dumps(findings_by_aperture, ensure_ascii=False)
+
+    # Rebuttal bookkeeping across the loop, keyed by (kind, where) — identical to
+    # v1's, and identical on purpose: the rebuttal channel is machinery the pivot
+    # did not re-open. A rebuttal is adjudicated exactly ONCE, on the pass right
+    # after it is filed, so "the critic withdrew it" is never confused with "the
+    # manager later complied".
+    pending: dict[tuple, dict] = {}
+    reaffirmed: dict[tuple, dict] = {}
+    withdrawn_records: list[dict] = []
+    retries_used = 0
+
+    while True:
+        prompt = render_critic_prompt_v2(
+            critic_template,
+            issue=draft,
+            findings_by_aperture=findings_by_aperture,
+            previous_issue=previous_issue,
+            program=program,
+            edges=edges,
+            entities=entities,
+            thesis=thesis,
+            surge=surge,
+        )
+        result = run_critic_v2(
+            prompt, model=model, timeout=timeout, schema_file=schema_file, runner=runner
+        )
+
+        if result.verdict == NOT_RUN:
+            # The critic is unavailable — banner-visible, not a failure.
+            return CritiqueStageResult(
+                draft=draft,
+                status=PUBLISHED_UNCRITIQUED,
+                verdict=NOT_RUN,
+                reason=result.reason,
+                retries_used=retries_used,
+            )
+
+        if result.verdict == BLOCKED:
+            kept, downgraded = enforce_receipt_rule(
+                result.blocking_findings, findings_corpus=findings_corpus, issue=draft
+            )
+            advisory = [*result.advisory_findings, *downgraded]
+        else:
+            kept = ()
+            advisory = list(result.advisory_findings)
+
+        for key, reb in pending.items():
+            survivor = match_survivor_key(key, kept)
+            if survivor is not None:
+                reaffirmed[survivor] = reb
+            else:
+                withdrawn_records.append(rebuttal_record(key, reb, WITHDRAWN))
+        pending = {}
+        kept = tuple(
+            attach_adjudication(f, reaffirmed[finding_key(f)], REAFFIRMED)
+            if finding_key(f) in reaffirmed
+            else f
+            for f in kept
+        )
+
+        survivor_keys = {finding_key(f) for f in kept}
+        orphan_reaffirmed = [
+            rebuttal_record(key, reb, REAFFIRMED)
+            for key, reb in reaffirmed.items()
+            if key not in survivor_keys
+        ]
+        terminal_advisory = (*advisory, *withdrawn_records, *orphan_reaffirmed)
+
+        if not kept:
+            # Nothing blocks: a clean verdict, every finding receipt-downgraded, or
+            # every dispute withdrawn. Advisories — weak_read_through above all —
+            # ride out with the issue and never gate it.
+            if result.verdict == BLOCKED:
+                log.info("critic blocked, but the receipt rule downgraded every finding")
+            verdict = PASS_WITH_ADVISORIES if result.verdict == BLOCKED else result.verdict
+            return CritiqueStageResult(
+                draft=draft,
+                status=PUBLISHED,
+                verdict=verdict,
+                advisory_findings=terminal_advisory,
+                retries_used=retries_used,
+            )
+
+        if retries_used >= MAX_CRITIC_RETRIES:
+            log.warning(
+                "critic still blocking after %d retr%s: %d finding(s) publish unresolved",
+                retries_used,
+                "y" if retries_used == 1 else "ies",
+                len(kept),
+            )
+            return CritiqueStageResult(
+                draft=draft,
+                status=PUBLISHED_WITH_UNRESOLVED,
+                verdict=BLOCKED,
+                blocking_findings=kept,
+                advisory_findings=terminal_advisory,
+                retries_used=retries_used,
+            )
+
+        final_round = retries_used + 1 >= MAX_CRITIC_RETRIES
+        log.warning(
+            "critic: %d blocking finding(s), retry %d/%d%s",
+            len(kept),
+            retries_used + 1,
+            MAX_CRITIC_RETRIES,
+            " (comply-only)" if final_round else "",
+        )
+        retry_prompt = render_critic_retry_prompt(
+            retry_template, prior_draft=draft, blocking_findings=kept, final_round=final_round
+        )
+        validator_report = (draft.get("critic_report") or {}).get("validator_report")
+        prior_draft = draft
+        try:
+            manager_result = run_manager(
+                retry_prompt,
+                model=manager_model,
+                thesis_version=thesis_version,
+                run_id=run_id,
+                runner=manager_runner,
+            )
+        except ManagerFailed as exc:
+            # A broken retry manager DEGRADES the run, never fails it: the draft
+            # under judgment already passed the validator, so it is publishable.
+            log.warning(
+                "critic retry manager failed (%s) — publishing %d unresolved finding(s)",
+                exc,
+                len(kept),
+            )
+            trace = f"manager unavailable at retry {retries_used + 1}: {exc}"
+            degraded = tuple(_note(f, trace) for f in kept)
+            return CritiqueStageResult(
+                draft=draft,
+                status=PUBLISHED_WITH_UNRESOLVED,
+                verdict=BLOCKED,
+                blocking_findings=degraded,
+                advisory_findings=terminal_advisory,
+                retries_used=retries_used,
+            )
+
+        draft = manager_result.draft
+        if validator_report is not None:
+            draft.setdefault("critic_report", {})["validator_report"] = validator_report
+        if not final_round:
+            pending = extract_rebuttals(draft)
+        _log_edited_sections(prior_draft, draft, retries_used + 1)
         draft_path.write_text(json.dumps(draft, indent=2) + "\n")
         retries_used += 1
 

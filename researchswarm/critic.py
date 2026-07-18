@@ -570,6 +570,213 @@ def rebuttal_record(key: tuple, rebuttal: dict, adjudication: str) -> dict:
     }
 
 
+# ===========================================================================
+# The v2 rubric — the per-program detective's critic (spec/06, spec/07)
+# ===========================================================================
+#
+# Additive alongside the v1 path above, exactly like the v2 validator, manager and
+# researcher: the two run side by side while the pipeline migrates, and v1 retires
+# LAST as its own ticket. Nothing above this line is touched.
+#
+# The GATE is unchanged — spec/07 says so in as many words ("machinery not
+# re-opened"): the sorting principle, the receipt rule, the rebuttal channel, the
+# verdict contract and every run.status all survive. What changed is the
+# VOCABULARY, and only in three places:
+#
+#   - `relation_miscast` joins the blocking table (spec/06 blocking findings). A
+#     competitor typed against its own facts — an ADC (different MOA) typed
+#     mechanism_twin — misleads the reader about a fact: it makes a target
+#     validation read as a mechanism validation. The ENUM half of typing stays the
+#     validator's (`untyped_competitor`); this is the facts-vs-type half.
+#   - `weak_read_through` replaces `weak_angle` in the advisory table, and is the
+#     centre of the v2 rubric. The read-through's PRESENCE is a validator block
+#     (`missing_read_through`); its QUALITY is this advisory — spec/06 line 63 and
+#     spec/07's "what the validator checks, and what it does not". It is ADVISORY,
+#     and nothing here may promote it: a read-through that restates rather than
+#     argues is true-but-weak, never a reader misled about a fact.
+#   - `thesis_impact_false` now reads `read_through.thesis_bearing` rather than v1's
+#     `research_angle.thesis_impact`. Same check, renamed field (spec/07 delta log)
+#     — so the KIND is unchanged here and only the prompt's wording moved.
+#
+# The receipt rule itself needs no v2 twin: `enforce_receipt_rule` reads
+# `issue.coverage_window`, walks every source object in the tree, and matches urls
+# against the raw findings corpus — all three are byte-identical in v2 (spec/07:
+# "the source object — unchanged from v1"), and the corpus is keyed by aperture
+# rather than beat, which the corpus renderer already handles. Re-implementing it
+# would create exactly the drift the one-home rule exists to prevent.
+
+RELATION_MISCAST = "relation_miscast"
+WEAK_READ_THROUGH = "weak_read_through"
+
+# The seven blocking kinds (spec/06 blocking findings, v2). The v1 six plus
+# relation_miscast — no promotion, no demotion, no invention. A blocking finding
+# whose kind is outside this set is demoted to advisory rather than allowed to
+# gate: an invented kind must never halt the line.
+BLOCKING_KINDS_V2 = BLOCKING_KINDS | frozenset({RELATION_MISCAST})
+
+# The advisory kinds (spec/06 advisory findings, v2): v1's list with `weak_angle`
+# retired in favour of `weak_read_through` (spec/07 delta log — "Critic gains
+# weak_read_through (advisory), mirrors v1 weak_angle"). Recorded so a reviewer
+# sees the whole rubric in one place; unknown ADVISORY kinds are tolerated rather
+# than rejected, because an advisory never gates and a mislabelled one costs the
+# reader nothing.
+ADVISORY_KINDS_V2 = (ADVISORY_KINDS - {"weak_angle"}) | frozenset({WEAK_READ_THROUGH})
+
+
+def run_critic_v2(
+    prompt: str,
+    *,
+    model: str,
+    timeout: int = 900,
+    schema_file: Path | None = None,
+    runner=subprocess.run,
+) -> CriticResult:
+    """Run one v2 critic pass. Never raises on a critic failure — resolves to not_run.
+
+    The v2 twin of `run_critic`. Identical transport (portable argv, prompt on
+    stdin, verdict from the `-o` tempfile, telemetry from stdout JSONL) and
+    identical failure contract — missing binary, nonzero exit, timeout, empty or
+    unreadable file, non-JSON, bad verdict, malformed findings all resolve to
+    `not_run` with a specific reason, because a broken critic must NEVER silently
+    become a passing one. The ONE difference is which kinds are allowed to BLOCK:
+    v2 adds `relation_miscast` (spec/06), so a v2 pass sorted against the v1 set
+    would silently demote a real block into an advisory and publish a miscast
+    competitor clean.
+
+    The offline guard raises exactly as v1's does: a test that would spend real
+    Codex quota fails in milliseconds instead of reaching the binary.
+    """
+    return _codex_pass(
+        prompt,
+        model=model,
+        timeout=timeout,
+        schema_file=schema_file,
+        runner=runner,
+        blocking_kinds=BLOCKING_KINDS_V2,
+    )
+
+
+def _codex_pass(
+    prompt: str,
+    *,
+    model: str,
+    timeout: int,
+    schema_file: Path | None,
+    runner,
+    blocking_kinds: frozenset,
+) -> CriticResult:
+    """One read-only Codex pass, sorted against `blocking_kinds`.
+
+    The transport half of `run_critic_v2`, parameterised by the rubric's blocking
+    set so the v1 and v2 vocabularies cannot leak into each other. It deliberately
+    duplicates `run_critic`'s body rather than refactoring it: the migration rule
+    is ADD the v2 path, never touch the v1 one, and delete v1 LAST as its own
+    ticket. The duplication is temporary and its lifetime is that ticket.
+    """
+    if os.environ.get(OFFLINE_ENV) and runner is subprocess.run:
+        raise CriticOfflineViolation(
+            f"{OFFLINE_ENV} is set but the critic tried to call the real codex "
+            "binary. Inject a fake runner, or run with the critic disabled."
+        )
+
+    with tempfile.TemporaryDirectory(prefix="researchswarm-critic-") as tmp:
+        last_message_file = Path(tmp) / "last-message.txt"
+        command = build_codex_command(
+            model, last_message_file=last_message_file, schema_file=schema_file
+        )
+
+        try:
+            completed = runner(
+                command,
+                input=prompt,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+        except FileNotFoundError:
+            return _not_run("codex binary not found on PATH")
+        except subprocess.TimeoutExpired:
+            return _not_run(f"critic timed out after {timeout}s")
+
+        if completed.returncode != 0:
+            return _not_run(
+                f"codex exited {completed.returncode}: "
+                f"stderr={(completed.stderr or '')[:400]!r}"
+            )
+
+        try:
+            final_message = last_message_file.read_text()
+        except OSError:
+            return _not_run("critic wrote no final-message file")
+
+        if not final_message.strip():
+            return _not_run("critic final-message file was empty")
+
+        try:
+            payload = json.loads(final_message)
+        except json.JSONDecodeError as exc:
+            return _not_run(f"unparseable critic output: {exc}")
+
+        usage, thread_id = _parse_stdout_meta(completed.stdout)
+
+        try:
+            verdict, blocking, advisory = _sort_output_by(payload, blocking_kinds)
+        except _CriticOutputInvalid as exc:
+            return _not_run(str(exc))
+
+        return CriticResult(
+            verdict=verdict,
+            blocking_findings=blocking,
+            advisory_findings=advisory,
+            usage=usage,
+            thread_id=thread_id,
+        )
+
+
+def _sort_output_by(payload, blocking_kinds: frozenset):
+    """Validate the verdict contract and sort findings against `blocking_kinds`.
+
+    Same contract as v1's `_sort_output`, with the rubric's blocking set injected.
+    Issue-level malformed structure (not an object, bad verdict, findings that are
+    not arrays of objects) raises `_CriticOutputInvalid` — the whole output is
+    untrustworthy, so it becomes not_run. A single blocking finding with a kind
+    outside the set is NOT fatal: it is demoted into the advisory list with a note,
+    so an invented kind — or an advisory the critic mis-filed as blocking, which is
+    exactly the failure `weak_read_through` invites — can never gate the run.
+    """
+    if not isinstance(payload, dict):
+        raise _CriticOutputInvalid("critic output was not a JSON object")
+
+    verdict = payload.get("verdict")
+    if verdict not in CRITIC_VERDICTS:
+        raise _CriticOutputInvalid(f"invalid verdict {verdict!r}")
+
+    raw_blocking = payload.get("blocking_findings", [])
+    raw_advisory = payload.get("advisory_findings", [])
+    if not isinstance(raw_blocking, list) or not isinstance(raw_advisory, list):
+        raise _CriticOutputInvalid(
+            "malformed critic output: blocking_findings and advisory_findings must be arrays"
+        )
+    for finding in [*raw_blocking, *raw_advisory]:
+        if not isinstance(finding, dict):
+            raise _CriticOutputInvalid("malformed critic output: a finding was not an object")
+
+    blocking: list[dict] = []
+    advisory: list[dict] = list(raw_advisory)
+    for finding in raw_blocking:
+        if finding.get("kind") in blocking_kinds:
+            blocking.append(finding)
+        else:
+            advisory.append(
+                _annotate(
+                    finding,
+                    f"reported as blocking under unknown kind {finding.get('kind')!r}",
+                )
+            )
+
+    return verdict, tuple(blocking), tuple(advisory)
+
+
 def _within_window(published_at: str, window: dict) -> bool | None:
     """Is `published_at` inside [window.from, window.to] inclusive?
 
