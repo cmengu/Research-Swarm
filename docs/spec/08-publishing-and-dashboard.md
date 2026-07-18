@@ -140,6 +140,8 @@ That last clause is the whole lesson of the `_sample.js` incident, and it is wor
 
 **First-publish bootstrap.** `issues/<program_id>/` exists but is empty, or the program has never run: the identity card renders from the registry and the issue body is an explicit empty state. Run #1 is not special-cased — it is this state until it publishes.
 
+**The pre-first-run state is distinct from a transport failure**, and the page must not conflate them. Before *any* run has completed there is no registry at all, so the fetch 404s — but the reader has configured nothing wrong, and telling them to serve the repo over HTTP is advice that cannot help, because they already are. A **404 on the registry** therefore reads *"nothing published yet — the registry is written by the first successful run"*; any other registry failure reads as transport and keeps the serve-over-HTTP hint. A new repo is the one state every reader passes through exactly once, and it should not look like a misconfiguration.
+
 ## Vocabulary homes
 
 v3 carried curated single-home constants (`STATUS`, `FLAG_LABEL`, `FINDING`, `BEAT_SECTIONS`, `MARKER`); v4 deleted them. They are **restored in the page**, with two changes the v2 schema earns:
