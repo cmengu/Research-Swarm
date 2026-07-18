@@ -214,6 +214,13 @@ class TestTheAuthorshipDuties:
         assert "CAPPED BLIND SPOT" in rendered
         assert "dropped_with_receipt" in rendered
 
+    def test_entity_refs_point_at_competitors_not_the_program(self, rendered):
+        """entity_refs resolve against state/entities/ (competitor/house entities);
+        the program is config, not an entity. A live run put the program slug in
+        headline.entity_refs and it dangled — the template must forbid it."""
+        assert "entity_refs point at COMPETITORS, never at the program" in rendered
+        assert "NEVER put the program's own id or slug" in rendered
+
     def test_keeps_so_what_and_read_through_distinct(self, rendered):
         """Collapsing them lets a dormant thesis silence the headline's reason to
         care — a thesis-gated field swallowing a thesis-independent duty."""

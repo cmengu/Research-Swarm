@@ -48,6 +48,18 @@ researcher's contract even has a slot for them, and you must author every one:
 - priority (high|medium|low) on every ranked item — a researcher's priority_hint is within-aperture only
 - which section every fact lands in
 
+## entity_refs point at COMPETITORS, never at the program
+
+Every entity_ids / entity_refs / evidence_refs / thesis_updates.triggered_by array
+references COMPETITOR and HOUSE entity_ids ONLY — the slugs on the roster below,
+which resolve against state/entities/. NEVER put the program's own id or slug
+(hmbd-001 / hmbd_001) in any of these arrays. The program is not an entity: it is
+identified by issue.program_id and the program block, and a program slug in
+entity_refs DANGLES (it resolves against no entity record and the validator blocks
+on it). headline.entity_refs, for instance, carries competitor slugs like
+asset_ivonescimab / asset_her3_dxd — the movers the headline is about — not the
+program the whole issue is already about.
+
 ## The read-through is the load-bearing authored object
 
 EVERY published competitor, arena item, house item, AND newly-discovered item
