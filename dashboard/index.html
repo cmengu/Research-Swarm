@@ -439,8 +439,8 @@ const SAMPLE = {"schema_version":"2.0.0","issue":{"id":"2026-07-18","program_id"
   const chip = (p) => '<span class="chip p-' + esc(p) + '">' + esc(p) + '</span>';
   const relLabel = (r) => esc(r).replace(/_/g, ' ');
   const relBadge = (r) => '<span class="rel rel-' + esc(r) + '" title="why it is a competitor">' + relLabel(r) + '</span>';
-  const srcs = (a) => !a || !a.length ? '' : '<div class="srcs">' + a.map(s => '<a href="' + esc(s.url) + '" target="_blank" rel="noopener"><span class="tier tier-' +
-    esc(s.tier) + '">' + esc(s.tier) + '</span> ' + esc(s.publisher) + ' &middot; ' + esc(s.published_at) + '</a>').join('') + '</div>';
+  const srcs = (raw) => { const a = (raw || []).filter(s => s && s.url); return !a.length ? '' : '<div class="srcs">' + a.map(s => '<a href="' + esc(s.url) + '" target="_blank" rel="noopener"><span class="tier tier-' +
+    esc(s.tier) + '">' + esc(s.tier) + '</span> ' + esc(s.publisher) + ' &middot; ' + esc(s.published_at) + '</a>').join('') + '</div>'; };
 
   // ══════════════════════════════════════════════════════════════════════════
   // VOCABULARY HOMES (#82) — one home each, no bare literals elsewhere.
