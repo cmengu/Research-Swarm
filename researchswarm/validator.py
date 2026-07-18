@@ -1126,6 +1126,109 @@ def _check_landscape_number_unsourced(issue, problems):
                 )
 
 
+# The v2 degradation register ([06] the register). The vocabulary both gates
+# read — same lockstep discipline as v1's DEGRADATION_REGISTER, extended for the
+# per-program schema. thesis_unseeded / quiet_cycle / calendar_stale survive from
+# v1; beat_failed becomes arena_scan_failed; arena_scan_dormant, china_feed_partial
+# and interest_list_stale are new. A kind not in here earns no exemption.
+DEGRADATION_REGISTER_V2 = frozenset(
+    {
+        "thesis_unseeded",
+        "quiet_cycle",
+        "calendar_stale",
+        "arena_scan_failed",
+        "arena_scan_dormant",
+        "china_feed_partial",
+        "interest_list_stale",
+    }
+)
+
+# The two kinds that explain an EMPTY arena (an indication with no rivals and no
+# SOC this cycle). Both must be mechanically confirmable from the audit trail —
+# a marker the orchestrator cannot corroborate is a self-report and blocks.
+ARENA_DEGRADATION_KINDS = frozenset({"arena_scan_dormant", "arena_scan_failed"})
+
+
+def _arena_is_empty(indication) -> bool:
+    arena = indication.get("arena") or {}
+    return not (arena.get("setting_rivals") or arena.get("benchmark_soc"))
+
+
+def _indication_degradation(indication):
+    """The dormancy/failure marker for an indication, wherever it renders.
+
+    The sample carries it on `treatment_landscape.degradation`; the arena or the
+    indication itself are also honest homes. First one found wins — the reader
+    sees a marker at the absence regardless of which sub-object holds it.
+    """
+    for holder in (
+        indication.get("treatment_landscape") or {},
+        indication.get("arena") or {},
+        indication,
+    ):
+        degradation = holder.get("degradation")
+        if isinstance(degradation, dict):
+            return degradation
+    return None
+
+
+def _arena_mechanically_degraded(issue, indication_id) -> bool:
+    """The orchestrator-held fact behind an arena dormancy/failure marker.
+
+    True when the audit trail confirms this indication's arena scan did not run
+    productively: an `apertures_run` entry for `arena_scan` scoped to the
+    indication with status dormant/failed, or the combined aperture id present in
+    `apertures_degraded`. Either is a fact run.py holds, so the exemption never
+    rests on a model self-report ([06] admission test 2).
+    """
+    method = issue.get("sources_and_method", {})
+    for entry in method.get("apertures_run") or []:
+        if (
+            isinstance(entry, dict)
+            and entry.get("aperture") == "arena_scan"
+            and entry.get("scope") == indication_id
+            and entry.get("status") in {"dormant", "failed"}
+        ):
+            return True
+    return f"arena_scan:{indication_id}" in (method.get("apertures_degraded") or [])
+
+
+def _check_empty_arena_v2(issue, problems):
+    """An empty indication arena is a marked dormancy/failure, or it blocks.
+
+    An arena with no setting rivals and no benchmark/SOC is an absence the reader
+    would misread as "no competition here." So it publishes only with a dormancy
+    or failure degradation whose kind is registered AND whose mechanical trigger
+    is confirmed by the audit trail. A missing marker, an off-topic kind, or a
+    marker the apertures do not corroborate all block — the admission rule at the
+    indication altitude ([06] dormant/failed aperture).
+    """
+    for indication in issue.get("indications") or []:
+        if not isinstance(indication, dict) or not _arena_is_empty(indication):
+            continue
+        iid = indication.get("indication_id", "?")
+        where = f"indications[{iid}].arena"
+        marker = _indication_degradation(indication)
+        if marker is None:
+            problems.append(
+                Finding("empty_section", where, "empty arena with no dormancy/failure degradation to explain it")
+            )
+            continue
+        kind = marker.get("kind")
+        if kind not in ARENA_DEGRADATION_KINDS:
+            problems.append(
+                Finding("empty_section", where, f"degradation kind {kind!r} does not explain an empty arena")
+            )
+        elif not _arena_mechanically_degraded(issue, iid):
+            problems.append(
+                Finding(
+                    "empty_section",
+                    where,
+                    f"degradation claims {kind!r} but apertures_run/apertures_degraded do not confirm it",
+                )
+            )
+
+
 def _derive_stats_v2(issue) -> dict:
     """The program-detective stats counts ([07] v2 `stats`).
 
@@ -1202,6 +1305,7 @@ def _validate_issue_v2(issue, *, state, queue_baseline, baseline_expired, calend
     _check_dangling_entity_v2(issue, state, blocking)
     _check_unaccounted_entity(issue, roster, blocking)
     _check_empty_section_v2(issue, state, blocking)
+    _check_empty_arena_v2(issue, blocking)
     _check_derived_stats_mismatch(issue, blocking)
     _check_queue_tamper(issue, queue_baseline, blocking)
 
@@ -1223,6 +1327,13 @@ def _validate_issue_v2(issue, *, state, queue_baseline, baseline_expired, calend
         advisory.append(
             Finding("calendar_stale", "conference_calendar", CALENDAR_STALE_MARKER)
         )
+    # interest_list_stale is fail-visible like calendar_stale — a whole-list marker
+    # from a date the orchestrator holds (interest_list.rot_status), filed here so
+    # it rides every issue whether or not the critic runs ([06] register, #55).
+    if (issue.get("sources_and_method", {}).get("interest_list") or {}).get("rot_status") == "stale":
+        advisory.append(
+            Finding("interest_list_stale", "sources_and_method.interest_list", INTEREST_LIST_STALE_MARKER)
+        )
 
     return ValidationResult(blocking=tuple(blocking), advisory=tuple(advisory))
 
@@ -1235,6 +1346,10 @@ def _validate_issue_v2(issue, *, state, queue_baseline, baseline_expired, calend
 # The reader-facing marker text for a stale calendar (spec/06 register). One home,
 # so the advisory the validator files and the dashboard's marker match byte-for-byte.
 CALENDAR_STALE_MARKER = "conference calendar stale — surge disabled"
+
+# The reader-facing marker for a stale interest list (spec/06 register, #55). Same
+# one-home discipline as the calendar marker.
+INTEREST_LIST_STALE_MARKER = "interest list stale — steering may be out of date"
 
 
 def validate_issue(
