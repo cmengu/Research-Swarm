@@ -222,9 +222,31 @@ degradation object on the affected entry, e.g.:
 
 The reader's risk is never "not knowing something failed". It is reading a thin
 section and concluding it is a FACT about the world — a quiet arena rather than a
-dead scan. An absence that does not look like an absence misleads the reader.
-Writing the aperture into sources_and_method.apertures_degraded is the audit
-trail; the inline marker is what the reader actually sees. Do both.
+dead scan. An absence that does not look like an absence misleads the reader. The
+inline marker is what the reader actually sees; the two sources_and_method fields
+are the audit trail the VALIDATOR cross-checks it against. Do ALL of it, in these
+EXACT shapes (the validator's empty_section check reads them literally):
+
+- The inline "degradation" object above carries the RICH marker text
+  (kind + human-readable marker), on the affected arena / treatment_landscape /
+  competitor entry. This is the only place the prose marker lives.
+- sources_and_method.apertures_run INCLUDES the dormant/failed aperture, with its
+  status, exactly like every other aperture:
+    {"aperture": "arena_scan", "scope": "<indication_id>", "status": "dormant"}
+  (or "status": "failed"). A dormant arena is NOT omitted from apertures_run — it
+  appears there with status dormant. `aperture` is the KIND (biology_scan |
+  arena_scan | house_sweep); `scope` is the scope string.
+- sources_and_method.apertures_degraded is a flat list of aperture-id STRINGS —
+  NOT objects:
+    "apertures_degraded": ["arena_scan:nrg1-fusion-solid-tumors"]
+  Do NOT put marker text, kind, or sections_affected here; those live in the
+  inline degradation object. This field is just the ids, so the validator can
+  confirm the inline claim against the run record.
+
+So a dormant nrg1 arena appears THREE ways: an inline degradation on its
+indication's arena + treatment_landscape (rich), a row in apertures_run with
+status "dormant", and its id string in apertures_degraded. All three, or the
+validator raises empty_section.
 
 # Unconfirmed findings — publish visibly, or cut
 
@@ -376,9 +398,15 @@ All 15 top-level keys must be present, in this order:
 - critic_report: { verdict: "not_run", retries_used: 0, blocking_findings: [],
   advisory_findings: [], validator_report: null } — the critic has not run.
 - sources_and_method: { apertures_run, apertures_degraded, registry_watch,
-  source_tier_counts, paywalled_flagged, interest_list }. apertures_degraded lists
-  exactly the failed/dormant apertures named above; interest_list.rot_status
-  reflects the staleness marked above.
+  source_tier_counts, paywalled_flagged, interest_list }.
+  - apertures_run: one row per aperture — ok, dormant, AND failed alike —
+    {"aperture": <kind>, "scope": <scope>, "status": "ok|dormant|failed"}. A
+    dormant/failed aperture is INCLUDED here, never dropped.
+  - apertures_degraded: a flat list of aperture-id STRINGS (e.g.
+    ["arena_scan:nrg1-fusion-solid-tumors"]) — exactly the failed/dormant
+    apertures named above. NOT objects; the marker prose lives in the inline
+    degradation objects only.
+  - interest_list.rot_status reflects the staleness marked above.
 
 Every source is an OBJECT with url, publisher, tier (primary|trade|aggregator),
 published_at — never a bare string. entity_id slugs are the spine; use the roster

@@ -239,6 +239,20 @@ class TestTheAuthorshipDuties:
         assert "arena_scan_dormant" in rendered
         assert "arena_scan_failed" in rendered
 
+    def test_pins_the_apertures_degraded_string_shape(self, rendered):
+        """The validator's empty_section check reads apertures_degraded literally:
+        it must be aperture-id STRINGS, not rich objects (a live run emitted
+        objects and dropped the dormant aperture from apertures_run — a real bug
+        the sample-matching instruction prevents)."""
+        assert "flat list of aperture-id STRINGS" in rendered
+        assert '"apertures_degraded": ["arena_scan:nrg1-fusion-solid-tumors"]' in rendered
+
+    def test_pins_apertures_run_includes_the_dormant_aperture(self, rendered):
+        """A dormant arena appears in apertures_run with status dormant AND its id
+        in apertures_degraded — the sample's shape the validator confirms against."""
+        assert "NOT omitted from apertures_run" in rendered
+        assert '"status": "dormant"' in rendered
+
 
 class TestTheSteeringWheel:
     def test_carries_the_interest_notes(self, rendered, interests):
