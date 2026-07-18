@@ -1,16 +1,34 @@
-# Dashboard prototype
+# Dashboard
 
-Asset for ticket [#8](https://github.com/cmengu/Research-Swarm/issues/8). **All content fabricated** — this renders the sample from the schema ticket.
+The reader-facing digest. Design asset for ticket [#8](https://github.com/cmengu/Research-Swarm/issues/8) (v3 approved); made to render **real** published issues under ticket [#36](https://github.com/cmengu/Research-Swarm/issues/36).
 
-Run it: open `dashboard/index.html` directly, or `cd dashboard && python3 -m http.server 8899` → http://localhost:8899
+Run it: serve the **repo root** over HTTP and open the dashboard from there —
 
-**The prototype is self-contained**: the sample issue is inlined in a `<script>` block, so the page works with no server and no sibling files. `_sample.js` is kept only as the readable source of that data. Production replaces the inline block with `fetch('../issues/<id>.json')` — at which point a server (or GitHub Pages) is required again, because `fetch` on `file://` is blocked.
+```
+python -m http.server 8899        # from the repo root, NOT from dashboard/
+# → http://localhost:8899/dashboard/index.html
+```
+
+The page reads `../issues/index.json` (the manifest the dropdown lists) and the selected `../issues/<id>.json`, both relative to itself, so it must be served from a root that also serves `issues/`. `fetch` is blocked on `file://`, so opening the file directly will show an in-page "could not load" message rather than a blank — every failure announces itself in the reader's path.
 
 ## Stack decision
 
-**Single static HTML file, no framework, no build step.** Vanilla JS renders `issue.json` into the DOM. Rationale: the payload is one document per cycle, rendered once — there is no state to manage and no interactivity beyond a dropdown and anchors. A framework would add a build step to a repo whose whole point is "clone and run". GitHub-Pages-compatible by construction (static files, relative paths).
+**Single self-contained HTML file, no framework, no build step, no external asset.** Vanilla JS fetches the two JSON documents and renders them into the DOM. The whole data layer is those two same-origin fetches.
 
-Production swaps `<script src="_sample.js">` for `fetch('../issues/<id>.json')` and populates the picker from an `issues/index.json` manifest.
+This is deliberately not the old prototype shape. An earlier version inlined its data in a `<script>` block with `_sample.js` as the readable source; when the fetch swap landed, a missing sibling asset could ship an **empty page**. `_sample.js` is now deleted and nothing is load-bearing but the two fetches — verified by serving the repo root and rendering the real `issues/` directory headlessly, never localhost-only.
+
+## Data-shape divergences handled (found against live artifacts)
+
+The dashboard renders defensively where the **live manager** diverges from [`docs/spec/07`](../docs/spec/07-issue-schema.md). Two divergences, pinned by `tests/test_dashboard.py`:
+
+- **`quiet_this_cycle.open_threads`** — spec/07 defines objects `{entity_id, thread, since, next_expected}`; the live manager emits **plain strings**. The renderer handles both.
+- **`new_on_radar[].promotion_proposal`** — spec/07 defines `{promote_to_watchlist, reason}`; the live manager emits `{proposed_entity_id, proposed_tier, proposed_priority, reason}`. The renderer handles both.
+
+These are manager-side, not `publish.py`-side; reported, not silently patched.
+
+## Dormant-marker matching is a wording heuristic
+
+Dormant-thesis markers in `research_angle`, `why_we_care` and `what_it_would_prove` are **free manager text**, not a typed field — the manager writes `No thesis seeded — facts only` and omits `thesis_impact`. The dashboard recognises them with a small wording regex (`No thesis seeded…`, `… beat failed`, `… coverage unavailable`, `conference calendar stale`, `… surge disabled`). This is a heuristic, not a contract: if a marker is ever **reworded**, it stops matching and degrades to ordinary prose — it still renders (as text, never a blank), but loses the styled-absence treatment. The durable fix is a typed marker/`degradation` field the renderer can key on; until then, keep the marker wording and the regex in sync.
 
 ## Visual system
 
@@ -63,4 +81,4 @@ Rendered headless in Chrome against the live server: zero page errors, both them
 ## Still open (for the spec)
 
 - Rail holds nav + stats; a horizontal stats bar atop the main column is the untested alternative.
-- Issue picker needs an `issues/index.json` manifest contract.
+- ~~Issue picker needs an `issues/index.json` manifest contract.~~ Closed under #36 — the picker reads the manifest `publish.py` regenerates (id, status, surge, flags), newest-first, stubs included.

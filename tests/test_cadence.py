@@ -77,3 +77,40 @@ class TestLoadCadence:
     def test_missing_file_is_an_error(self, tmp_path):
         with pytest.raises(FileNotFoundError):
             load_cadence(tmp_path / "nope.toml")
+
+
+class TestSurgeConfig:
+    def test_real_config_parses_the_surge_knobs(self, repo_root):
+        """The seeded surge block: enabled, daily, guarded — and N lives in
+        config, not hardcoded (the ticket's one-home rule)."""
+        surge = load_cadence(repo_root / "config" / "cadence.toml").surge
+        assert surge is not None
+        assert surge.enabled and surge.cadence == "daily"
+        assert surge.require_verified_dates is True
+        assert surge.max_surge_days == 7
+        assert surge.stale_after_cycles == 8
+
+    def test_rejects_a_bad_max_surge_days(self, tmp_path):
+        path = tmp_path / "cadence.toml"
+        path.write_text(
+            '[baseline]\ndays = ["mon"]\nhour = 7\n'
+            "[surge]\nenabled = true\n[surge.guard]\n"
+            "max_surge_days = 0\nstale_after_cycles = 8\n"
+        )
+        with pytest.raises(ValueError, match="max_surge_days"):
+            load_cadence(path)
+
+    def test_rejects_a_bad_stale_after_cycles(self, tmp_path):
+        path = tmp_path / "cadence.toml"
+        path.write_text(
+            '[baseline]\ndays = ["mon"]\nhour = 7\n'
+            "[surge]\nenabled = true\n[surge.guard]\n"
+            "max_surge_days = 7\nstale_after_cycles = 0\n"
+        )
+        with pytest.raises(ValueError, match="stale_after_cycles"):
+            load_cadence(path)
+
+    def test_no_surge_block_is_none(self, tmp_path):
+        path = tmp_path / "cadence.toml"
+        path.write_text('[baseline]\ndays = ["mon"]\nhour = 7\n')
+        assert load_cadence(path).surge is None
