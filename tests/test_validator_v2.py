@@ -183,6 +183,55 @@ class TestLandscapeNumberUnsourced:
         assert "landscape_number_unsourced" not in _kinds(result)
 
 
+class TestUnaccountedEntity:
+    # the pilot roster: the two seed_competitors (config/programs/hmbd-001.toml)
+    ROSTER = {"asset_her3_dxd", "asset_ivonescimab"}
+
+    def test_a_fully_accounted_roster_passes(self):
+        issue = _load_sample()
+        # her3_dxd moved in competitors[]; ivonescimab moved in the arena
+        result = validate_issue(issue, state=_state_for(issue), roster=self.ROSTER)
+        assert "unaccounted_entity" not in _kinds(result)
+
+    def test_a_rostered_entity_in_neither_place_blocks(self):
+        issue = _load_sample()
+        roster = self.ROSTER | {"asset_never_mentioned"}
+        result = validate_issue(issue, state=_state_for(issue), roster=roster)
+        assert "unaccounted_entity" in _kinds(result)
+
+    def test_a_double_accounted_entity_blocks(self):
+        issue = _load_sample()
+        # her3_dxd is already in competitors[]; also drop it into no_news
+        issue["quiet_this_cycle"]["no_news"].append(
+            {"entity_id": "asset_her3_dxd", "name": "HER3-DXd", "cycles_quiet": 1}
+        )
+        result = validate_issue(issue, state=_state_for(issue), roster=self.ROSTER)
+        kinds = [(f.kind, f.where) for f in result.blocking]
+        assert ("unaccounted_entity", "asset_her3_dxd") in kinds
+
+    def test_a_quiet_rostered_entity_is_accounted(self):
+        issue = _load_sample()
+        # zeno_her3 sits only in no_news — putting it on the roster must be fine
+        result = validate_issue(
+            issue, state=_state_for(issue), roster=self.ROSTER | {"asset_zeno_her3"}
+        )
+        assert "unaccounted_entity" not in _kinds(result)
+
+    def test_no_roster_skips_the_check(self):
+        issue = _load_sample()
+        # without a roster there is nothing to hold accountable — never blocks
+        result = validate_issue(issue, state=_state_for(issue))
+        assert "unaccounted_entity" not in _kinds(result)
+
+    def test_house_and_queue_entities_carry_no_coverage_duty(self):
+        issue = _load_sample()
+        # merck_co lives only in the house view; hengrui only in a queue item —
+        # neither is a typed program competitor, so neither is on the roster and
+        # neither triggers the coverage check even though they are known entities
+        result = validate_issue(issue, state=_state_for(issue), roster=self.ROSTER)
+        assert "unaccounted_entity" not in _kinds(result)
+
+
 class TestPortedSpineChecks:
     def test_a_dangling_entity_ref_blocks(self):
         issue = _load_sample()

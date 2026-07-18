@@ -923,6 +923,66 @@ def _check_dangling_entity_v2(issue, state, problems):
             problems.append(Finding("dangling_entity", where, f"entity_id {ref!r} resolves to nothing"))
 
 
+def _check_unaccounted_entity(issue, roster, problems):
+    """Every rostered competitor is accounted for this cycle — and in one place.
+
+    The v2 analogue of v1's unaccounted_watchlist_entity, but against the PROGRAM
+    ROSTER (this program's typed competitors), not a flat watchlist. The manager's
+    coverage duty: each rostered entity either MOVED (it appears in `competitors[]`
+    or an indication arena) or is explicitly QUIET (in `quiet_this_cycle.no_news`),
+    every cycle. An entity in NEITHER is unaccounted; an entity in BOTH is
+    double-accounted (the spec says exactly one). Both block.
+
+    The roster is deliberately narrow. A house-view entity (wider aperture, not a
+    typed program competitor) and a queue-only holder (e.g. a co-developer named
+    only in `entity_ids`) are NOT on the roster, so they carry no coverage duty —
+    which is why the coverage set and the dangling check's known set are different
+    sets. When `roster` is empty/None the check is skipped: an unknown roster can
+    hold nothing accountable.
+    """
+    if not roster:
+        return
+
+    moved = {
+        c.get("entity_id")
+        for c in issue.get("competitors") or []
+        if isinstance(c, dict) and c.get("entity_id")
+    }
+    for ind in issue.get("indications") or []:
+        if not isinstance(ind, dict):
+            continue
+        arena = ind.get("arena") or {}
+        for key in ("setting_rivals", "benchmark_soc"):
+            for item in arena.get(key) or []:
+                if isinstance(item, dict) and item.get("entity_id"):
+                    moved.add(item["entity_id"])
+
+    quiet = {
+        entry.get("entity_id")
+        for entry in issue.get("quiet_this_cycle", {}).get("no_news") or []
+        if isinstance(entry, dict) and entry.get("entity_id")
+    }
+
+    for entity_id in sorted(roster):
+        here, there = entity_id in moved, entity_id in quiet
+        if here and there:
+            problems.append(
+                Finding(
+                    "unaccounted_entity",
+                    entity_id,
+                    "double-accounted — appears as both a moved competitor and quiet (exactly one is required)",
+                )
+            )
+        elif not here and not there:
+            problems.append(
+                Finding(
+                    "unaccounted_entity",
+                    entity_id,
+                    "rostered competitor in neither competitors/arena nor quiet_this_cycle.no_news",
+                )
+            )
+
+
 def _check_empty_section_v2(issue, state, problems):
     """Each required top-level section is present and non-empty.
 
@@ -1126,7 +1186,7 @@ def _count_intel_sources_v2(issue) -> int:
     return total
 
 
-def _validate_issue_v2(issue, *, state, queue_baseline, baseline_expired, calendar_stale):
+def _validate_issue_v2(issue, *, state, queue_baseline, baseline_expired, calendar_stale, roster=None):
     """The v2.0.0 check-suite: the ported spine checks plus the four new
     admission checks ([07]). Same all-problems-at-once contract as v1, same
     ValidationResult, never raises.
@@ -1140,6 +1200,7 @@ def _validate_issue_v2(issue, *, state, queue_baseline, baseline_expired, calend
     _check_uncited_claim_v2(issue, blocking)
     _check_malformed_source_v2(issue, blocking)
     _check_dangling_entity_v2(issue, state, blocking)
+    _check_unaccounted_entity(issue, roster, blocking)
     _check_empty_section_v2(issue, state, blocking)
     _check_derived_stats_mismatch(issue, blocking)
     _check_queue_tamper(issue, queue_baseline, blocking)
@@ -1184,6 +1245,7 @@ def validate_issue(
     baseline_expired=False,
     beats_failed=None,
     calendar_stale=False,
+    roster=None,
 ):
     """Run all seven checks; return a ValidationResult, never raise.
 
@@ -1212,6 +1274,15 @@ def validate_issue(
     market-digest path. The dispatch is on the issue's OWN version, not a global
     constant, so the two schemas can be validated side by side while the rest of
     the engine migrates.
+
+    `roster` is the v2 program roster — the set of `entity_id`s typed as this
+    program's competitors (`programs.program_roster`: promoted edges ∪ unpromoted
+    seeds). It is the accountability set for the coverage check, and it is a
+    DIFFERENT set from `state.entity_ids` (which the dangling check uses as the
+    wider "every entity that exists" known set — a house-view or queue-only entity
+    must resolve without being on the roster). When `roster` is None the coverage
+    check is skipped: an unknown roster cannot hold anything accountable. It is
+    ignored on the v1 path, which keeps its own watchlist coverage check.
     """
     if issue.get("schema_version") == SCHEMA_VERSION_V2:
         return _validate_issue_v2(
@@ -1220,6 +1291,7 @@ def validate_issue(
             queue_baseline=queue_baseline,
             baseline_expired=baseline_expired,
             calendar_stale=calendar_stale,
+            roster=roster,
         )
 
     if beats_failed is None:
