@@ -713,3 +713,33 @@ class TestTheWalkerNeverCrashes:
         wheres = {finding.where for finding in problems}
         assert "issue.run.status" in wheres
         assert "headline.confidence" in wheres
+
+
+class TestTheGateNeverRaises:
+    """`validate_issue`'s docstring says "never raise". Until this test it lied.
+
+    Not reachable in production — the manager seam rejects a non-object draft
+    first — but the gate is the component that decides whether a malformed draft
+    is caught, so it must not depend on a caller upstream staying careful.
+    """
+
+    def _validate(self, issue):
+        from researchswarm.validator import validate_issue
+
+        return validate_issue(
+            issue, state=None, queue_baseline=None, baseline_expired=False, calendar_stale=False
+        )
+
+    def test_a_null_issue_is_a_finding_not_a_traceback(self):
+        result = self._validate(None)
+        assert not result.passed
+        assert result.blocking[0].kind == "malformed_shape"
+        assert "got NoneType" in result.blocking[0].note
+
+    def test_prose_where_an_issue_belongs_is_a_finding(self):
+        result = self._validate("the manager wrote an essay")
+        assert not result.passed
+        assert "got str" in result.blocking[0].note
+
+    def test_a_list_where_an_issue_belongs_is_a_finding(self):
+        assert not self._validate([{"schema_version": "2.0.0"}]).passed

@@ -1992,6 +1992,24 @@ def validate_issue(
     check is skipped: an unknown roster cannot hold anything accountable. It is
     ignored on the v1 path, which keeps its own watchlist coverage check.
     """
+    if not isinstance(issue, dict):
+        # This function's own docstring promises it NEVER RAISES, and until now
+        # that was untrue: a null or prose issue reached `issue.get(...)` below
+        # and raised AttributeError straight out of the gate.
+        #
+        # Not reachable in production today — `manager.validate_issue_draft`
+        # rejects a non-object draft at the seam before this is ever called. It
+        # is fixed anyway because the promise is the point: this gate is what
+        # decides whether a malformed draft is caught, and a gate that crashes
+        # is strictly worse than one that misses. That exact failure cost a run
+        # its git commit earlier tonight, after the issue had already published.
+        # The defence must not rest on a caller upstream staying careful.
+        return ValidationResult(
+            blocking=(
+                Finding("malformed_shape", "<issue>", f"must be an object, got {type(issue).__name__}"),
+            )
+        )
+
     if issue.get("schema_version") == SCHEMA_VERSION_V2:
         return _validate_issue_v2(
             issue,
