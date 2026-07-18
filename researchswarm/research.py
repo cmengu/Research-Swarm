@@ -80,6 +80,22 @@ def persist_findings(root: Path, run_id: str, beat_id: str, findings: dict) -> P
     return path
 
 
+def load_findings(root: Path, run_id: str, beat_ids) -> dict[str, dict]:
+    """Read the persisted findings corpus back — the read half of persist_findings.
+
+    One loader for the two downstream stages that both need the raw corpus:
+    synthesis hands it to the manager, critique hands it to the critic. run.py is
+    the sole reader on disk exactly as it is the sole writer, so this lives beside
+    persist_findings rather than being re-inlined in each stage. `beat_ids` is the
+    surviving beats (stage.beats_run) — a failed beat wrote no file.
+    """
+    findings_dir = root / "runs" / run_id / "findings"
+    return {
+        beat_id: json.loads((findings_dir / f"{beat_id}.json").read_text())
+        for beat_id in beat_ids
+    }
+
+
 def run_research_stage(
     beats: list[Beat],
     template: str,

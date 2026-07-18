@@ -1,0 +1,27 @@
+# Model ids per role — ResearchSwarm.
+#
+# Asset for ticket #31 (build 04). One id per ROLE, not per beat: the manager
+# and the critic are single agents, so their model belongs here.
+#
+# Why researchers are NOT here: a researcher's model is a PER-BEAT override
+# (config/beats.toml → [defaults] model, overridable per [[beat]]), because a
+# beat may one day want a heavier model for a harder charter. The manager and
+# critic have no per-beat axis — they are one call each — so a per-role id is
+# the right home. Keeping the two apart is the whole reason this file exists
+# rather than a manager = "..." line bolted onto beats.toml.
+#
+# The critic is a DIFFERENT model family from the workers on purpose (spec/06):
+# Codex, on a ChatGPT subscription, judges what Claude wrote. A cross-family gate
+# catches what a same-family critic would share the blind spot on.
+
+[models]
+manager = "claude-opus-4-8"
+critic = "gpt-5-codex"
+
+# The conference-calendar verifier: a read-only web-fetch task at the researcher
+# tier (it fetches a society's own page and reports the dates), so it rides the
+# same light model. It IS a role — one call per window each cycle, no per-beat
+# axis — so its id lives here, not in beats.toml. Required whenever [surge] is
+# enabled: run.py has ONE home for the id (no shadow default), so a missing key
+# is a config error, not a silent fallback.
+verifier = "sonnet"

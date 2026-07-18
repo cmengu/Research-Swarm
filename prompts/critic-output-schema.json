@@ -1,0 +1,94 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "verdict",
+    "blocking_findings",
+    "advisory_findings"
+  ],
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "pass_with_advisories",
+        "blocked"
+      ],
+      "description": "The critic's judgment ONLY, never the orchestrator's outcome. `not_run` is orchestrator-only and never emitted here."
+    },
+    "blocking_findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      },
+      "description": "A reader would be misled about a fact. A dropped_story MUST carry a well-formed `source` receipt or the orchestrator downgrades it."
+    },
+    "advisory_findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      },
+      "description": "True but weaker than it should be. Published, never gates."
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "where",
+        "note",
+        "source"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "where": {
+          "type": "string",
+          "description": "A JSON path into the issue, e.g. watchlist.merck."
+        },
+        "note": {
+          "type": "string"
+        },
+        "source": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "url",
+            "publisher",
+            "tier",
+            "published_at"
+          ],
+          "properties": {
+            "url": {
+              "type": "string"
+            },
+            "publisher": {
+              "type": "string"
+            },
+            "tier": {
+              "type": "string",
+              "enum": [
+                "primary",
+                "trade",
+                "aggregator"
+              ]
+            },
+            "published_at": {
+              "type": "string"
+            }
+          },
+          "description": "REQUIRED on a dropped_story \u2014 the receipt. Strict mode: the key is always present; null on every other kind."
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ResearchSwarm critic verdict",
+  "description": "The one JSON object Codex must emit. Passed to `codex exec --output-schema` to pin the shape at the model boundary; the orchestrator re-validates it anyway (a broken critic must never silently pass), so this is a guardrail, not the guarantee."
+}

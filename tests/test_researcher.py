@@ -167,6 +167,19 @@ class TestBeatDeath:
                 known_entity_ids=KNOWN, runner=runner,
             )
 
+    def test_the_failure_carries_the_stdout_error(self):
+        """claude -p reports errors on stdout, not stderr. A blank exit-1 error
+        hid last night's fan-out failure — the message must surface stdout."""
+        runner = _runner_returning(
+            '{"is_error": true, "result": "credit balance too low"}',
+            returncode=1,
+        )
+        with pytest.raises(ResearcherFailed, match="credit balance too low"):
+            run_researcher(
+                BEAT, "prompt", run_id=RUN_ID, window=WINDOW,
+                known_entity_ids=KNOWN, runner=runner,
+            )
+
     def test_a_timeout_fails_the_beat(self):
         def runner(command, **kwargs):
             raise subprocess.TimeoutExpired(command, 900)

@@ -109,7 +109,7 @@ Two retry budgets, **two each, separate**. A trivial JSON slip must never starve
 | **Repo** | OS-agnostic. Anyone can clone and run; the only platform-specific surface is one heartbeat registration per OS. |
 | **Publishing** | localhost v1, reachable from LAN devices via the PC's IP. Every issue is committed, so a GitHub Pages flip is a later ten-minute change (caveat: Pages is public web unless paid). |
 | **Storage** | JSON files. One `issues/<program_id>/<date>.json` per cycle; a shared `state/entities/` fact layer plus per-program `state/programs/<id>/`. Shaped so a later SQLite swap is mechanical — un-parked only when cross-entity query becomes the hot path ([09](09-orchestrator.md#scaling-to-many-programs)). |
-| **Models** | Researchers: `claude-sonnet-5`. Manager: `claude-opus-4-8`. Critic: Codex (`gpt-5.6-codex`). All configurable; these are defaults. |
+| **Models** | Researchers: `claude-sonnet-5`. Manager: `claude-opus-4-8`. Critic: Codex (`gpt-5-codex`). All configurable; these are defaults. |
 | **Budget target** | Cost scales with distinct apertures, not program count: `FIXED + Σ arena scans`. A full run under roughly an hour at modest subscription usage. |
 
 ## Phase 2 — deliberately parked

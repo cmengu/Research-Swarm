@@ -16,7 +16,6 @@ Spec: docs/spec/04-researchers.md
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import subprocess
@@ -24,6 +23,7 @@ from dataclasses import dataclass
 
 from researchswarm.beats import Beat
 from researchswarm.findings import FindingsInvalid, validate_findings
+from researchswarm.transport import TransportInvalid, parse_envelope, parse_result_json
 
 log = logging.getLogger("researchswarm.researcher")
 
@@ -77,39 +77,6 @@ def build_command(prompt: str, beat: Beat) -> list[str]:
     ]
 
 
-def _parse_envelope(stdout: str) -> dict:
-    """--output-format json wraps the final message in a result envelope."""
-    try:
-        envelope = json.loads(stdout)
-    except json.JSONDecodeError as exc:
-        raise FindingsInvalid(f"claude did not return a JSON envelope: {exc}") from exc
-
-    if envelope.get("is_error"):
-        raise FindingsInvalid(f"claude reported an error: {envelope.get('result')!r}")
-
-    return envelope
-
-
-def _parse_findings(result_text: str) -> dict:
-    """The final message must be exactly one JSON object.
-
-    We strip a ```json fence if one appears. The prompt forbids fences, and the
-    retry will say so — but a fence is a formatting slip around otherwise good
-    facts, and burning a retry (and a fresh set of web searches) to re-punctuate
-    is a bad trade.
-    """
-    text = result_text.strip()
-    if text.startswith("```"):
-        lines = text.split("\n")
-        text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
-        text = text.strip()
-
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise FindingsInvalid(f"final message was not one JSON object: {exc}") from exc
-
-
 def run_researcher(
     beat: Beat,
     prompt: str,
@@ -143,13 +110,17 @@ def run_researcher(
             raise ResearcherFailed(f"{beat.id}: timed out after {timeout}s") from exc
 
         if completed.returncode != 0:
+            # claude -p reports its failure on stdout (a JSON envelope or plain
+            # text), so stderr alone is usually blank — carry both or the
+            # operator gets an empty error.
             raise ResearcherFailed(
-                f"{beat.id}: claude exited {completed.returncode}: {completed.stderr[:400]}"
+                f"{beat.id}: claude exited {completed.returncode}: "
+                f"stdout={completed.stdout[:400]!r} stderr={completed.stderr[:400]!r}"
             )
 
         try:
-            envelope = _parse_envelope(completed.stdout)
-            findings = _parse_findings(envelope.get("result", ""))
+            envelope = parse_envelope(completed.stdout)
+            findings = parse_result_json(envelope.get("result", ""))
             validate_findings(
                 findings,
                 beat_id=beat.id,
@@ -157,7 +128,7 @@ def run_researcher(
                 window=window,
                 known_entity_ids=known_entity_ids,
             )
-        except FindingsInvalid as exc:
+        except (TransportInvalid, FindingsInvalid) as exc:
             last_error = str(exc)
             log.warning("%s: attempt %d failed validation: %s", beat.id, attempt, last_error)
             if attempt == 2:
