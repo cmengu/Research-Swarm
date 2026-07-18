@@ -106,7 +106,7 @@ Two retry budgets, **two each, separate**. They fail for unrelated reasons, and 
 | **Repo** | OS-agnostic. Anyone can clone and run; the only platform-specific surface is one heartbeat registration per OS. |
 | **Publishing** | localhost v1, reachable from LAN devices via the PC's IP. Every issue is committed, so a GitHub Pages flip is a later ten-minute change (caveat: Pages is public web unless paid). |
 | **Storage** | JSON files. One `issue.json` per cycle in `issues/`. The schema is shaped so a later SQLite swap is mechanical — one row per entity per issue. |
-| **Models** | Researchers: `claude-sonnet-5`. Manager: `claude-opus-4-8`. Critic: Codex (`gpt-5.6-codex`). All configurable; these are defaults. |
+| **Models** | Researchers: `claude-sonnet-5`. Manager: `claude-opus-4-8`. Critic: Codex (`gpt-5-codex`). All configurable; these are defaults. |
 | **Budget target** | A full run under roughly an hour, at modest subscription usage: six researchers, one manager, up to four manager calls worst case, plus critic passes. |
 
 ## Phase 2 — deliberately parked
