@@ -19,8 +19,11 @@ The beats died as structure and survive as an **event-type checklist** (readout,
 | **Biology scan** | `target` + `moa`, indication-blind | mechanism twins + target twins | 1 per program |
 | **Arena scan** | one indication (`indication × line × biomarker`) | setting rivals + benchmark/SOC | N = one per indication |
 | **House sweep** | the wider oncology board, aimed | interest-steering, partnership/BD, threat/financing, platform threat, **blind-spot detection** | 1, fixed |
+| **Dossier scan** | one company's whole history, program-agnostic | identity, origin, funding, pipeline, deals, people, **pivots, setbacks** | 0..M, **not every cycle** |
 
-**Agent count is `1 + N + 1`, bounded by config, not by the competitor list.** The biology scan carries the program's biology across every indication; each arena scan carries its patients; the house sweep is descended from the old backstop — one cheap aimed round-up **every run**. Cost is `FIXED + N × (one sonnet arena scan)` ([09](09-orchestrator.md#scaling-to-many-programs)).
+**The cycle agent count is `1 + N + 1`, bounded by config, not by the competitor list.** The biology scan carries the program's biology across every indication; each arena scan carries its patients; the house sweep is descended from the old backstop — one cheap aimed round-up **every run**. Cost is `FIXED + N × (one sonnet arena scan)` ([09](09-orchestrator.md#scaling-to-many-programs)).
+
+**Dossier scans sit outside that count** and are the reason it stays `1 + N + 1`: they are a function of **state**, not config, so they are planned separately ([below](#the-dossier-scan--the-fourth-aperture)) and most cycles plan none.
 
 **Two evidence streams are two lenses on one scan, not two scans** — a shallow tag on house-sweep findings (partnership/BD vs threat/financing), not a doubling of agents. Discovery is folded into the house sweep, not a separate agent.
 
@@ -29,6 +32,72 @@ Defaults: `model = "sonnet"`, `max_turns = 30` per researcher. Surge runs inheri
 ## Apertures overlap by design
 
 **Report anyway.** A HER3-DXd squamous readout legitimately belongs to the biology scan (it's a target twin) and the squamous arena scan (it moves that setting). A duplicate costs the manager one merge — trivially detectable on `entity_ids` — while a dropped story costs a critic block or a missed repricing. Two apertures independently finding the same readout is signal, and the overlap is what makes this corpus useful as the critic's receipt pool. Never "leave it for the other aperture."
+
+## The dossier scan — the fourth aperture
+
+The three cycle apertures answer *what moved in this window*. None answers *who this company is*. A competitor surfacing for the third time arrived with no more history attached than the first time, so every read-through was argued from a standing start and the understanding that should compound lived only in the reader's head.
+
+A **dossier** is a deep, accumulating, program-agnostic record of a **company**, built once and refreshed slowly, that every future read-through argues from. It answers *who they are*; it deliberately does **not** answer *what they mean for us* — that stays on the per-program relation edge ([03](03-state-and-governance.md#the-competitor-model--typed-relations-and-per-program-edges)). A dossier is shared across programs; a read-through is not. **This is the whole reason interpretation is banned from the record**: a second program must inherit the facts without inheriting the first program's opinions.
+
+**It is modelled as an aperture, not a new stage**, so it inherits the existing fan-out, transport, validation seam, degradation handling and cost accounting unchanged. It differs from the other three in exactly two ways, and both are load-bearing.
+
+### It is exempt from the coverage window
+
+Every cycle aperture is bounded by the run's window. A dossier scan is not, because its subject is history — the same seven-day window that once discarded a $1.1B platform acquisition would truncate a company's founding story.
+
+The exemption lives in the aperture's own definition (`window_exempt`), not as an `if kind == "dossier_scan"` branch in the prompt. On the wire it is declared, not omitted: a dossier payload carries **`"coverage_window": null`**.
+
+> **A declared null is auditable; an omission is indistinguishable from a model forgetting the field.** This is why the envelope wins over the record — see [the contract](#the-dossier-contract) below.
+
+### It is not scheduled per cycle
+
+Three triggers, each recorded **on** the aperture so the audit trail can answer "why was this cost spent" without re-deriving the decision:
+
+| Trigger | Fires when | `trigger` |
+|---|---|---|
+| **First sighting** | a company enters the roster with no dossier | `first_sighting` |
+| **Refresh due** | the record's `as_of` is older than the dial | `refresh_due` |
+| **Material event** | an acquisition, discontinuation or equivalent lands | `material_event` |
+
+The refresh dial is **⚑ 91 days** (one quarter) — a stated default, flippable, not an open question. It is coarse by design, so calendar-exact quarter arithmetic would be false precision.
+
+**Discovery feeds the roster.** A newly discovered competitor queues a dossier scan, so the roster deepens automatically as it widens rather than being bounded by what a human remembered to seed.
+
+### Cost is capped, and the cap is measured by the orchestrator
+
+History search is unbounded by nature, so each dossier scan carries an explicit ceiling — ⚑ `max_turns=24`, `max_sources=40`, `max_usd=4.0`. Exceeding it degrades with a receipt (`dossier_scan_cost_capped`, [the register](06-validator-and-critic.md#the-register)) rather than truncating silently.
+
+**The cap reads the transport envelope — `num_turns` and `total_cost_usd`, which the orchestrator parses itself — never a spend figure the model reports about itself.** A model self-report can never satisfy [admission test 2](06-validator-and-critic.md#admission-test--all-three-must-hold), which requires the trigger to be mechanically detectable from facts the *orchestrator* holds. An earlier build read a `spend` field off the model's own output; that field did not exist, so the cap was dead code that never fired.
+
+**A failed, capped or dormant dossier scan degrades the run and never fails it.** Background gathering is subordinate to the cycle's intelligence — the same rule as [a dead cycle aperture](#when-an-aperture-dies), and for the same reason.
+
+### The dossier contract
+
+One contract governs **all** model output, so a dossier payload validates at the same seam as every other aperture's, in the same envelope:
+
+```jsonc
+{
+  "aperture": "dossier_scan:co_remegen",
+  "program_id": "hmbd-001",
+  "run_id": "run_20260719_0700",
+  "coverage_window": null,        // DECLARED null — the window exemption, on the wire
+  "quiet": false,
+  "findings": [ /* ...as any other aperture... */ ],
+  "dossier": { /* the record — sections below */ },
+  "coverage_notes": { "...": "..." },
+  "errors": []
+}
+```
+
+The record itself carries identity, origin, funding, pipeline, deals, people, **pivots** and **setbacks**, plus a `coverage` block naming its thin sections.
+
+**`pivots[]` and `setbacks[]` are the differentiated fields** and are prompted for explicitly rather than left to emerge. Identity and funding are table stakes a vendor will sell you. What a company *said* it would do versus what it then did is sold nowhere, because it is an argument assembled over time — the same asymmetry as the read-through: **the fact is cheap, the argument is the asset.** A vendor feed would satisfy the identity, funding and deal questions and none of the strategy ones.
+
+**Interpretation is rejected at every depth of the record** — a `threat_level` on a funding round, a `so_what` on a pivot, an `implication` on a setback. These are the shapes an opinion takes when it is not allowed to be called `read_through`.
+
+**Source order**, chosen for value per unit of effort: primary filings first (SEC EDGAR full-text; HKEX and equivalent for the China-listed names), then ClinicalTrials.gov sponsor history, patent assignments, company press archives, conference abstract archives. The trust tiers [below](#sourcing-rules--non-negotiable) apply unchanged — a filing outranks a trade item — as does the ternary receipt: a dossier claim that cannot be sourced is **omitted with a receipt**, never quietly dropped.
+
+**The China gap is surfaced, not inherited.** Several of the most important competitors are China-listed, already the system's rank-1 blind spot. A dossier assembled from partial sources **marks its thin sections at the point of the absence**, so a sparse dossier reads as unmeasured rather than as a small company. Whether to buy that coverage is a spend decision for the owner; the spec makes the gap visible, it does not close it.
 
 ## The registry watch and the feed set
 
@@ -156,4 +225,4 @@ A researcher reporting an unreachable source raises `source_unreachable` (**advi
 
 ---
 
-*Provenance: scan model [#56](https://github.com/cmengu/Research-Swarm/issues/56) (apertures replace beats), source set [#51](https://github.com/cmengu/Research-Swarm/issues/51) (registry-diff input class, feed set, blind spots); template pattern, read-only wall and sourcing rules inherited from v1 [#6](https://github.com/cmengu/Research-Swarm/issues/6).*
+*Provenance: scan model [#56](https://github.com/cmengu/Research-Swarm/issues/56) (apertures replace beats), source set [#51](https://github.com/cmengu/Research-Swarm/issues/51) (registry-diff input class, feed set, blind spots); template pattern, read-only wall and sourcing rules inherited from v1 [#6](https://github.com/cmengu/Research-Swarm/issues/6); the dossier scan from [#92](https://github.com/cmengu/Research-Swarm/issues/92) (the fourth aperture, the window exemption, the cost cap measured by the orchestrator).*
