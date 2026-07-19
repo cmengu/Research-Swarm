@@ -433,8 +433,16 @@ def _default_publisher_v2(now: datetime):
 # publishing. That bug has shipped five times in this repo.
 
 
-def _plan_dossier_scans_v2(root: Path, entities, today: date):
-    """Which companies need a dossier scan this run. Returns a list of Apertures.
+def _plan_dossier_scans_v2(root: Path, entities, today: date) -> tuple[list, int]:
+    """Which companies need a dossier scan this run — `(apertures, candidates)`.
+
+    The candidate COUNT comes back alongside the apertures because an empty
+    result has two very different meanings and the caller must be able to tell
+    them apart. "Every company we know is inside the refresh dial" is the dial
+    working; "we know no companies at all" is the aperture being unreachable.
+    Reporting the second as the first is a gate announcing itself clean because
+    it had nothing to read — the same shape as a treatment landscape publishing
+    zero rivals because the scan never ran.
 
     Two decisions live here and nowhere else:
 
@@ -457,15 +465,16 @@ def _plan_dossier_scans_v2(root: Path, entities, today: date):
     try:
         held = load_company_dossiers(root)
         company_ids = company_ids_from_entities(entities)
-        return plan_dossier_scans(
+        apertures = plan_dossier_scans(
             company_ids,
             dossiers=held,
             today=today,
             material_events=MATERIAL_EVENT_IDS_V2,
         )
+        return apertures, len(company_ids)
     except Exception as exc:  # noqa: BLE001 — background gathering never fails the run
         log.warning("dossier planning failed (%s) — no dossier scans this cycle", exc)
-        return []
+        return [], 0
 
 
 def _run_one_dossier_scan_v2(
@@ -753,15 +762,27 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None, runner=None) ->
     # dossier scan is a function of STATE: which companies we know, how old their
     # records are, what just happened to them. Most cycles plan none, which is the
     # slow dial working rather than a failure.
-    dossier_apertures = _plan_dossier_scans_v2(root, entities, today)
+    dossier_apertures, dossier_candidates = _plan_dossier_scans_v2(root, entities, today)
     if dossier_apertures:
         log.info(
             "dossier scans: %d planned (%s)",
             len(dossier_apertures),
             ", ".join(f"{a.scope} ({a.trigger})" for a in dossier_apertures),
         )
+    elif dossier_candidates:
+        log.info(
+            "dossier scans: none due — all %d company record(s) are inside the refresh dial",
+            dossier_candidates,
+        )
     else:
-        log.info("dossier scans: none due — every company record is inside the refresh dial")
+        # NOT the same as "none due", and the difference is the whole aperture.
+        # No company records exist, so the planner ranged over an empty set and
+        # every trigger was vacuously satisfied. Warn: the fourth aperture cannot
+        # fire at all until something writes a company into `state/entities/`.
+        log.warning(
+            "dossier scans: no company records exist — the dossier aperture has "
+            "nothing to scan (the roster is asset-typed; no asset names a holder)"
+        )
 
     ctx = RunContext(
         run_id=run_id,
