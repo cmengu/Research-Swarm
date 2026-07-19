@@ -119,9 +119,18 @@
   /* ── relation badge — "why it's a competitor" ── */
   .rel { font-family: var(--mono); font-size: .62rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
          padding: .2rem .5rem; border-radius: 3px; white-space: nowrap; border: 1px solid currentColor; }
-  .rel-target_twin { color: var(--hema); } .rel-mechanism_twin { color: var(--paper); background: var(--hema); border-color: var(--hema); }
-  .rel-setting_rival { color: var(--challenges); } .rel-benchmark_soc { color: var(--ink-3); }
-  .rel-platform_threat { color: var(--paper); background: var(--challenges); border-color: var(--challenges); }
+  /* Colour carries SCOPE, fill carries rank WITHIN a scope (#80). Hema = program
+     level (our biology), challenges = indication level (our patients), neutral =
+     house level. Filled outranks outlined inside its own scope, so the badge is
+     readable on its own — a filled hema chip is the thesis-bearing rival, a
+     filled challenges chip is the mover in our setting. Eosin is NOT spent here:
+     it is reserved for what must draw the eye, and five always-present badges
+     would spend that budget on chrome. */
+  .rel-mechanism_twin { color: var(--paper); background: var(--hema); border-color: var(--hema); }
+  .rel-target_twin { color: var(--hema); }
+  .rel-setting_rival { color: var(--paper); background: var(--challenges); border-color: var(--challenges); }
+  .rel-benchmark_soc { color: var(--ink-3); }
+  .rel-platform_threat { color: var(--paper); background: var(--neutral); border-color: var(--neutral); }
 
   .entity { display: flex; flex-direction: column; gap: var(--s3); padding-left: var(--s3); border-left: 3px solid var(--rule-strong); }
   .entity.confirms { border-left-color: var(--confirms); }
@@ -302,7 +311,26 @@
   /* ── standing tabs (Competitor Set / Landscape) ── */
   .grouplbl { font-family: var(--mono); font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; color: var(--hema);
               padding-bottom: var(--s2); border-bottom: 1px solid var(--rule); }
-  .tiernote { font-size: .84rem; color: var(--ink-3); max-width: 74ch; margin-top: -.4rem; }
+  /* ── the relation vocabulary, in two scopes (#80) ──
+     Renamed from `.tiernote`: four different things on this page were called
+     "tier" (source tier, interest tier, relation, failure scope), which is a
+     domain-language problem before it is a CSS one. Only SOURCE tier is ranked,
+     so only it keeps the word. See docs/spec/03 "Four things called tier". */
+  .relnote { font-size: .84rem; color: var(--ink-3); max-width: 74ch; margin-top: -.4rem; }
+  .relscope { display: flex; flex-direction: column; gap: var(--s3); margin-bottom: var(--s6); }
+  .scopelbl { font-family: var(--mono); font-size: .7rem; letter-spacing: .16em; text-transform: uppercase;
+              color: var(--ink-2); padding-bottom: var(--s2); border-bottom: 1px solid var(--rule-strong); }
+  .relgroup { display: flex; flex-direction: column; gap: var(--s2); margin-top: var(--s3); }
+  .grouphead { display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; }
+  .relcount { font-family: var(--mono); font-size: .66rem; color: var(--ink-3); }
+  .relempty { font-size: .9rem; color: var(--ink-3); font-style: italic; max-width: 74ch; }
+  /* An absence that is itself the finding gets weight — the ONE place relation
+     rendering spends the eosin budget, because #50's whole point is that a
+     missing mechanism twin is a claim about the field, not a blank. */
+  .relgroup.empty.loud { border-left: 3px solid var(--eosin); background: var(--eosin-soft);
+                         padding: var(--s3); border-radius: 4px; }
+  .relgroup.empty.loud .relempty { color: var(--ink-2); font-style: normal; }
+  .relgroup.empty.loud .relempty b { color: var(--eosin); font-style: normal; }
 </style>
 
 <div class="shell">
@@ -470,11 +498,13 @@ const SAMPLE = {"schema_version":"2.0.0","issue":{"id":"2026-07-18","program_id"
       body: "The critic raised findings the manager argued back, and the critic reaffirmed them. A genuine dispute between two model families is information you should have; both the finding and the rebuttal are printed in the validator & critic report below." },
   };
   // Manifest flags — "markers the reader should see before opening" (spec/08), surfaced in the issue dropdown.
+  // Also mirrored from the spec/06 register and drift-tested — see DEGRADATION below.
   const FLAG_LABEL = {
+    thesis_unseeded: "thesis unseeded", quiet_cycle: "quiet cycle",
     interest_list_stale: "interest list stale", calendar_stale: "calendar stale",
     arena_scan_failed: "arena scan failed", arena_scan_dormant: "arena dormant",
     china_feed_partial: "china feed partial", source_unreachable: "source unreachable",
-    provenance_stale: "provenance stale",
+    dossier_scan_cost_capped: "dossier capped", provenance_stale: "provenance stale",
   };
   // Finding-kind vocabulary the reader-facing chrome keys on (spec/06 register).
   const FINDING = {
@@ -482,10 +512,19 @@ const SAMPLE = {"schema_version":"2.0.0","issue":{"id":"2026-07-18","program_id"
     calendar_stale: "calendar stale", provenance_stale: "provenance stale",
   };
   // degradation.kind → its reader-facing label. Typed, so no prose is ever matched.
+  //
+  // THIS MIRRORS docs/spec/06 "The register" AND IS TESTED AGAINST IT.
+  // tests/test_dashboard_vocabulary.py parses that table and fails if a declared
+  // kind is missing here. The mirror is deliberate — serving these strings in
+  // every issue would repeat the same English in every file to spare one test —
+  // but a mirror without a drift test is how three kinds went missing.
   const DEGRADATION = {
+    thesis_unseeded:     "no thesis seeded — facts only",
+    quiet_cycle:         "genuinely quiet cycle — every typed competitor quiet",
     arena_scan_failed:   "arena coverage unavailable this cycle — scan failed",
     arena_scan_dormant:  "arena scan dormant this cycle",
     china_feed_partial:  "China-first — tracked at low confidence via CDE/chictr",
+    dossier_scan_cost_capped: "history search capped this cycle — dossier may be thin",
     interest_list_stale: "interest list stale",
     calendar_stale:      "conference calendar stale — surge disabled",
     source_unreachable:  "source unreachable this cycle",
@@ -739,22 +778,61 @@ const SAMPLE = {"schema_version":"2.0.0","issue":{"id":"2026-07-18","program_id"
     d.house_view.threat_financing.filter(h => h.relation === 'platform_threat').forEach(h => rows.push({item: h, rel: 'platform_threat'}));
     return rows;
   };
-  const RELGROUPS = [
-    ['mechanism_twin', 'Mechanism twins — same target AND mechanism (the true rivals to the thesis)'],
-    ['target_twin', 'Target twins — same target, different mechanism (validate the target, not the thesis)'],
-    ['setting_rival', 'Setting rivals — share the patients, not the biology (indication-level)'],
-    ['benchmark_soc', 'Benchmark / standard of care — the bar (indication-level)'],
-    ['platform_threat', 'Platform threats — company-unit modality engines (house-level)']
+  // ── the relation vocabulary, in its two scopes (spec/03; #50) ──
+  //
+  // The five relations are NOT a five-step ramp. They sit in two scopes, and the
+  // scope is the load-bearing distinction: a PROGRAM-level relation is about our
+  // BIOLOGY, an INDICATION-level one is about our PATIENTS. Ranking all five on
+  // one axis would imply a benchmark is "less" than a target twin, when it is a
+  // different KIND of fact about a different question.
+  //
+  // Within a scope, ordering IS meaningful — a mechanism twin bears on the thesis
+  // more directly than a target twin — so each scope reads as ordered, and the
+  // page reads as two ordered groups rather than one ramp of five.
+  const RELSCOPES = [
+    { scope: 'Program level — our biology',
+      note: 'Typed against the target and the mechanism. These bear on whether the thesis is right.',
+      rels: [
+        ['mechanism_twin', 'Same target AND mechanism — the true rivals to the thesis',
+         'No clinical asset attacks this mechanism. The white space is the differentiation, and the exposure: nothing else will de-risk the thesis on our behalf.'],
+        ['target_twin', 'Same target, different mechanism — validates the target, not the thesis', null],
+      ] },
+    { scope: 'Indication level — our patients',
+      note: 'Typed against a setting. These bear on the bar we must clear, not on the biology.',
+      rels: [
+        ['setting_rival', 'Shares the patients, not the biology', null],
+        ['benchmark_soc', 'The bar — standard of care in the setting', null],
+      ] },
+    { scope: 'House level — the board',
+      note: 'Company-unit relations. They belong to the house view, not to any one program.',
+      rels: [
+        ['platform_threat', 'A modality engine that can re-aim across settings', null],
+      ] },
   ];
   const rows = allCompetitors();
-  $('setBody').innerHTML = RELGROUPS.map(([rel, note]) => {
-    const grp = rows.filter(r => r.rel === rel);
-    if (!grp.length) return '<div><div class="grouplbl">' + relLabel(rel) + '</div><div class="tiernote">' + esc(note) + '</div>' +
-      '<div class="tiernote" style="color:var(--ink-3);font-style:italic">None on this program this cycle' + (rel === 'mechanism_twin' ? ' — and that absence is itself the headline: HMBD-001\'s mechanism has no clinical rival.' : '.') + '</div></div>';
-    return '<div><div class="grouplbl">' + relLabel(rel) + '</div><div class="tiernote">' + esc(note) + '</div>' +
-      '<div style="display:flex;flex-direction:column;gap:2rem;margin-top:1rem">' +
-      grp.map(r => (rel === 'platform_threat' ? houseItem(r.item) : competitorCard(r.item)) + (r.indic ? '<div class="slug" style="margin-top:-1.5rem">in ' + esc(r.indic) + '</div>' : '')).join('') + '</div></div>';
-  }).join('');
+  // An empty group is rendered, never skipped — an absence the page does not draw
+  // is indistinguishable from a section that was never scanned. Where the absence
+  // is itself the finding (a mechanism twin that does not exist), the group carries
+  // the reason from RELSCOPES rather than from a program-specific literal: this
+  // file is shared by every program, so it must never name one.
+  $('setBody').innerHTML = RELSCOPES.map(sc =>
+    '<section class="relscope"><h3 class="scopelbl">' + esc(sc.scope) + '</h3>' +
+    '<div class="relnote">' + esc(sc.note) + '</div>' +
+    sc.rels.map(([rel, note, whenEmpty]) => {
+      const grp = rows.filter(r => r.rel === rel);
+      const head = '<div class="grouphead">' + relBadge(rel) +
+        '<span class="relcount">' + grp.length + '</span></div>' +
+        '<div class="relnote">' + esc(note) + '</div>';
+      if (!grp.length) return '<div class="relgroup empty' + (whenEmpty ? ' loud' : '') + '">' + head +
+        '<div class="relempty">' + (whenEmpty
+          ? '<b>None — and the absence is the finding.</b> ' + esc(whenEmpty)
+          : 'None on this program this cycle.') + '</div></div>';
+      return '<div class="relgroup">' + head +
+        '<div style="display:flex;flex-direction:column;gap:2rem;margin-top:1rem">' +
+        grp.map(r => (rel === 'platform_threat' ? houseItem(r.item) : competitorCard(r.item)) +
+          (r.indic ? '<div class="slug" style="margin-top:-1.5rem">in ' + esc(r.indic) + '</div>' : '')).join('') +
+        '</div></div>';
+    }).join('') + '</section>').join('');
 
   // ── TAB 3: Treatment Landscape (standing, per indication) ──
   $('landBody').innerHTML = d.indications.map(ind =>
