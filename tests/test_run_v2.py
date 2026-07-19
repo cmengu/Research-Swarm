@@ -406,15 +406,75 @@ class TestResearchFailure:
         assert _run(seeded_repo) == run.EXIT_RUN_FAILED
         assert "run failed at research" in caplog.text
 
-    def test_no_stub_is_written_because_the_issue_shape_is_blocked(self, monkeypatch, seeded_repo, caplog):
-        """A v2 stub is an EMITTED issue, so it rides the publisher seam. The
-        failure is loud in the log and the exit code; it is not laundered."""
+    def test_the_dead_run_publishes_a_stub_at_the_per_program_path(self, monkeypatch, seeded_repo):
+        """A stub is a run OUTCOME, not the absence of one: it lands where a real
+        issue lands, `issues/<program_id>/<date>.json` (spec/07, #59)."""
+        monkeypatch.setattr(run, "run_research_stage_v2", _Recorder(ResearchStageV2(
+            apertures_run=[], apertures_degraded=["biology_scan"], findings_by_aperture={},
+        )))
+        assert _run(seeded_repo) == run.EXIT_RUN_FAILED
+        stub = json.loads((seeded_repo / "issues" / PROGRAM / f"{TODAY}.json").read_text())
+        assert stub["schema_version"] == "2.0.0"
+        assert stub["issue"]["program_id"] == PROGRAM
+        assert stub["issue"]["run"]["status"] == "failed"
+        assert stub["issue"]["failure"]["stage"] == "research"
+        assert "no aperture produced findings" in stub["issue"]["failure"]["detail"]
+
+    def test_the_stub_carries_the_v2_program_block(self, monkeypatch, seeded_repo):
+        """The v2 half the v1 stub writer could not do: a per-program issue names
+        its program, so the dashboard paints the identity card over the stub."""
         monkeypatch.setattr(run, "run_research_stage_v2", _Recorder(ResearchStageV2(
             apertures_run=[], apertures_degraded=[], findings_by_aperture={},
         )))
         assert _run(seeded_repo) == run.EXIT_RUN_FAILED
-        assert not list((seeded_repo / "issues").rglob("*.json"))
+        stub = json.loads((seeded_repo / "issues" / PROGRAM / f"{TODAY}.json").read_text())
+        assert stub["program"]["id"] == PROGRAM
+        assert stub["program"]["moa"]
+        assert stub["program"]["aperture"]["biology_scan"]["target"] == stub["program"]["target"]
+
+    def test_the_stub_reaches_the_manifest_and_the_registry(self, monkeypatch, seeded_repo):
+        """"Stubs appear" (spec/08): a failed run is IN the dropdown, flagged —
+        an unexplained gap in the dates is the silent failure the design refuses."""
+        monkeypatch.setattr(run, "run_research_stage_v2", _Recorder(ResearchStageV2(
+            apertures_run=[], apertures_degraded=[], findings_by_aperture={},
+        )))
+        assert _run(seeded_repo) == run.EXIT_RUN_FAILED
+        manifest = json.loads((seeded_repo / "issues" / PROGRAM / "index.json").read_text())
+        assert [e["id"] for e in manifest["issues"]] == [TODAY]
+        assert manifest["issues"][0]["headline_title"] is None
+        assert "failed" in manifest["issues"][0]["flags"]
+        registry = json.loads((seeded_repo / "issues" / "index.json").read_text())
+        row = next(r for r in registry["programs"] if r["program_id"] == PROGRAM)
+        assert row["latest_issue"] == TODAY
+
+    def test_a_stub_never_overwrites_a_published_issue(self, monkeypatch, seeded_repo, caplog):
+        """Immutability wins over the stub (spec/08). A rerun that fails on a day
+        that already shipped reports the failure and leaves the real issue alone."""
+        issues = seeded_repo / "issues" / PROGRAM
+        issues.mkdir(parents=True, exist_ok=True)
+        real = issues / f"{TODAY}.json"
+        real.write_text(json.dumps({"issue": {"id": TODAY, "run": {"status": "published"}}}))
+        monkeypatch.setattr(run, "run_research_stage_v2", _Recorder(ResearchStageV2(
+            apertures_run=[], apertures_degraded=[], findings_by_aperture={},
+        )))
+        assert _run(seeded_repo, "--push") == run.EXIT_RUN_FAILED
+        assert json.loads(real.read_text())["issue"]["run"]["status"] == "published"
         assert "no stub written" in caplog.text
+
+    def test_a_stub_that_cannot_be_written_still_fails_the_run_loudly(
+        self, monkeypatch, seeded_repo, caplog
+    ):
+        """A gate that crashes is worse than one that misses. If the stub writer
+        itself dies, the operator still gets "died at research", not a traceback."""
+        monkeypatch.setattr(run, "run_research_stage_v2", _Recorder(ResearchStageV2(
+            apertures_run=[], apertures_degraded=[], findings_by_aperture={},
+        )))
+        def boom(*a, **k):
+            raise OSError("disk full")
+        monkeypatch.setattr(run, "run_publish_stage_v2", boom)
+        assert _run(seeded_repo) == run.EXIT_RUN_FAILED
+        assert "run failed at research" in caplog.text
+        assert "disk full" in caplog.text
 
 
 # ---------------------------------------------------------------------------

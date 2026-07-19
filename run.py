@@ -98,7 +98,7 @@ from researchswarm.runs import (
 )
 from researchswarm.state import _load_json as load_state_json, check_entity_refs, load_state
 from researchswarm.state_edits import apply_dossier_edits_v2, apply_state_edits_v2
-from researchswarm.stub import PublishedIssueExists
+from researchswarm.stub import failed_stub_v2, PublishedIssueExists
 from researchswarm.synthesis import (
     RESEARCHER_MODEL_DEFAULT,
     IssueIdentity,
@@ -299,28 +299,80 @@ def _require_model_roles_v2(models_config: dict) -> None:
         )
 
 
-def _fail_run_v2(stage: str, detail: str) -> int:
-    """A v2 run that died. Logs where and why, and returns EXIT_RUN_FAILED.
+def _fail_run_v2(
+    stage: str,
+    detail: str,
+    *,
+    root: Path | None = None,
+    program=None,
+    run_id: str | None = None,
+    now: datetime | None = None,
+    window: dict | None = None,
+    thesis_version: int | None = None,
+    interest_list_version: int | None = None,
+    apertures_degraded=(),
+) -> int:
+    """A v2 run that died: publish its stub, say where it died, exit non-zero.
 
-    v1's twin publishes a failed-run stub here. v2 still does not, and the reason
-    has narrowed: #83 settled the three PUBLISHING shapes (issue path, manifest,
-    registry), but a stub is "the same schema with empty sections, status failed,
-    and failure.stage naming where it died" (spec/09 failure handling) — an
-    EMITTED per-program issue, which needs the v2 `program` block (spec/07
-    `program`) that `stub.write_failed_stub` does not write. That stub writer is
-    its own ticket; inventing its shape here is the thing this run is gated on not
-    doing. The failure stays loud in the log and in the exit code.
+    A stub is a run OUTCOME, not the absence of one (spec/09 failure handling),
+    and in v2 it is an EMITTED per-program issue: `stub.failed_stub_v2` builds the
+    v2.0.0 shape with the `program` block, and it rides the SAME publisher
+    (`run_publish_stage_v2`) a successful run rides. That is what puts it at
+    `issues/<program_id>/<date>.json`, in the program manifest, and in the
+    registry — "stubs appear" in the dropdown (spec/08), with no special case
+    anywhere downstream, because the registry is already a wholesale config ⋈ disk
+    join (#83).
 
-    What #83 DID settle is that this costs the program its *visibility* only in the
-    dropdown, not in the switcher: the registry is a wholesale config ⋈ state join
-    with config on the left, so a program whose only run failed — or which has
-    never run at all — still appears, with `latest_issue: null`. Once the v2 stub
-    writer lands, the stub reaches the registry for free, with no special case.
+    Then it commits, for the same reason the successful path does: one commit per
+    run, citing the run_id, so a failed cycle leaves a review trail instead of an
+    untracked file. A failed commit is not a failed run — the stub is on disk.
+
+    **Every write here is best-effort and the exit code never depends on it.** A
+    failure path that raises is strictly worse than one that misses: it would
+    replace a precise "died at synthesis" with a traceback from the stub writer,
+    which is a lie about what broke. So a date that already holds a PUBLISHED
+    issue (immutability, spec/08 — a forced rerun of a day that already shipped)
+    and any other write error are both logged and swallowed. The context arguments
+    are optional for the same reason: a failure before the run has a program or a
+    window still gets a loud log rather than a TypeError.
     """
     log.error("run failed at %s — %s", stage, detail)
-    log.error(
-        "no stub written: the v2 stub is an emitted issue carrying the v2 program "
-        "block, and that stub writer is its own ticket"
+    if program is None or root is None or run_id is None or now is None or window is None:
+        log.error("no stub written: the run died before it had a program and a window to stub")
+        return EXIT_RUN_FAILED
+
+    try:
+        stub = failed_stub_v2(
+            program=program,
+            issue_id=now.date().isoformat(),
+            run_id=run_id,
+            now=now,
+            window=window,
+            stage=stage,
+            detail=detail,
+            thesis_version=thesis_version,
+            interest_list_version=interest_list_version,
+            apertures_degraded=list(apertures_degraded),
+        )
+        published = run_publish_stage_v2(
+            root, issue=stub, program_id=program.id, run_id=run_id, now=now
+        )
+    except PublishedIssueExists as exc:
+        log.error("no stub written: %s", exc)
+        return EXIT_RUN_FAILED
+    except Exception as exc:  # noqa: BLE001 — the failure path never raises its own
+        log.error("stub could not be written (%s) — the failure stands on the exit code", exc)
+        return EXIT_RUN_FAILED
+
+    log.info(
+        "stub published: %s",
+        ", ".join(str(Path(p).relative_to(root)) for p in published.paths),
+    )
+    git_commit_run(
+        root,
+        run_id,
+        published.paths,
+        message=f"run {run_id}: {program.id} stub {now.date().isoformat()} (failed at {stage})",
     )
     return EXIT_RUN_FAILED
 
@@ -718,6 +770,20 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None, runner=None) ->
         surge=surge,
     )
 
+    # Everything a stub needs to be an emitted v2 issue, assembled once, here,
+    # where the run has all of it — so the three failure exits below cannot
+    # disagree about the stub's identity, its window, or which state versions
+    # were in force when it died.
+    stub_ctx = {
+        "root": root,
+        "program": program,
+        "run_id": run_id,
+        "now": now,
+        "window": {"from": ctx.coverage_window_from, "to": ctx.coverage_window_to},
+        "thesis_version": thesis.get("version"),
+        "interest_list_version": interests.version,
+    }
+
     try:
         researcher_template = load_template(root / "prompts" / "researcher-v2.md")
         manager_template = load_template(root / "prompts" / "manager-v2.md")
@@ -794,6 +860,8 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None, runner=None) ->
             "research",
             f"no aperture produced findings ({len(stage.apertures_degraded)} degraded) — "
             "see the run log",
+            apertures_degraded=stage.apertures_degraded,
+            **stub_ctx,
         )
     log.info(
         "research complete: %d aperture(s) with findings, %d degraded",
@@ -822,7 +890,9 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None, runner=None) ->
             manager_template=manager_template,
         )
     except ManagerFailed as exc:
-        return _fail_run_v2("synthesis", str(exc))
+        return _fail_run_v2(
+            "synthesis", str(exc), apertures_degraded=stage.apertures_degraded, **stub_ctx
+        )
 
     log.info(
         "manager: draft %s (%d turn(s), $%.4f, attempt %d)",
@@ -844,7 +914,9 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None, runner=None) ->
             calendar_stale=calendar_stale,
         )
     except (ManagerFailed, ValidationExhausted) as exc:
-        return _fail_run_v2("validation", str(exc))
+        return _fail_run_v2(
+            "validation", str(exc), apertures_degraded=stage.apertures_degraded, **stub_ctx
+        )
 
     log.info(
         "validation passed: %d retr%s, %d advisory finding(s)",
