@@ -162,6 +162,45 @@ An interest is an **enum tier + a free-text note injected into the manager promp
 
 One record per `entity_id`, program-agnostic, **a materialized index over the append-only issue archive** ([#54](https://github.com/cmengu/Research-Swarm/issues/54)): every factual field cites the `run_id`/issue that established it, so the record has cross-scan memory but **cannot drift** from published truth — corrections append, never overwrite. No new immutability invariant is needed; append semantics plus issue-citation do the work. A competitor's **next catalyst joins the catalyst queue** — there is no second `next_catalyst` field, and competitor discovery is the queue's feeder.
 
+### The kind split — assets and companies
+
+The layer divides by **kind**, because a molecule and a company are different objects with different fields and conflating them was costing real intelligence:
+
+```
+state/entities/companies/<entity_id>.json   the company dossier
+state/entities/assets/<entity_id>.json      the asset record
+```
+
+An asset record **points at the company that holds it**, so a readout is traversable to its sponsor's balance sheet, and a company's dossier lists its pipeline, so a reader can see what else that company would deprioritise this asset for.
+
+### The dossier record
+
+A company's record is the deep, accumulating half of this layer — built by [the dossier scan](04-researchers.md#the-dossier-scan--the-fourth-aperture), shared across programs, holding **facts only**. Its sections: `identity`, `origin`, `funding`, `pipeline`, `deals`, `people`, `pivots`, `setbacks`.
+
+**Provenance is per field, not per record.** Each section is stored as a fact wrapper, so a record assembled across four runs can be audited claim by claim rather than as one undated blob:
+
+```jsonc
+{
+  "entity_id": "co_remegen",
+  "kind": "company",
+  "as_of": "2026-07-19",
+  "facts": {
+    "funding": {
+      "value": { "total_raised": "...", "rounds": [ /* ... */ ] },
+      "established_by": "run_20260719_0700"    // the run, and the issue it published in
+    }
+  },
+  "coverage": { "thin_sections": ["origin"] },  // marked at the point of the absence
+  "drift_log": [ /* corrections, appended */ ]
+}
+```
+
+The layer's existing rules carry over unchanged and are what make this safe to accumulate: **corrections append with a drift entry, never overwrite**, and every field cites the run that established it. `as_of` dates the record so a **stale dossier says so** — age is never mistaken for absence of activity.
+
+**Interpretation stays off the record**, at every depth. `read_through` and `priority` are already excluded from this layer because both are program-relative; the dossier extends that ban to the shapes an opinion takes when it cannot be called `read_through` ([04](04-researchers.md#the-dossier-contract)). This is not tidiness — it is the property that lets a second program inherit the facts without inheriting the first program's opinions.
+
+Writes go through the existing state-edit path, so **`run.py` remains the sole writer** (clause 1) and every dossier edit is a git diff citing its run (clause 2).
+
 ## `state/thesis.json`
 
 Six belief slots, each an opinionated, falsifiable position that read-throughs argue **against**. **Unchanged in shape from v1.**

@@ -19,7 +19,7 @@ The old system published because something *happened*; this one publishes becaus
 | 1 | [Overview and principles](docs/spec/01-overview.md) | What the system is, who reads it, the house rules every other document obeys |
 | 2 | [Cadence, scheduling and surge](docs/spec/02-cadence-and-surge.md) | The three cadence triggers — monthly per-program, conference surge, manual push; the self-verifying calendar |
 | 3 | [State, config and governance](docs/spec/03-state-and-governance.md) | The programs, the shared competitor layer, the interest list, the thesis, the queue, and who may write them |
-| 4 | [Researchers](docs/spec/04-researchers.md) | The apertures that replaced the beats, the shared prompt, registry-diff, and the `findings.json` contract |
+| 4 | [Researchers](docs/spec/04-researchers.md) | The apertures that replaced the beats, the dossier scan, the shared prompt, registry-diff, and the `findings.json` contract |
 | 5 | [The manager](docs/spec/05-manager.md) | Synthesis, the authorship rule, the read-through, and what the manager alone may author |
 | 6 | [Validator and critic](docs/spec/06-validator-and-critic.md) | The two gates, the admission rule, the degradation register, retries, and the rebuttal channel |
 | 7 | [issue.json schema v2.0.0](docs/spec/07-issue-schema.md) | The complete field-level contract for a published program issue |
@@ -40,7 +40,7 @@ A second squamous-NSCLC program reuses the arena scan and treatment landscape it
 
 ## Provenance
 
-The decisions here were made across the [per-program detective map (#49)](https://github.com/cmengu/Research-Swarm/issues/49) and its resolved children (#50–#61) between 17 and 18 July 2026, re-rooting the v1 build spec (map [#1](https://github.com/cmengu/Research-Swarm/issues/1), compiled by [#24](https://github.com/cmengu/Research-Swarm/issues/24)/[#26](https://github.com/cmengu/Research-Swarm/issues/26)) onto the surviving pipeline. Ticket links appear in these documents **only** as provenance footnotes — every rule is stated here in full. If a document ever says "see #N" for a rule you need, that is a bug in the spec, not an instruction to go read the ticket.
+The decisions here were made across the [per-program detective map (#49)](https://github.com/cmengu/Research-Swarm/issues/49) and its resolved children (#50–#61) between 17 and 18 July 2026, extended by the [entity dossier (#92)](https://github.com/cmengu/Research-Swarm/issues/92) on 19 July, re-rooting the v1 build spec (map [#1](https://github.com/cmengu/Research-Swarm/issues/1), compiled by [#24](https://github.com/cmengu/Research-Swarm/issues/24)/[#26](https://github.com/cmengu/Research-Swarm/issues/26)) onto the surviving pipeline. Ticket links appear in these documents **only** as provenance footnotes — every rule is stated here in full. If a document ever says "see #N" for a rule you need, that is a bug in the spec, not an instruction to go read the ticket.
 
 Two capture documents are historical: the pre-map voice capture [`CAPTURE.md`](CAPTURE.md) and the pivot grilling ([PR #48](https://github.com/cmengu/Research-Swarm/pull/48)). The spec wins wherever they disagree; they are kept for their fuller reasoning, not deleted.
 
@@ -51,7 +51,9 @@ Defaults adopted rather than owner-chosen are flagged **⚑ provisional** where 
 - Raw-findings retention: **24 runs** ([09](docs/spec/09-orchestrator.md#retention))
 - Continuity lookback floor: **12 issues** ([06](docs/spec/06-validator-and-critic.md#the-lookback-floor))
 - Stale-calendar counter `N`: **8 cycles** ([02](docs/spec/02-cadence-and-surge.md#staleness))
-- Cold-start lookback: **7 days** (`config/programs/<id>.toml`) — how far back a program's run #1 reaches when there is no previous issue to join to. Applies once per program.
+- Cold-start lookback: **90 days** (`config/programs/<id>.toml`) — how far back a program's run #1 reaches when there is no previous issue to join to. Applies once per program. **Was 7**, which was shorter than the monthly cadence it fed: the first live run judged and dropped five in-scope items for falling outside the window, including a $1.1B acquisition (out by five days), while `house_view.threat_financing` published empty. `cold_start_shortfall_v2` now enforces the relation — a cold start covers at least one baseline cycle.
+- Dossier refresh dial: **91 days** ([04](docs/spec/04-researchers.md#it-is-not-scheduled-per-cycle))
+- Dossier scan cost ceiling: **24 turns / 40 sources / $4.00** ([04](docs/spec/04-researchers.md#cost-is-capped-and-the-cap-is-measured-by-the-orchestrator))
 - Per-program baseline cadence: **monthly** ([02](docs/spec/02-cadence-and-surge.md#baseline-cadence-the-per-program-dial))
 - Interest-list rot horizon: **6 months** ([03](docs/spec/03-state-and-governance.md#the-interest-list))
 - House blind-spot cap: **N = 5** ([06](docs/spec/06-validator-and-critic.md#the-admission-rule))
@@ -66,4 +68,5 @@ Named open by the map and left open by this spec, never quietly resolved:
 - **The thesis under a program roof.** Whether a program carries its own angle, whether the house thesis survives as-is, and how the propagation contract behaves with two layers — parked by [#49](https://github.com/cmengu/Research-Swarm/issues/49). v1 does the minimum that forecloses neither: `read_through.thesis_bearing` feeds the existing drift engine, and `thesis_updates` renders as before ([05](docs/spec/05-manager.md#thesis-gating-under-a-program-roof)).
 - **The interest editor surface.** A separate local runtime tool (not part of the static digest); its build-time architecture is deferred to execution ([03](docs/spec/03-state-and-governance.md#the-interest-list)).
 - **Migration of the seeded 22-entity watchlist** into the per-program competitor model ([03](docs/spec/03-state-and-governance.md#migrating-the-seeded-roster)).
-- **Multi-program packaging** — one digest spanning N programs — deferred to [#59](https://github.com/cmengu/Research-Swarm/issues/59); v1 publishes one issue per program.
+- **Multi-program packaging** — one digest spanning N programs — deferred to [#59](https://github.com/cmengu/Research-Swarm/issues/59); v1 publishes one issue per program. Dossiers are program-agnostic by design, which prepares for it without un-parking it.
+- **Paid data coverage.** Several of the most important competitors are China-listed, which is the system's rank-1 blind spot; a dossier assembled from partial sources marks its thin sections rather than papering over them ([04](docs/spec/04-researchers.md#the-dossier-contract)). Whether to buy that coverage is a spend decision for the owner — the spec makes the gap visible, it does not close it.

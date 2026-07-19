@@ -105,7 +105,10 @@ Machine fields (`beats_failed`, `source_tier_counts`) serve the audit trail and 
 | **Failed aperture** | aperture present in `sources_and_method.apertures_degraded` with status failed | inline marker in each section the aperture would have fed, e.g. *"squamous arena coverage unavailable this cycle — scan failed"* — **not** only the `apertures_degraded` entry | `arena_scan_failed` |
 | **Dormant aperture** | an indication with no active arena scan this cycle | a no-op landscape marker on that indication | `arena_scan_dormant` |
 | **China-first partial** | a competitor whose registry feed is CDE/chictr (no clean free feed) | low-confidence marker on the competitor, e.g. *"China-first — tracked at low confidence"* | `china_feed_partial` |
+| **Capped dossier scan** | the run's own transport envelope (`num_turns`, `total_cost_usd`) crosses the scan's ceiling | marker on the dossier's thin sections, at the absence — *"history search capped this cycle"* | `dossier_scan_cost_capped` |
 | **Stale interest list** | `config/interests.toml` `last_edited` older than the ⚑ 6-month horizon | whole-list `interest list last edited <date>` marker on the digest | `interest_list_stale` |
+
+The failed- and dormant-aperture rows are **aperture-generic despite their arena-flavoured `kind` names**: a dossier scan that fails or does not run this cycle degrades through them. Background gathering is subordinate to the cycle's intelligence, so a dead dossier scan can never fail a run ([04](04-researchers.md#cost-is-capped-and-the-cap-is-measured-by-the-orchestrator)). A scan that ran and **found nothing** is a different animal from one that did not run, and the two must stay distinguishable — silence is never ambiguous.
 
 Exemptions are **scoped to what the trigger explains**, never blanket: an unseeded slot exempts that slot's read-through, not every empty one; a failed aperture exempts the sections that aperture fed, not the whole issue.
 
