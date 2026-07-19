@@ -107,6 +107,19 @@ A **competitor is a program** (or, for platform threat, a company), and the rela
 | `benchmark_soc` | indication (arena) | program | The bar the setting is measured against |
 | `platform_threat` | **house** | **company** | A modality engine that re-aims cheaply — company-unit, leaves the instance |
 
+### Four things called "tier"
+
+The word is overloaded four ways, and only one of them means what "tier" implies. This is a domain-language problem before it is a rendering one — the page was ranking things that are not ranked ([#82](https://github.com/cmengu/Research-Swarm/issues/82)):
+
+| Called "tier" | Values | What it actually is |
+|---|---|---|
+| **Source tier** | `primary` / `trade` / `aggregator` | **A genuine rank.** Primary outranks trade outranks aggregator, always, everywhere. Keeps the word. |
+| **Relation tier** | the five above | **A scope, plus an order inside it.** Program-level is about our *biology*, indication-level about our *patients* — different questions, not degrees of the same one. |
+| **Interest tier** | `strong` / `watching` | **A bar**, not a rank: it sets the default threshold at which something is worth reporting. |
+| **Failure tier** | `program_tier` / `indication_tier` | **A blast radius** — how much of an entity a failure archives ([the failed-competitor afterlife](#the-failed-competitor-afterlife)). |
+
+**The rule: only source tier may be rendered as a ranked ramp.** The other three read as categories, because ranking them asserts something false — that a benchmark is "less" than a target twin, when it answers a different question. On-disk field names are unchanged (renaming them is a schema migration, not a vocabulary fix); the rule governs how they are *read and drawn*.
+
 The relation is **a scan instruction, not a taxonomy exercise**: every ticket that touches it must be able to say what changes about a scan. And **platform threat's unit is a company, not a program** — that asymmetry is deliberate ([#49](https://github.com/cmengu/Research-Swarm/issues/49)).
 
 ### Discovery, promotion, and the edge

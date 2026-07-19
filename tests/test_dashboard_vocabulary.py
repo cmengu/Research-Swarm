@@ -1,0 +1,175 @@
+"""The dashboard's vocabularies must not drift from the spec that declares them (#82).
+
+`dashboard/index.html` hand-mirrors four reader-facing vocabularies in JS: STATUS,
+FLAG_LABEL, FINDING and DEGRADATION, plus the relation vocabulary in RELSCOPES.
+
+WHY MIRROR AT ALL, rather than serving the strings from Python? Because these are
+reader-facing ENGLISH, one fixed string per kind. Serving them would repeat the
+same prose in every published issue — bytes on every fetch, forever — to spare a
+test file. The mirror is the right call.
+
+But a mirror without a drift test is how three declared kinds (`thesis_unseeded`,
+`quiet_cycle`, `dossier_scan_cost_capped`) came to be missing from DEGRADATION
+while the register in docs/spec/06 listed them. The page has a fail-visible path
+for an unknown kind, so nothing crashed — it just rendered the raw slug at the
+reader instead of the sentence, which is exactly the silent degradation the
+register exists to prevent.
+
+So: the spec table is the source of truth, parsed here, and the JS must cover it.
+Adding a degradation to the register without teaching the page its wording now
+fails in CI rather than in front of a reader.
+
+These tests parse rather than execute — the suite has no JS runtime, and the
+alternative (asserting nothing about the page) is what let the drift happen.
+"""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+import pytest
+
+REPO = Path(__file__).resolve().parents[1]
+DASHBOARD = REPO / "dashboard" / "index.html"
+REGISTER = REPO / "docs" / "spec" / "06-validator-and-critic.md"
+RELATIONS = REPO / "docs" / "spec" / "03-state-and-governance.md"
+
+
+def _js_object_keys(source: str, name: str) -> set[str]:
+    """The keys of a top-level `const <name> = { ... }` literal in the page.
+
+    Brace-counted rather than regex-matched to the closing brace, because these
+    objects contain nested literals and a lazy `.*?` would stop at the first one.
+    """
+    start = source.index(f"const {name} = {{")
+    depth, i = 0, source.index("{", start)
+    for end in range(i, len(source)):
+        if source[end] == "{":
+            depth += 1
+        elif source[end] == "}":
+            depth -= 1
+            if depth == 0:
+                body = source[i + 1 : end]
+                break
+    else:  # pragma: no cover - a malformed page fails the parse tests first
+        raise AssertionError(f"unbalanced braces in {name}")
+    # keys at depth 1 only: `foo:` or `foo :`, not keys of nested objects
+    keys, depth = set(), 0
+    for token in re.finditer(r"[{}]|([A-Za-z_][A-Za-z0-9_]*)\s*:", body):
+        if token.group(0) == "{":
+            depth += 1
+        elif token.group(0) == "}":
+            depth -= 1
+        elif depth == 0 and token.group(1):
+            keys.add(token.group(1))
+    return keys
+
+
+def _table_column(markdown: str, heading: str, column: int) -> list[str]:
+    """Every backticked value in one column of the markdown table under `heading`."""
+    section = markdown.split(heading, 1)[1]
+    values, in_body = [], False
+    for line in section.splitlines():
+        if not line.startswith("|"):
+            if in_body:  # the table ended
+                break
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if set("".join(cells)) <= set("-: "):  # the |---|---| separator
+            in_body = True
+            continue
+        if not in_body:
+            # The HEADER row, skipped deliberately: this register's own header
+            # cell is literally `kind`, which the first run of this parser
+            # happily collected as a degradation named "kind".
+            continue
+        if len(cells) > column:
+            values.extend(re.findall(r"`([a-z_]+)`", cells[column]))
+    return values
+
+
+@pytest.fixture(scope="module")
+def page() -> str:
+    return DASHBOARD.read_text()
+
+
+@pytest.fixture(scope="module")
+def declared_degradations() -> set[str]:
+    """The `kind` column of the degradation register (docs/spec/06)."""
+    kinds = set(_table_column(REGISTER.read_text(), "### The register", 3))
+    # The register is the reason this test exists; an empty parse would make every
+    # assertion below vacuously true, which is the failure mode of drift tests.
+    assert len(kinds) >= 8, f"parsed only {kinds} from the register — parser is broken"
+    return kinds
+
+
+@pytest.fixture(scope="module")
+def declared_relations() -> list[str]:
+    """The five typed relations (docs/spec/03 "The competitor model")."""
+    rels = _table_column(RELATIONS.read_text(), "## The competitor model", 0)
+    assert len(rels) == 5, f"expected 5 relations, parsed {rels}"
+    return rels
+
+
+class TestTheDegradationVocabulary:
+    def test_every_declared_kind_has_reader_facing_wording(self, page, declared_degradations):
+        known = _js_object_keys(page, "DEGRADATION")
+        missing = declared_degradations - known
+        assert not missing, (
+            f"docs/spec/06 declares {sorted(missing)} but dashboard/index.html's "
+            "DEGRADATION has no wording for them — the reader would see the raw slug"
+        )
+
+    def test_the_page_invents_no_kinds_the_spec_does_not_declare(self, page, declared_degradations):
+        known = _js_object_keys(page, "DEGRADATION")
+        # `source_unreachable` is an ADVISORY finding (spec/04 "errors[] is a
+        # different animal"), not a register entry — it earns no exemption but is
+        # still rendered, so it is legitimately in the page and not in the table.
+        invented = known - declared_degradations - {"source_unreachable"}
+        assert not invented, (
+            f"dashboard styles {sorted(invented)} which no spec table declares — "
+            "either the register is missing a row or the page is guessing"
+        )
+
+    def test_a_flag_exists_for_every_degradation(self, page, declared_degradations):
+        """Manifest flags are how a marker reaches the reader BEFORE they open the
+        issue (spec/08). A degradation with no flag label is invisible until the
+        issue is already on screen."""
+        flags = _js_object_keys(page, "FLAG_LABEL")
+        missing = declared_degradations - flags
+        assert not missing, f"no FLAG_LABEL wording for {sorted(missing)}"
+
+
+class TestTheRelationVocabulary:
+    """#80 — the five relations must all be renderable, and all be grouped."""
+
+    def test_every_relation_has_a_badge_style(self, page, declared_relations):
+        for rel in declared_relations:
+            assert f".rel-{rel}" in page, f"no badge style for {rel} — it would render unstyled"
+
+    def test_every_relation_is_placed_in_a_scope(self, page, declared_relations):
+        """A relation missing from RELSCOPES does not render at all on the
+        Competitor Set tab — it is filtered into no group and silently vanishes,
+        which is worse than rendering it unstyled."""
+        scopes = page.index("const RELSCOPES")
+        body = page[scopes : page.index("const rows = allCompetitors()", scopes)]
+        for rel in declared_relations:
+            assert f"'{rel}'" in body, f"{rel} is in no scope — it would not render"
+
+    def test_the_two_program_level_relations_are_visually_distinct(self, page):
+        """The whole point of #50's refinement: an ADC win validates the target,
+        not the mechanism. If those two badges paint the same, the page throws
+        away the distinction the competitor model exists to carry."""
+        mech = re.search(r"\.rel-mechanism_twin \{([^}]*)\}", page).group(1)
+        targ = re.search(r"\.rel-target_twin \{([^}]*)\}", page).group(1)
+        assert mech.strip() != targ.strip()
+        # specifically: one is filled and one is not, which reads without colour
+        assert "background:" in mech and "background:" not in targ
+
+    def test_the_page_names_no_program(self, page):
+        """dashboard/index.html is shared by every program. A hardcoded program
+        name in the chrome is a bug the moment a second program is added — this
+        caught real prose about HMBD-001 in the mechanism_twin empty state."""
+        chrome = page[page.index("const RELSCOPES") :]
+        assert "HMBD" not in chrome, "the shared chrome names a specific program"
