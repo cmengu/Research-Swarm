@@ -37,6 +37,8 @@ from researchswarm.apertures import (
     active_apertures,
     cap_receipt,
     company_ids_from_entities,
+    company_ids_from_holders,
+    company_entity_id,
     dossier_aperture,
     dossier_trigger,
     plan_apertures,
@@ -252,6 +254,78 @@ class TestDiscoveryFeedsTheRoster:
         ids = company_ids_from_entities({}, extra=["co_shengdi"])
         planned = plan_dossier_scans(ids, dossiers={}, today=TODAY)
         assert [a.trigger for a in planned] == [DOSSIER_TRIGGER_FIRST_SIGHTING]
+
+
+class TestResolvingACompanyNameToAnId:
+    """`company_entity_id` is identity resolution from prose — the weakest link in
+    the entity spine, so its rules are pinned here rather than left to a regex."""
+
+    def test_the_spec_example_resolves(self):
+        assert company_entity_id("RemeGen Co., Ltd.") == "co_remegen"
+
+    def test_the_same_company_written_two_ways_merges(self):
+        """The merge that matters: two issues naming one company must not mint
+        two records and therefore two dossiers."""
+        assert company_entity_id("RemeGen") == company_entity_id("RemeGen Co., Ltd.")
+
+    def test_a_multiword_name_keeps_its_words(self):
+        assert company_entity_id("Daiichi Sankyo") == "co_daiichi_sankyo"
+
+    def test_industry_words_are_not_stripped(self):
+        """Only LEGAL forms are stripped. Dropping "Pharma" would merge companies
+        that differ only by it."""
+        assert company_entity_id("Jiangsu Hengrui Pharma") == "co_jiangsu_hengrui_pharma"
+
+    def test_two_different_mercks_stay_distinct(self):
+        """The known limit, asserted rather than hidden: a wrong merge puts two
+        companies' histories in one record, which is worse than a duplicate."""
+        assert company_entity_id("Merck & Co.") != company_entity_id("Merck KGaA")
+
+    def test_a_legal_form_is_stripped_only_from_the_tail(self):
+        assert company_entity_id("Limited Brands") == "co_limited_brands"
+
+    def test_a_name_that_identifies_nothing_returns_none(self):
+        assert company_entity_id("Ltd.") is None
+        assert company_entity_id("  ") is None
+        assert company_entity_id(None) is None
+
+
+class TestHoldersMakeTheApertureReachable:
+    """Without this path the planner ranges over companies, the roster holds only
+    assets, and no cycle can ever plan a scan — built, tested, unreachable."""
+
+    def _asset(self, holders):
+        return {"asset_rc148": {"kind": "asset", "facts": {"holders": {"value": holders}}}}
+
+    def test_an_assets_holders_become_company_candidates(self):
+        ids = company_ids_from_holders(self._asset(["RemeGen Co., Ltd.", "AbbVie"]))
+        assert ids == ["co_remegen", "co_abbvie"]
+
+    def test_a_held_asset_queues_its_holders_first_scan(self):
+        ids = company_ids_from_entities(
+            self._asset(["RemeGen Co., Ltd."]),
+            extra=company_ids_from_holders(self._asset(["RemeGen Co., Ltd."])),
+        )
+        planned = plan_dossier_scans(ids, dossiers={}, today=TODAY)
+        assert [a.scope for a in planned] == ["co_remegen"]
+        assert [a.trigger for a in planned] == [DOSSIER_TRIGGER_FIRST_SIGHTING]
+
+    def test_a_resolved_held_by_link_is_taken_as_an_id_verbatim(self):
+        """`held_by` already IS an entity_id. Re-slugging it would point at a
+        different id than the record it links to."""
+        entities = {"a": {"facts": {"held_by": {"value": "co_remegen"}}}}
+        assert company_ids_from_holders(entities) == ["co_remegen"]
+
+    def test_two_assets_with_one_holder_yield_one_candidate(self):
+        entities = {
+            "a1": {"facts": {"holders": {"value": ["AbbVie"]}}},
+            "a2": {"facts": {"holders": {"value": ["AbbVie Inc."]}}},
+        }
+        assert company_ids_from_holders(entities) == ["co_abbvie"]
+
+    def test_hostile_input_yields_no_candidates_rather_than_raising(self):
+        for hostile in (None, "prose", {"a": "prose"}, {"a": {"facts": {"holders": 7}}}):
+            assert company_ids_from_holders(hostile) == []
 
 
 class TestTheCostCapReceipt:

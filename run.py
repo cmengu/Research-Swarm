@@ -42,6 +42,7 @@ from pathlib import Path
 from researchswarm.apertures import (
     cap_receipt,
     company_ids_from_entities,
+    company_ids_from_holders,
     plan_apertures,
     plan_dossier_scans,
 )
@@ -464,7 +465,13 @@ def _plan_dossier_scans_v2(root: Path, entities, today: date) -> tuple[list, int
     """
     try:
         held = load_company_dossiers(root)
-        company_ids = company_ids_from_entities(entities)
+        # `extra` is the DISCOVERY path, and without it the aperture is
+        # unreachable: the roster is asset-typed, so a layer holding only assets
+        # yields no companies and no cycle can ever plan a first scan. The
+        # holders those assets name are the companies we have actually sighted.
+        company_ids = company_ids_from_entities(
+            entities, extra=company_ids_from_holders(entities)
+        )
         apertures = plan_dossier_scans(
             company_ids,
             dossiers=held,

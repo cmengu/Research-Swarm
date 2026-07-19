@@ -172,6 +172,13 @@ reader-visible degradation, never silent. Otherwise "fresh".
   signal — merge into one entry and cite every source the merge gathered.
 - TYPE every competitor with its relation and write the edge's read-through. A
   platform_threat routes to the house view, never competitors[].
+- NAME THE HOLDERS of every asset you emit — the company or companies developing
+  it, in `holders`, as they are written in the sources. This is not decoration:
+  holders are the ONLY way a company enters the roster, and a company that never
+  enters the roster is never researched. An asset with no holder named is an
+  asset whose sponsor the system cannot see. If the sources genuinely do not name
+  one, omit the field — omission is silence, and inventing a holder is worse than
+  silence.
 - EVERY typed competitor in the roster below is ACCOUNTED FOR this cycle — it
   appears in competitors[] / an indication arena (it had news) OR in
   quiet_this_cycle.no_news (it did not). No third option; the validator blocks on
@@ -400,9 +407,9 @@ All 15 top-level keys must be present, in this order:
 - quiet_this_cycle: { no_news: [{entity_id, name, cycles_quiet}], critic_catches:
   [], open_threads: [...], dropped_with_receipt: [...] }. critic_catches is [] —
   the critic has not run.
-- newly_discovered: [{ entity_id, name, type, priority, categories, what_it_is,
-  development, proposed_relation, read_through (REQUIRED), promotion_proposal,
-  sources }].
+- newly_discovered: [{ entity_id, name, type, holders, priority, categories,
+  what_it_is, development, proposed_relation, read_through (REQUIRED),
+  promotion_proposal, sources }].
 - house_view: { partnership_bd, threat_financing, themes_and_signals, blind_spots }
   as above.
 - thesis_updates: [] unless the accumulated thesis_bearing forces a stance

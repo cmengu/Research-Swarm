@@ -59,9 +59,11 @@ docs/spec/03-state-and-governance.md, issue #92
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date
+from typing import Any
 
 from researchswarm.programs import Program
 
@@ -401,6 +403,101 @@ def company_ids_from_entities(
                 _add(key)
     for entity_id in _iter_strings(extra):
         _add(entity_id)
+    return ids
+
+
+# Legal-form tokens stripped from the TAIL of a company name before slugging.
+# Tail-only and repeated: "RemeGen Co., Ltd." -> "remegen", but "Ltd Brands" keeps
+# its first word. Deliberately NOT a general word blocklist — "Jiangsu Hengrui Pharma"
+# keeps "pharma", because dropping industry words merges companies that differ
+# only by it.
+_LEGAL_FORM_TOKENS = frozenset({
+    "co", "company", "corp", "corporation", "inc", "incorporated", "ltd",
+    "limited", "llc", "plc", "sa", "ag", "gmbh", "nv", "bv", "ab", "oy",
+    "as", "kk", "holdings", "holding", "group",
+})
+# `kgaa` is a legal form and is DELIBERATELY absent. Stripping it maps
+# "Merck KGaA" onto `co_merck` — the same id as "Merck & Co.", which is the most
+# confused pair of names in pharma and two entirely different companies. In this
+# domain that one merge costs more than every duplicate the token would prevent.
+
+
+def company_entity_id(name: Any) -> str | None:
+    """A company display name -> its `co_` entity_id, or None if unusable.
+
+    THIS IS IDENTITY RESOLUTION FROM PROSE, and it is the weakest link in the
+    entity spine — which is the whole reason it is one small pure function with
+    its rules written down rather than a regex inlined at a call site.
+
+    The rules: lowercase, drop punctuation, strip trailing legal-form tokens
+    (`_LEGAL_FORM_TOKENS`), join the rest with underscores, prefix `co_`. So
+    "RemeGen Co., Ltd." and "RemeGen" both land on `co_remegen`, which is the
+    merge we want — the same company written two ways in two issues must not
+    become two records.
+
+    WHAT IT CANNOT DO: it cannot tell "Merck & Co." (US) from "Merck KGaA"
+    (German). It gives them `co_merck` and `co_merck_kgaa`, so they stay
+    distinct, but a source that writes either as plain "Merck" collides with the
+    first. Name-based identity has no deterministic answer to that; the honest
+    posture is a stable, auditable guess that a human curation session can merge,
+    NOT a cleverer heuristic that fails less visibly. A wrong merge is worse than
+    a duplicate: a duplicate is a second dossier, a merge is two companies'
+    histories in one record.
+    """
+    text = name.strip() if isinstance(name, str) else ""
+    if not text:
+        return None
+    tokens = [t for t in re.split(r"[^a-z0-9]+", text.lower()) if t]
+    while tokens and tokens[-1] in _LEGAL_FORM_TOKENS:
+        tokens.pop()
+    if not tokens:
+        # A name that is ONLY a legal form ("Ltd.") identifies nothing. Better to
+        # return None than to mint `co_` and give every such name one record.
+        return None
+    return COMPANY_ID_PREFIX + "_".join(tokens)
+
+
+def company_ids_from_holders(entities: Mapping | None) -> list[str]:
+    """The `co_` ids implied by the holders named on the entity records we hold.
+
+    THE PATH THAT MAKES THE FOURTH APERTURE REACHABLE. Without it the dossier
+    planner ranges over companies, the roster contains only assets, and no cycle
+    can ever plan a scan — the aperture is built, tested and unreachable.
+
+    A holder is how an asset names the company that develops it (`holders` in the
+    v2 issue schema, persisted onto the asset's record by the state edits). So
+    cycle N publishes "RC148, holders: RemeGen Co., Ltd." and cycle N+1's planner
+    sees a company with no dossier and queues its first sighting. That is exactly
+    the "discovery feeds the roster" story, using the field the schema already
+    carries rather than a second hand-maintained list.
+
+    `held_by` — the structured link an already-resolved company writes back onto
+    an asset — is taken as an id verbatim, because it IS one. Prose holders go
+    through `company_entity_id`; ids do not, or a resolved link would be
+    re-slugged into a different id than the record it points at.
+    """
+    ids: list[str] = []
+    if not isinstance(entities, Mapping):
+        return ids
+    for record in entities.values():
+        facts = record.get("facts") if isinstance(record, Mapping) else None
+        if not isinstance(facts, Mapping):
+            continue
+        held_by = facts.get("held_by")
+        if isinstance(held_by, Mapping):
+            linked = held_by.get("value")
+            if isinstance(linked, str) and linked.strip() and linked not in ids:
+                ids.append(linked.strip())
+        holders = facts.get("holders")
+        value = holders.get("value") if isinstance(holders, Mapping) else None
+        if isinstance(value, str):
+            value = [value]
+        if not isinstance(value, (list, tuple)):
+            continue
+        for holder in value:
+            entity_id = company_entity_id(holder)
+            if entity_id and entity_id not in ids:
+                ids.append(entity_id)
     return ids
 
 
