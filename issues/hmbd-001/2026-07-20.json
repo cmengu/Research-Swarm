@@ -1,0 +1,64 @@
+{
+  "schema_version": "2.0.0",
+  "issue": {
+    "id": "2026-07-20",
+    "program_id": "hmbd-001",
+    "published_at": "2026-07-20T09:33:01.898105",
+    "coverage_window": {
+      "from": "2026-07-18",
+      "to": "2026-07-20"
+    },
+    "run": {
+      "run_id": "run_20260720_0933",
+      "status": "failed",
+      "critic_verdict": "not_run",
+      "critic_retries": 0,
+      "thesis_version": 2,
+      "interest_list_version": 1,
+      "models": {}
+    },
+    "failure": {
+      "stage": "validation",
+      "detail": "manager: claude exited 1: stdout='{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":true,\"api_error_status\":null,\"duration_ms\":67323,\"duration_api_ms\":68881,\"num_turns\":1,\"result\":\"API Error: Connection closed mid-response. The response above may be incomplete.\",\"stop_reason\":\"stop_sequence\",\"session_id\":\"821ba525-870c-4a2f-9252-8ad1175a7cf4\",\"total_cost_usd\":0.16114749999999997,\"usage\":{\"input_tokens\":0,\"cache_creation_input_tokens' stderr=''"
+    }
+  },
+  "program": {
+    "id": "hmbd-001",
+    "name": "HMBD-001",
+    "sponsor": "Hummingbird Bioscience",
+    "modality": "anti-HER3 IgG1 signalling antibody",
+    "target": "HER3 (ERBB3)",
+    "moa": "signalling_blockade",
+    "one_line": "HER3 signalling blockade",
+    "priority_indications": [
+      "nrg1-fusion-solid-tumors"
+    ],
+    "clinical_stage": null,
+    "config_source": "config/programs/hmbd-001.toml",
+    "aperture": {
+      "biology_scan": {
+        "target": "HER3 (ERBB3)",
+        "moa": "signalling_blockade"
+      },
+      "arena_scans": [
+        "squamous-nsclc"
+      ]
+    }
+  },
+  "headline": null,
+  "stats": {},
+  "tldr_bullets": [],
+  "catalyst_queue": {},
+  "competitors": [],
+  "indications": [],
+  "quiet_this_cycle": {},
+  "newly_discovered": [],
+  "house_view": {},
+  "thesis_updates": [],
+  "critic_report": {},
+  "sources_and_method": {
+    "apertures_degraded": [
+      "arena_scan:nrg1-fusion-solid-tumors"
+    ]
+  }
+}
