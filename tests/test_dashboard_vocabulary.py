@@ -173,3 +173,56 @@ class TestTheRelationVocabulary:
         caught real prose about HMBD-001 in the mechanism_twin empty state."""
         chrome = page[page.index("const RELSCOPES") :]
         assert "HMBD" not in chrome, "the shared chrome names a specific program"
+
+
+class TestTheCompanyResolverMirror:
+    """The dashboard resolves a holder name to a `co_` id IN THE BROWSER (#98).
+
+    It has to: the page turns "Daiichi Sankyo" into a link with no server round
+    trip. That means the slug rules exist twice, and two lists that drift produce
+    dead links for exactly the companies whose names are written two ways — the
+    case the resolver exists for. So the mirror is tested, like DEGRADATION.
+    """
+
+    def test_the_legal_form_tokens_match_the_planner(self, page):
+        from researchswarm.apertures import _LEGAL_FORM_TOKENS
+
+        block = page[page.index("const LEGAL_FORM_TOKENS") : page.index("function companyIdFromName")]
+        in_page = set(re.findall(r"'([a-z]+)'", block))
+        assert in_page == set(_LEGAL_FORM_TOKENS), (
+            "dashboard and apertures disagree on legal-form tokens; "
+            f"page-only={in_page - set(_LEGAL_FORM_TOKENS)}, "
+            f"python-only={set(_LEGAL_FORM_TOKENS) - in_page}"
+        )
+
+    def test_kgaa_is_absent_from_the_page_too(self, page):
+        """Stripping it maps "Merck KGaA" onto `co_merck` — the same id as
+        "Merck & Co.", two entirely different companies. The omission is
+        load-bearing in both copies or it is load-bearing in neither."""
+        block = page[page.index("const LEGAL_FORM_TOKENS") : page.index("function companyIdFromName")]
+        assert "kgaa" not in block
+
+    def test_the_prefix_matches(self, page):
+        from researchswarm.apertures import COMPANY_ID_PREFIX
+
+        block = page[page.index("function companyIdFromName") : page.index("let COMPANIES")]
+        assert f"'{COMPANY_ID_PREFIX}'" in block
+
+    def test_a_holder_without_a_dossier_is_not_a_link(self, page):
+        """"We have not looked yet" is a rendered state. A link promising a page
+        that does not exist is worse than plain text."""
+        block = page[page.index("function holderHTML") : page.index("function holdersHTML")]
+        assert "COMPANIES.has(id)" in block
+        assert "return esc(name)" in block
+
+    def test_the_drift_log_is_rendered(self, page):
+        """The append-only history is the entire reason the company view exists;
+        a view that showed only current values would be an about-page."""
+        assert "function coDrift" in page
+        assert "coDrift(dossier.drift_log)" in page
+
+    def test_thin_sections_render_at_the_point_of_the_absence(self, page):
+        """A sparse dossier must read as unmeasured, never as a small company —
+        the rank-1 blind spot is China-listed competitors."""
+        block = page[page.index("function coSection") : page.index("function coDrift")]
+        assert "thin" in block and "not measured" in block
