@@ -1,0 +1,467 @@
+{
+  "entity_id": "co_summit_therapeutics",
+  "kind": "company",
+  "first_seen": "2026-07-20",
+  "coverage": {
+    "thin_sections": []
+  },
+  "as_of": "2026-07-20",
+  "facts": {
+    "identity": {
+      "value": {
+        "legal_name": "Summit Therapeutics Inc.",
+        "aliases": [
+          "Summit Therapeutics plc",
+          "Summit Corporation plc",
+          "SMMT"
+        ],
+        "founded": "2003-01-01",
+        "hq": "Multiple: Miami, Florida (current corporate HQ) and Oxford, UK / Menlo Park, CA / Princeton, NJ / Dublin, Ireland offices; originally headquartered in Abingdon/Oxford, UK",
+        "status": "public",
+        "listings": [
+          {
+            "exchange": "Nasdaq Global Market",
+            "ticker": "SMMT"
+          },
+          {
+            "exchange": "London AIM (historical, delisted upon 2020 redomiciliation)",
+            "ticker": "SUMM"
+          }
+        ]
+      },
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "origin": {
+      "value": {
+        "founding_story": "Founded in 2003 in Oxford, UK as an Anglo-American antibiotics and rare-disease developer, originally listed on London's AIM market as Summit Corporation plc/Summit Therapeutics plc. Pursued a C. difficile antibiotic (ridinilazole) and a Duchenne muscular dystrophy utrophin-modulator program (ezutromid/SMT C1100) as its founding pipeline."
+      },
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "funding": {
+      "value": {
+        "total_raised": "unconfirmed aggregate \u2014 individually disclosed raises total at least ~$824M across the 2015 IPO, 2020 Duggan private placement, 2023 rights offering and 2024 registered direct (see rounds)",
+        "rounds": [
+          {
+            "date": "2020-10-05",
+            "stage": "private placement",
+            "amount": "50000000",
+            "currency": "USD",
+            "lead": "Robert W. Duggan",
+            "investors": [
+              "Robert W. Duggan"
+            ]
+          },
+          {
+            "date": "2023-03-01",
+            "stage": "rights offering",
+            "amount": "500000000",
+            "currency": "USD"
+          },
+          {
+            "date": "2024-09-12",
+            "stage": "registered direct offering",
+            "amount": "235000000",
+            "currency": "USD",
+            "investors": [
+              "Robert W. Duggan",
+              "Maky Zanganeh",
+              "Manmeet S. Soni",
+              "Bhaskar Anand",
+              "Jeff Huber",
+              "multiple biopharma institutional investors"
+            ]
+          }
+        ],
+        "ipo": {
+          "date": "2015-03-05",
+          "exchange": "Nasdaq Global Market",
+          "raised": "$39.3M gross (\u00a325.8M)",
+          "price": "$9.90 per ADS (each ADS = 5 ordinary shares)"
+        }
+      },
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "pipeline": {
+      "value": [
+        {
+          "indication": "Duchenne muscular dystrophy (utrophin modulation)",
+          "phase": "Phase 1b/2 (discontinued)",
+          "status": "discontinued 2018-06-27",
+          "first_disclosed": "2015-07-01"
+        },
+        {
+          "indication": "Clostridioides difficile infection (ridinilazole)",
+          "phase": "Phase III (divested)",
+          "status": "divested to Biossil, Inc. 2026-07-14",
+          "first_disclosed": "2015-07-01"
+        },
+        {
+          "indication": "Non-small cell lung cancer and other solid tumors (ivonescimab, PD-1/VEGF bispecific antibody)",
+          "phase": "Phase III (multiple studies: HARMONi, HARMONi-3, HARMONi-7, HARMONi-GI3); BLA under FDA review",
+          "status": "active, BLA accepted with PDUFA date November 2026",
+          "first_disclosed": "2022-12-06"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "deals": {
+      "value": [
+        {
+          "date": "2016-10-01",
+          "type": "license",
+          "counterparty": "Sarepta Therapeutics",
+          "direction": "out",
+          "upfront": "$40,000,000",
+          "milestones": "up to $522,000,000",
+          "royalty": "tiered royalties (rate not disclosed in sources reviewed)",
+          "territory": "Europe (utrophin modulator pipeline including ezutromid)"
+        },
+        {
+          "date": "2022-12-06",
+          "type": "license",
+          "counterparty": "Akeso, Inc.",
+          "direction": "in",
+          "upfront": "$500,000,000",
+          "milestones": "up to $4,500,000,000 in regulatory and commercial milestones (total deal value up to $5.0 billion)",
+          "royalty": "low double-digit percentage of net sales",
+          "territory": "United States, Canada, Europe, Japan (Akeso retains China and rest of world)"
+        },
+        {
+          "date": "2026-07-14",
+          "type": "M&A",
+          "counterparty": "Biossil, Inc.",
+          "direction": "out",
+          "upfront": "$500,000",
+          "milestones": "up to $104,500,000 in regulatory and commercial milestones",
+          "royalty": "tiered royalties on net sales",
+          "territory": "worldwide (asset divestiture)"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "people": {
+      "value": [
+        {
+          "name": "Robert W. Duggan",
+          "role": "Chairman & Co-CEO",
+          "since": "2020-02-26",
+          "prior": [
+            "Chairman & CEO, Pharmacyclics, Inc. (sold to AbbVie, 2015)",
+            "Chairman, Pulse Biosciences, Inc."
+          ]
+        },
+        {
+          "name": "Dr. Maky Zanganeh",
+          "role": "Co-CEO & President",
+          "since": "2022-07-26",
+          "prior": [
+            "Chief Operating Officer, Summit Therapeutics (from 2020-11)",
+            "Pharmacyclics, Inc."
+          ]
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "pivots": {
+      "value": [
+        {
+          "date": "2018-06-27",
+          "from": "Duchenne muscular dystrophy utrophin modulation (ezutromid/SMT C1100), a founding-era pipeline pillar carried through a 2016 European out-license to Sarepta",
+          "to": "DMD program fully discontinued; Summit narrowed to anti-infectives (ridinilazole)",
+          "trigger": "PhaseOut DMD Phase 2 trial failed to meet primary or secondary endpoints, announced 2018-06-27",
+          "evidence": [
+            "https://www.globenewswire.com/news-release/2018/06/27/1530184/0/en/Summit-Therapeutics-Announces-PhaseOut-DMD-Did-Not-Meet-Primary-Endpoint.html",
+            "https://www.genengnews.com/news/summit-plans-cost-cuts-stock-falls-80-after-dmd-candidate-ezutromid-fails-phase-ii-trial/"
+          ],
+          "outcome": "no utrophin-modulator or DMD asset has re-entered Summit's pipeline through 2026; company narrowed to ridinilazole as sole clinical asset until the 2022 Akeso deal"
+        },
+        {
+          "date": "2022-12-06",
+          "from": "ridinilazole as Summit's lead late-stage clinical asset and core anti-infectives focus, the company's identity since its 2003 founding",
+          "to": "immuno-oncology via in-licensed ivonescimab, with ridinilazole progressively deprioritized and ultimately divested entirely to Biossil, Inc. on 2026-07-14",
+          "trigger": "Ri-CoDIFy Phase III trial for ridinilazole missed its primary superiority endpoint, announced 2021-12-20 (49% single-day stock decline)",
+          "evidence": [
+            "https://www.globenewswire.com/en/news-release/2021/12/20/2355247/0/en/Summit-Therapeutics-Announces-Topline-Results-for-Phase-III-Ri-CoDIFy-Study-for-C-Difficile-Infection.html",
+            "https://www.sec.gov/Archives/edgar/data/1599298/000159929822000136/a2022_prx1208xivonescimaba.htm",
+            "https://www.businesswire.com/news/home/20260714940985/en/Summit-Therapeutics-Signs-Agreement-to-Sell-Phase-III-Asset-Ridinilazole-to-Biossil-Inc."
+          ],
+          "outcome": "as of 2026-07-20, Summit's entire clinical pipeline is ivonescimab-centric (HARMONi program); ridinilazole fully exited via the Biossil sale six days before this scan's as_of date"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "setbacks": {
+      "value": [
+        {
+          "date": "2018-06-27",
+          "kind": "discontinuation",
+          "detail": "PhaseOut DMD Phase 2 trial of ezutromid failed to meet primary or secondary endpoints; Summit discontinued ezutromid development and announced cost-reduction measures, with stock falling approximately 80% on the news.",
+          "program": "Duchenne muscular dystrophy utrophin-modulator program"
+        },
+        {
+          "date": "2021-12-20",
+          "kind": "discontinuation",
+          "detail": "Phase III Ri-CoDIFy study of ridinilazole missed its primary superiority endpoint versus vancomycin (though it showed reduced recurrence, nominal p=0.0002); the asset would have required at least one additional Phase III trial before regulatory submission. Stock fell approximately 49% same-day.",
+          "program": "ridinilazole for C. difficile infection"
+        },
+        {
+          "date": "2026-07-14",
+          "kind": "discontinuation",
+          "detail": "Summit signed away its remaining rights to ridinilazole entirely, selling the asset to Biossil, Inc. for a nominal $500,000 upfront, ending the company's 20+ year anti-infectives history.",
+          "program": "ridinilazole for C. difficile infection"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    }
+  },
+  "drift_log": [
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "identity",
+      "from": null,
+      "to": {
+        "legal_name": "Summit Therapeutics Inc.",
+        "aliases": [
+          "Summit Therapeutics plc",
+          "Summit Corporation plc",
+          "SMMT"
+        ],
+        "founded": "2003-01-01",
+        "hq": "Multiple: Miami, Florida (current corporate HQ) and Oxford, UK / Menlo Park, CA / Princeton, NJ / Dublin, Ireland offices; originally headquartered in Abingdon/Oxford, UK",
+        "status": "public",
+        "listings": [
+          {
+            "exchange": "Nasdaq Global Market",
+            "ticker": "SMMT"
+          },
+          {
+            "exchange": "London AIM (historical, delisted upon 2020 redomiciliation)",
+            "ticker": "SUMM"
+          }
+        ]
+      },
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "origin",
+      "from": null,
+      "to": {
+        "founding_story": "Founded in 2003 in Oxford, UK as an Anglo-American antibiotics and rare-disease developer, originally listed on London's AIM market as Summit Corporation plc/Summit Therapeutics plc. Pursued a C. difficile antibiotic (ridinilazole) and a Duchenne muscular dystrophy utrophin-modulator program (ezutromid/SMT C1100) as its founding pipeline."
+      },
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "funding",
+      "from": null,
+      "to": {
+        "total_raised": "unconfirmed aggregate \u2014 individually disclosed raises total at least ~$824M across the 2015 IPO, 2020 Duggan private placement, 2023 rights offering and 2024 registered direct (see rounds)",
+        "rounds": [
+          {
+            "date": "2020-10-05",
+            "stage": "private placement",
+            "amount": "50000000",
+            "currency": "USD",
+            "lead": "Robert W. Duggan",
+            "investors": [
+              "Robert W. Duggan"
+            ]
+          },
+          {
+            "date": "2023-03-01",
+            "stage": "rights offering",
+            "amount": "500000000",
+            "currency": "USD"
+          },
+          {
+            "date": "2024-09-12",
+            "stage": "registered direct offering",
+            "amount": "235000000",
+            "currency": "USD",
+            "investors": [
+              "Robert W. Duggan",
+              "Maky Zanganeh",
+              "Manmeet S. Soni",
+              "Bhaskar Anand",
+              "Jeff Huber",
+              "multiple biopharma institutional investors"
+            ]
+          }
+        ],
+        "ipo": {
+          "date": "2015-03-05",
+          "exchange": "Nasdaq Global Market",
+          "raised": "$39.3M gross (\u00a325.8M)",
+          "price": "$9.90 per ADS (each ADS = 5 ordinary shares)"
+        }
+      },
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "pipeline",
+      "from": null,
+      "to": [
+        {
+          "indication": "Duchenne muscular dystrophy (utrophin modulation)",
+          "phase": "Phase 1b/2 (discontinued)",
+          "status": "discontinued 2018-06-27",
+          "first_disclosed": "2015-07-01"
+        },
+        {
+          "indication": "Clostridioides difficile infection (ridinilazole)",
+          "phase": "Phase III (divested)",
+          "status": "divested to Biossil, Inc. 2026-07-14",
+          "first_disclosed": "2015-07-01"
+        },
+        {
+          "indication": "Non-small cell lung cancer and other solid tumors (ivonescimab, PD-1/VEGF bispecific antibody)",
+          "phase": "Phase III (multiple studies: HARMONi, HARMONi-3, HARMONi-7, HARMONi-GI3); BLA under FDA review",
+          "status": "active, BLA accepted with PDUFA date November 2026",
+          "first_disclosed": "2022-12-06"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "deals",
+      "from": null,
+      "to": [
+        {
+          "date": "2016-10-01",
+          "type": "license",
+          "counterparty": "Sarepta Therapeutics",
+          "direction": "out",
+          "upfront": "$40,000,000",
+          "milestones": "up to $522,000,000",
+          "royalty": "tiered royalties (rate not disclosed in sources reviewed)",
+          "territory": "Europe (utrophin modulator pipeline including ezutromid)"
+        },
+        {
+          "date": "2022-12-06",
+          "type": "license",
+          "counterparty": "Akeso, Inc.",
+          "direction": "in",
+          "upfront": "$500,000,000",
+          "milestones": "up to $4,500,000,000 in regulatory and commercial milestones (total deal value up to $5.0 billion)",
+          "royalty": "low double-digit percentage of net sales",
+          "territory": "United States, Canada, Europe, Japan (Akeso retains China and rest of world)"
+        },
+        {
+          "date": "2026-07-14",
+          "type": "M&A",
+          "counterparty": "Biossil, Inc.",
+          "direction": "out",
+          "upfront": "$500,000",
+          "milestones": "up to $104,500,000 in regulatory and commercial milestones",
+          "royalty": "tiered royalties on net sales",
+          "territory": "worldwide (asset divestiture)"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "people",
+      "from": null,
+      "to": [
+        {
+          "name": "Robert W. Duggan",
+          "role": "Chairman & Co-CEO",
+          "since": "2020-02-26",
+          "prior": [
+            "Chairman & CEO, Pharmacyclics, Inc. (sold to AbbVie, 2015)",
+            "Chairman, Pulse Biosciences, Inc."
+          ]
+        },
+        {
+          "name": "Dr. Maky Zanganeh",
+          "role": "Co-CEO & President",
+          "since": "2022-07-26",
+          "prior": [
+            "Chief Operating Officer, Summit Therapeutics (from 2020-11)",
+            "Pharmacyclics, Inc."
+          ]
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "pivots",
+      "from": null,
+      "to": [
+        {
+          "date": "2018-06-27",
+          "from": "Duchenne muscular dystrophy utrophin modulation (ezutromid/SMT C1100), a founding-era pipeline pillar carried through a 2016 European out-license to Sarepta",
+          "to": "DMD program fully discontinued; Summit narrowed to anti-infectives (ridinilazole)",
+          "trigger": "PhaseOut DMD Phase 2 trial failed to meet primary or secondary endpoints, announced 2018-06-27",
+          "evidence": [
+            "https://www.globenewswire.com/news-release/2018/06/27/1530184/0/en/Summit-Therapeutics-Announces-PhaseOut-DMD-Did-Not-Meet-Primary-Endpoint.html",
+            "https://www.genengnews.com/news/summit-plans-cost-cuts-stock-falls-80-after-dmd-candidate-ezutromid-fails-phase-ii-trial/"
+          ],
+          "outcome": "no utrophin-modulator or DMD asset has re-entered Summit's pipeline through 2026; company narrowed to ridinilazole as sole clinical asset until the 2022 Akeso deal"
+        },
+        {
+          "date": "2022-12-06",
+          "from": "ridinilazole as Summit's lead late-stage clinical asset and core anti-infectives focus, the company's identity since its 2003 founding",
+          "to": "immuno-oncology via in-licensed ivonescimab, with ridinilazole progressively deprioritized and ultimately divested entirely to Biossil, Inc. on 2026-07-14",
+          "trigger": "Ri-CoDIFy Phase III trial for ridinilazole missed its primary superiority endpoint, announced 2021-12-20 (49% single-day stock decline)",
+          "evidence": [
+            "https://www.globenewswire.com/en/news-release/2021/12/20/2355247/0/en/Summit-Therapeutics-Announces-Topline-Results-for-Phase-III-Ri-CoDIFy-Study-for-C-Difficile-Infection.html",
+            "https://www.sec.gov/Archives/edgar/data/1599298/000159929822000136/a2022_prx1208xivonescimaba.htm",
+            "https://www.businesswire.com/news/home/20260714940985/en/Summit-Therapeutics-Signs-Agreement-to-Sell-Phase-III-Asset-Ridinilazole-to-Biossil-Inc."
+          ],
+          "outcome": "as of 2026-07-20, Summit's entire clinical pipeline is ivonescimab-centric (HARMONi program); ridinilazole fully exited via the Biossil sale six days before this scan's as_of date"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "setbacks",
+      "from": null,
+      "to": [
+        {
+          "date": "2018-06-27",
+          "kind": "discontinuation",
+          "detail": "PhaseOut DMD Phase 2 trial of ezutromid failed to meet primary or secondary endpoints; Summit discontinued ezutromid development and announced cost-reduction measures, with stock falling approximately 80% on the news.",
+          "program": "Duchenne muscular dystrophy utrophin-modulator program"
+        },
+        {
+          "date": "2021-12-20",
+          "kind": "discontinuation",
+          "detail": "Phase III Ri-CoDIFy study of ridinilazole missed its primary superiority endpoint versus vancomycin (though it showed reduced recurrence, nominal p=0.0002); the asset would have required at least one additional Phase III trial before regulatory submission. Stock fell approximately 49% same-day.",
+          "program": "ridinilazole for C. difficile infection"
+        },
+        {
+          "date": "2026-07-14",
+          "kind": "discontinuation",
+          "detail": "Summit signed away its remaining rights to ridinilazole entirely, selling the asset to Biossil, Inc. for a nominal $500,000 upfront, ending the company's 20+ year anti-infectives history.",
+          "program": "ridinilazole for C. difficile infection"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    }
+  ],
+  "version": 1,
+  "last_edited_by": "loop"
+}

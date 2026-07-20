@@ -3,23 +3,23 @@
   "issue": {
     "id": "2026-07-20",
     "program_id": "hmbd-001",
-    "published_at": "2026-07-20T14:58:46.377659",
+    "published_at": "2026-07-20T15:21:59.737313",
     "coverage_window": {
       "from": "2026-05-01",
       "to": "2026-07-20"
     },
     "run": {
-      "run_id": "run_20260720_1458",
-      "status": "failed",
-      "critic_verdict": "not_run",
-      "critic_retries": 0,
+      "run_id": "run_20260720_1521",
+      "status": "published",
+      "critic_verdict": "pass_with_advisories",
+      "critic_retries": 1,
       "thesis_version": 2,
       "interest_list_version": 1,
-      "models": {}
-    },
-    "failure": {
-      "stage": "synthesis",
-      "detail": "manager: claude exited 1: stdout='{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":true,\"api_error_status\":null,\"duration_ms\":173574,\"duration_api_ms\":0,\"num_turns\":1,\"result\":\"API Error: Unable to connect to API (ENOTFOUND)\",\"stop_reason\":\"stop_sequence\",\"session_id\":\"97c4f282-6a5d-4832-8316-635b9c1503f6\",\"total_cost_usd\":0,\"usage\":{\"input_tokens\":0,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"output_tokens\":0,\"ser' stderr=''"
+      "models": {
+        "researchers": "claude-sonnet-5",
+        "manager": "claude-opus-4-8",
+        "critic": "gpt-5-codex"
+      }
     }
   },
   "program": {
@@ -29,11 +29,12 @@
     "modality": "anti-HER3 IgG1 signalling antibody",
     "target": "HER3 (ERBB3)",
     "moa": "signalling_blockade",
-    "one_line": "HER3 signalling blockade",
+    "one_line": "An anti-HER3 IgG1 that blocks HER3 signalling rather than delivering a payload \u2014 a bet that the HER3 axis is drug-worthy on mechanism, not on chemistry.",
     "priority_indications": [
+      "squamous-nsclc",
       "nrg1-fusion-solid-tumors"
     ],
-    "clinical_stage": null,
+    "clinical_stage": "Phase 1b",
     "config_source": "config/programs/hmbd-001.toml",
     "aperture": {
       "biology_scan": {
@@ -45,21 +46,747 @@
       ]
     }
   },
-  "headline": null,
-  "stats": {},
-  "tldr_bullets": [],
-  "catalyst_queue": {},
-  "competitors": [],
-  "indications": [],
-  "quiet_this_cycle": {},
-  "newly_discovered": [],
-  "house_view": {},
+  "headline": {
+    "title": "Daiichi concedes HER3-DXd missed in EGFR-mutated lung and pushes launch timing out \u2014 while four China-originated HER3 ADCs move up behind it",
+    "summary": "At its FY2025 results and 5-year business plan presentation on 2026-05-11, Daiichi Sankyo disclosed that patritumab deruxtecan (HER3-DXd) 'did not demonstrate positive results' in EGFR-mutated lung cancer and revised the program's launch timing without naming a new date, while accelerating I-DXd and R-DXd instead; the earnings-call readout of the same event ties the profit-forecast cut in part to the US withdrawal and an ADC supply-strategy shift. Two HER3-directed ADCs from China-linked sponsors advanced inside the coverage window: Akeso enrolled the first patient in a Phase Ib/II of AK138D1 (2026-06-15) and Alphamab reported 64.5% ORR in TNBC for the TROP2/HER3 bispecific ADC JSKN016 at ASCO 2026 (2026-06-02). Two more surfaced to this sweep this cycle but are dated just before the window opened and are reported here as pre-window context, not as in-window developments: Shengdi/Hengrui's SDP0505 preclinical publication with a 2026-targeted China BLA (2026-04-21) and Biocytogen's preclinical EpCAM/HER3 ADC BCG044 at AACR 2026 (2026-04-01). Separately, Summit Therapeutics withdrew a $500M offering one day after announcing it (2026-06-10), citing market conditions.",
+    "so_what": "The single loudest ADC validation of HER3 just conceded a miss and lost its launch date, and nothing has replaced it as the target's proof point \u2014 which means the burden of demonstrating that HER3 is drug-worthy at all has shifted onto assets like HMBD-001 rather than being carried for it. Decide this cycle whether that is opportunity or contagion: the Phase 1b bar is now being set by whichever HER3 asset reads out next, and four of the five candidates for that slot are China-originated ADCs the current English-only feed can barely see.",
+    "entity_refs": [
+      "asset_her3_dxd",
+      "asset_ivonescimab"
+    ],
+    "confidence": "medium",
+    "sources": [
+      {
+        "url": "https://www.daiichisankyo.com/files/investors/library/materials/2026/FY2025%20Financial%20Results%20and%205Year%20Business%20Plan%20Presentation_E.pdf",
+        "publisher": "Daiichi Sankyo Co., Ltd.",
+        "tier": "primary",
+        "published_at": "2026-05-11"
+      },
+      {
+        "url": "https://allsci.com/news/earnings-call-insights/daiichi-sankyos-q426-earnings-call-five-year-plan-target-for-jpy-3-tril-oncology-revenues/",
+        "publisher": "AllSci",
+        "tier": "aggregator",
+        "published_at": "2026-05-13"
+      },
+      {
+        "url": "https://www.prnewswire.com/news-releases/akesos-next-generation-her3-adc-ak138d1-combined-with-ivonescimab-first-patient-enrolled-in-phase-ibii-breast-cancer-study-advancing-the-io2-0--adc2-0-strategy-302800044.html",
+        "publisher": "PR Newswire",
+        "tier": "trade",
+        "published_at": "2026-06-15"
+      },
+      {
+        "url": "https://www.alphamabonc.com/en/html/news/2810.html",
+        "publisher": "Alphamab Oncology",
+        "tier": "primary",
+        "published_at": "2026-06-02"
+      },
+      {
+        "url": "https://doi.org/10.1093/abt/tbag015",
+        "publisher": "Antibody Therapeutics (Oxford Academic)",
+        "tier": "primary",
+        "published_at": "2026-04-21"
+      },
+      {
+        "url": "https://biocytogen.com/resource/2026-preclinical-study-of-bcg044-a-novel-bispecific-adc-targeting-epcam-and-her3-for-the-treatment-of-colorectal-and-other-tumors",
+        "publisher": "Biocytogen",
+        "tier": "primary",
+        "published_at": "2026-04-01"
+      },
+      {
+        "url": "https://www.biopharmadive.com/news/summit-therapeutics-pulls-500-million-share-sale-pd1-vegf-ivonescimab/822619/",
+        "publisher": "BioPharma Dive",
+        "tier": "trade",
+        "published_at": "2026-06-10"
+      }
+    ]
+  },
+  "stats": {
+    "competitors_moved": 1,
+    "competitors_quiet": 0,
+    "newly_discovered": 4,
+    "indications_covered": 2,
+    "house_items": 6,
+    "blind_spots_ranked": 4,
+    "sources_cited": 16,
+    "critic_catches": 1,
+    "previous_issue": "2026-07-18"
+  },
+  "tldr_bullets": [
+    {
+      "text": "Daiichi Sankyo told investors on 2026-05-11 that HER3-DXd 'did not demonstrate positive results' in EGFR-mutated lung cancer and revised launch timing with no new date, while accelerating I-DXd and R-DXd \u2014 the target twin has been demoted inside its own sponsor's portfolio.",
+      "entity_refs": [
+        "asset_her3_dxd"
+      ],
+      "priority": "high"
+    },
+    {
+      "text": "Four China-originated HER3-directed ADCs are newly on this issue's page (AK138D1, JSKN016, SDP0505, BCG044), none of them on the roster before \u2014 two moved inside the window (AK138D1 2026-06-15, JSKN016 2026-06-02) and two are dated just before it opened (SDP0505 2026-04-21, BCG044 2026-04-01), so the cluster is a discovery event, not four in-window advances. Either way the HER3 target-validation race is repopulating from a feed the sweep admits it cannot fully read.",
+      "entity_refs": [
+        "asset_ak138d1",
+        "asset_jskn016",
+        "asset_sdp0505",
+        "asset_bcg044"
+      ],
+      "priority": "high"
+    },
+    {
+      "text": "Alphamab's JSKN016 is the only new HER3 co-targeting asset with human efficacy this cycle: 64.5% ORR in TNBC and 51.7% in HR+/HER2- at RP2D, with a Phase III TNBC study ongoing.",
+      "entity_refs": [
+        "asset_jskn016"
+      ],
+      "priority": "medium"
+    },
+    {
+      "text": "Summit Therapeutics pulled a $500M equity offering on 2026-06-10, one day after announcing it and nine days after Akeso's HARMONi-6 Phase 3 presentation \u2014 a funding-capacity signal on the program's setting rival, not a mechanism change.",
+      "entity_refs": [
+        "asset_ivonescimab"
+      ],
+      "priority": "medium"
+    },
+    {
+      "text": "Both arena scans were unavailable this cycle: the squamous-NSCLC scan failed and the NRG1-fusion scan is dormant, so this issue carries no independent setting-level competitive read for either indication.",
+      "entity_refs": [],
+      "priority": "medium"
+    },
+    {
+      "text": "No Hummingbird Bioscience BD, licensing or M&A activity was found in-window; the only in-window company item is a $30K compute-credit AI award with no capital significance.",
+      "entity_refs": [],
+      "priority": "low"
+    }
+  ],
+  "catalyst_queue": {
+    "snapshot_of": "state/programs/hmbd-001/catalyst-queue.json",
+    "recut_at": null,
+    "items": []
+  },
+  "competitors": [
+    {
+      "entity_id": "asset_her3_dxd",
+      "name": "Patritumab deruxtecan (HER3-DXd)",
+      "type": "frontier_asset",
+      "holders": [
+        "Daiichi Sankyo",
+        "Merck & Co."
+      ],
+      "status": "developing",
+      "priority": "high",
+      "categories": [
+        "trial_readout",
+        "corporate_disclosure"
+      ],
+      "summary": "Daiichi Sankyo's FY2025 (Q4) results and 5-year business plan presentation on 2026-05-11 disclosed that patritumab deruxtecan 'did not demonstrate positive results' in the EGFR-mutated lung cancer setting \u2014 a program Daiichi had previously positioned as a third pillar alongside Enhertu and Datroway. Management revised the drug's launch timing without disclosing a new date, and the company's profit-forecast cut was linked in part to the US withdrawal and an ADC supply-strategy shift. The earnings-call readout of the same event adds that competing Daiichi ADC programs (I-DXd, R-DXd) are being accelerated by contrast; that launch-timing detail reached us through an aggregator paraphrase (AllSci, 2026-05-13) of the call and is reported here as such. This follows the May 2025 voluntary BLA withdrawal after HERTHENA-Lung02 missed overall survival \u2014 an event outside this coverage window and cited here only as context.",
+      "read_through": {
+        "relation": "target_twin",
+        "thesis_bearing": "confirms",
+        "text": "HER3-DXd is a target twin, not a mechanism twin: it shares HER3 with HMBD-001 but delivers a topoisomerase-I payload rather than blocking signalling, so its outcomes speak to the target's tractability and to ADC chemistry \u2014 never to whether signalling blockade works. That distinction is what makes this cycle readable. On the ADC thesis \u2014 that value accrues to the linker-payload platform owner rather than to whoever picks the target \u2014 this is confirming evidence of the uncomfortable kind: Daiichi picked the target that HMBD-001 also picked, missed with it, and responded not by defending HER3 but by reallocating to I-DXd and R-DXd, the same DXd chemistry aimed elsewhere. The platform absorbed the loss; the target ate it. For HMBD-001 the practical consequence is that the field's loudest HER3 validation event is gone and no ADC readout is scheduled to replace it, which removes both a threat and a crutch: nobody is going to prove HER3 is drug-worthy on this program's behalf before its own Phase 1b data exists. Read the launch-timing revision as a portfolio verdict on this asset, not as evidence about the HER3 axis \u2014 the EGFRm-lung miss is confounded by setting and by payload, and a signalling antibody's failure modes do not overlap with an ADC's.",
+        "established_by": "run_20260720_1521"
+      },
+      "sources": [
+        {
+          "url": "https://www.daiichisankyo.com/files/investors/library/materials/2026/FY2025%20Financial%20Results%20and%205Year%20Business%20Plan%20Presentation_E.pdf",
+          "publisher": "Daiichi Sankyo Co., Ltd.",
+          "tier": "primary",
+          "published_at": "2026-05-11"
+        },
+        {
+          "url": "https://allsci.com/news/earnings-call-insights/daiichi-sankyos-q426-earnings-call-five-year-plan-target-for-jpy-3-tril-oncology-revenues/",
+          "publisher": "AllSci",
+          "tier": "aggregator",
+          "published_at": "2026-05-13"
+        }
+      ]
+    }
+  ],
+  "indications": [
+    {
+      "indication_id": "squamous-nsclc",
+      "name": "Squamous non-small cell lung cancer",
+      "role": "active_arena",
+      "program_context": "The declared active arena for HMBD-001 and the setting the strong-tier interest is written against: the arena where a HER3 ADC's encroachment would reset the Phase 1b bar before any signalling-blockade data exists. No in-window squamous-specific HER3 readout was found by the biology scan \u2014 HERTHENA-PanTumor01 squamous cohort data and HERTHENA-Lung02 results all dated outside the coverage window and were excluded.",
+      "arena": {
+        "setting_rivals": [
+          {
+            "entity_id": "asset_ivonescimab",
+            "name": "Ivonescimab",
+            "type": "frontier_asset",
+            "holders": [
+              "Akeso",
+              "Summit Therapeutics"
+            ],
+            "status": "developing",
+            "priority": "medium",
+            "categories": [
+              "financing",
+              "trial_start"
+            ],
+            "line": null,
+            "biomarker_subgroup": null,
+            "summary": "Summit Therapeutics withdrew its previously announced $500M underwritten public stock offering effective 2026-06-10, one day after announcing it, citing 'market conditions'; the offering was intended to fund continued ivonescimab development, and the pullback came nine days after partner Akeso presented Phase 3 HARMONi-6 data, amid investor debate over whether China-trial results generalize globally. Separately, Akeso announced on 2026-06-15 that the first patient was enrolled in Phase Ib/II trial AK138D1-202, testing its next-generation HER3 ADC AK138D1 as monotherapy or in combination with ivonescimab in HR+/HER2- and triple-negative breast cancer, with planned enrollment above 860 patients across China sites under an 'IO2.0 + ADC2.0' strategy.",
+            "read_through": {
+              "relation": "setting_rival",
+              "thesis_bearing": "challenges",
+              "text": "Ivonescimab is a PD-1/VEGF bispecific with no HER3 component \u2014 it competes for HMBD-001's patients, not its biology, which is exactly why it is typed setting_rival and not a twin of any kind. Its relevance this cycle is two-sided. First, financing: on the platform-vs-asset thesis \u2014 that in oncology capital without a readout moves nobody and an asset with a Phase 3 curve moves everyone \u2014 Summit pulling a $500M raise one day after announcing it, and nine days after Akeso's HARMONi-6 presentation, is a genuine challenge. The asset HAD emitted the human dataset the thesis says is the trigger, and the capital still would not clear. The mechanism the thesis under-weights is geography of provenance: investors were debating whether a China trial generalizes, which means a readout's value is discounted by where it was run, not just by whether it exists. That is a real crack in the stance and is coded as such rather than smoothed over. Second, and more directly relevant here: the AK138D1 combination puts a HER3 ADC and this setting rival in the same protocol, which is how a rival in the patient dimension quietly acquires a stake in the target dimension. Watch for that combination migrating out of breast cancer toward lung. Neither item is a squamous-NSCLC event; both are placed in this arena because ivonescimab's competitive claim on HMBD-001 is a claim on these patients, and this cycle's arena scan could not test that claim independently.",
+              "established_by": "run_20260720_1521"
+            },
+            "degradation": {
+              "kind": "arena_scan_failed",
+              "marker": "squamous-NSCLC arena coverage unavailable this cycle \u2014 arena scan failed. This entry is assembled from biology-scan and house-sweep findings only; no setting-level search of squamous competition was performed, so the arena is thinner than the setting is."
+            },
+            "sources": [
+              {
+                "url": "https://www.biopharmadive.com/news/summit-therapeutics-pulls-500-million-share-sale-pd1-vegf-ivonescimab/822619/",
+                "publisher": "BioPharma Dive",
+                "tier": "trade",
+                "published_at": "2026-06-10"
+              },
+              {
+                "url": "https://www.prnewswire.com/news-releases/akesos-next-generation-her3-adc-ak138d1-combined-with-ivonescimab-first-patient-enrolled-in-phase-ibii-breast-cancer-study-advancing-the-io2-0--adc2-0-strategy-302800044.html",
+                "publisher": "PR Newswire",
+                "tier": "trade",
+                "published_at": "2026-06-15"
+              }
+            ]
+          }
+        ],
+        "benchmark_soc": [],
+        "degradation": {
+          "kind": "arena_scan_failed",
+          "matter": null,
+          "marker": "squamous-NSCLC arena scan failed this cycle \u2014 no independent setting sweep ran. The absence of benchmark_soc entries here is a dead scan, NOT a finding that this setting has no standard of care. Treat this arena as uncovered, not as quiet."
+        }
+      },
+      "treatment_landscape": {
+        "indication_id": "squamous-nsclc",
+        "as_of": "2026-07-20",
+        "last_changed": "2026-07-20",
+        "changed_by": "run_20260720_1521",
+        "keyed_by": "line",
+        "lines": [],
+        "bar_direction": "Undetermined this cycle. No primary-source efficacy number for any squamous-NSCLC line or biomarker subgroup entered the corpus, and benchmark efficacy numbers are primary-source-only \u2014 so no bar is stated rather than a soft one being implied. The one directionally relevant fact available is negative and off-setting: the HER3 ADC that would have been the encroaching benchmark, HER3-DXd, lost its launch timing in EGFR-mutated lung. That does not move the squamous bar; it removes a candidate for moving it.",
+        "emerging_therapies_note": "Read-only view: the catalyst queue is empty this cycle and the sole setting-rival record (ivonescimab) carries no efficacy numbers, so there is nothing to project here.",
+        "degradation": {
+          "kind": "arena_scan_failed",
+          "marker": "squamous-NSCLC arena scan failed this cycle \u2014 this landscape is a no-op, not a measured baseline. Every cell is empty because the scan that would have populated it did not run, and no number here should be read as a claim about the current standard of care."
+        }
+      }
+    },
+    {
+      "indication_id": "nrg1-fusion-solid-tumors",
+      "name": "NRG1-fusion solid tumors",
+      "role": "priority_indication",
+      "program_context": "A priority indication for HMBD-001 on mechanistic grounds \u2014 NRG1 fusions drive HER3 heterodimerisation, which is the ligand-dependent signalling that a blocking antibody is designed to interrupt and that a payload-delivery ADC is indifferent to. It carries no active arena scan in the current aperture configuration, so this issue has no competitive coverage of the setting at all.",
+      "arena": {
+        "setting_rivals": [],
+        "benchmark_soc": [],
+        "degradation": {
+          "kind": "arena_scan_dormant",
+          "marker": "NRG1-fusion arena scan dormant this cycle \u2014 no-op arena; this indication is not scanned at the current knob and competition in it is uncovered, not absent. An empty rival list here reflects the aperture, not the setting."
+        }
+      },
+      "treatment_landscape": {
+        "indication_id": "nrg1-fusion-solid-tumors",
+        "as_of": "2026-07-20",
+        "last_changed": "2026-07-20",
+        "changed_by": "run_20260720_1521",
+        "keyed_by": "line",
+        "lines": [],
+        "bar_direction": "Not established. No scan feeds this indication, so no bar is asserted in either direction. This is the indication where HMBD-001's differentiation from the ADC field is most mechanistically legible, and it is also the one the system currently sees least \u2014 a gap worth pricing when the aperture is next configured.",
+        "emerging_therapies_note": "Read-only view: no catalyst-queue items and no setting-rival records exist for this indication this cycle.",
+        "degradation": {
+          "kind": "arena_scan_dormant",
+          "marker": "NRG1-fusion arena scan dormant this cycle \u2014 no-op landscape; no benchmark numbers were sought or found. Read every empty field here as unmeasured, not as zero."
+        }
+      }
+    }
+  ],
+  "quiet_this_cycle": {
+    "no_news": [],
+    "critic_catches": [
+      {
+        "finding": "provenance_stale at headline.summary \u2014 the summary presented four China-originated HER3 ADCs as having advanced 'in the same window', but SDP0505 (Antibody Therapeutics, 2026-04-21) and BCG044 (Biocytogen AACR item, 2026-04-01) are both dated before the 2026-05-01 window opened.",
+        "what_changed": "The claim that four assets advanced in-window was cut. headline.summary now splits the four: two in-window advances (AK138D1 2026-06-15, JSKN016 2026-06-02) and two pre-window items surfaced by this cycle's sweep and labelled as context (SDP0505 2026-04-21, BCG044 2026-04-01). The same correction was applied to the tl;dr bullet, the themes_and_signals argument, and the BCG044 read-through, all of which carried the identical timing claim. No new fact was added; the four assets and their existing dated sources are unchanged, and the cluster is now framed as a discovery event rather than as four in-window advances.",
+        "resolution": "fixed"
+      }
+    ],
+    "open_threads": [
+      {
+        "entity_id": "asset_her3_dxd",
+        "thread": "Daiichi revised HER3-DXd's launch timing but disclosed no new target date, and did not say whether the program continues outside EGFR-mutated lung. Until a date or a discontinuation is stated, the field cannot tell whether HER3-as-ADC-target is delayed or finished \u2014 and that is the single fact that most changes how HMBD-001's own data will be read.",
+        "since": "2026-05-11"
+      },
+      {
+        "entity_id": "asset_her3_dxd",
+        "thread": "HERTHENA-PanTumor01's squamous cohort \u2014 the readout that would speak directly to HMBD-001's active arena \u2014 has not produced an in-window update; the material found was an October 2025 protocol paper and an ASCO 2025 readout, both outside this window. Whether the squamous cohort survives the portfolio reallocation to I-DXd and R-DXd is unresolved.",
+        "since": "2026-05-11"
+      },
+      {
+        "entity_id": "asset_her3_dxd",
+        "thread": "HMBD-501, the Hummingbird-originated HER3 ADC licensed to Endeavor BioMedicines, showed a March 2026 registry 'last update' noted secondhand, but the live ClinicalTrials.gov record could not be loaded to confirm module-level changes, so no registry delta was emitted. Anchored here because the open question is comparative: whether the house's own HER3 ADC is tracking or diverging from the DXd program's fate.",
+        "since": "2026-07-20"
+      },
+      {
+        "entity_id": "asset_ivonescimab",
+        "thread": "Summit's withdrawn $500M offering leaves the funding path for continued ivonescimab development unstated. Whether it returns to market on better terms, raises otherwise, or slows the program determines how hard this rival presses on HMBD-001's patient pool over the next several cycles.",
+        "since": "2026-06-10"
+      }
+    ],
+    "dropped_with_receipt": [
+      {
+        "name": "Quantitative immunofluorescence study of HER3 protein concentration in FFPE head-and-neck squamous cell carcinoma (n=329)",
+        "dropped_because": "Supports the general biological rationale for HER3-targeted therapy in HNSCC \u2014 including both HMBD-001 and HER3-DXd \u2014 but it names no competitor, moves no program, and its publication date sits at or just outside the coverage window and could not be independently re-verified inside it (the researcher flagged it unconfirmed pending a direct date check). Background biology that is true is still not news, and publishing an unverifiable-date item as an in-window finding would misstate what this cycle observed. Recorded here so a later run recognises it as already seen rather than rediscovering it as novel.",
+        "source": {
+          "url": "https://pubmed.ncbi.nlm.nih.gov/42008736/",
+          "publisher": "PubMed",
+          "tier": "primary",
+          "published_at": "2026-04-01"
+        }
+      },
+      {
+        "name": "Hummingbird Bioscience \u2014 Nebius AI Discovery Awards APAC Trailblazer award ($30K in compute credits, 2026-07-14)",
+        "dropped_because": "The only in-window Hummingbird item found, and it is non-financial: a $30K compute-credit award with no BD, licensing, capital or clinical significance. It is recorded in the house view's partnership_bd lens as the evidence that the BD sweep ran and came back empty, and dropped from the ranked sections rather than being dressed up as corporate momentum. Receipt kept so a later cycle does not surface it as a new Hummingbird development.",
+        "source": {
+          "url": "https://www.globenewswire.com/news-release/2026/07/14/3326631/0/en/hummingbird-bioscience-wins-apac-trailblazer-award-at-2026-nebius-ai-discovery-awards.html",
+          "publisher": "GlobeNewswire",
+          "tier": "trade",
+          "published_at": "2026-07-14"
+        }
+      }
+    ]
+  },
+  "newly_discovered": [
+    {
+      "entity_id": "asset_sdp0505",
+      "name": "SDP0505",
+      "type": "frontier_asset",
+      "holders": [
+        "Shanghai Shengdi Pharmaceutical",
+        "Jiangsu Hengrui"
+      ],
+      "priority": "high",
+      "categories": [
+        "preclinical_data",
+        "regulatory"
+      ],
+      "what_it_is": "A first-in-class HER3 x c-Met bispecific antibody-drug conjugate from Shanghai Shengdi Pharmaceutical / Jiangsu Hengrui, now in global Phase II trials in NSCLC with a China BLA submission targeted for 2026.",
+      "development": "A peer-reviewed paper in Antibody Therapeutics (2026-04-21) detailed SDP0505's design and reported potent activity in EGFR-TKI-resistant NSCLC and colorectal preclinical models; the same publication records that the asset has advanced to global Phase II in NSCLC with a 2026-targeted China BLA. The publication date precedes this issue's 2026-05-01 coverage window: this is a discovery for the roster, not an in-window event. The house sweep surfaced no separately dated in-window regulatory event for the BLA itself \u2014 the 2026 target is stated in the publication, not confirmed by a filing.",
+      "proposed_relation": "target_twin",
+      "read_through": {
+        "relation": "target_twin",
+        "thesis_bearing": "confirms",
+        "established_by": "run_20260720_1521",
+        "text": "This is the asset the watching-tier interest was written to catch, and it arrived through the one channel the sweep can read \u2014 an English-language journal \u2014 which is itself the argument for that interest. SDP0505 shares HER3 with HMBD-001 but couples it to c-Met and delivers a payload, so it is a target twin: its success would validate that HER3 is worth binding, not that blocking HER3 signalling does anything. It matters more than its stage suggests because it is aimed at EGFR-TKI-resistant NSCLC \u2014 the exact setting where HER3-DXd just failed \u2014 and because a 2026 China BLA would put a HER3-directed agent in front of a regulator years before HMBD-001 reaches that conversation. On the ADC thesis, it confirms: another sponsor picking HER3 and betting the differentiation on chemistry and a second antigen rather than on the target choice. The read for the decision-owner is timing, not threat \u2014 a China approval sets a global reference point for what HER3 engagement is worth, and it would land while HMBD-001's Phase 1b is still generating.",
+        "text_note": null
+      },
+      "promotion_proposal": {
+        "promote_to_competitors": true,
+        "reason": "Typed cleanly as a target_twin on published, primary-source evidence: HER3-directed, payload-delivering, therefore same target and different MOA from HMBD-001's signalling blockade. It is clinical (global Phase II), it is aimed at an NSCLC population adjacent to the program's active arena, and it carries a near-term regulatory event. It also sits squarely inside the watching-tier interest on China-first HER3 assets, which is the human's standing instruction to track exactly this. Promoting it puts the slug on the roster so the next cycle researches it rather than rediscovering it."
+      },
+      "sources": [
+        {
+          "url": "https://doi.org/10.1093/abt/tbag015",
+          "publisher": "Antibody Therapeutics (Oxford Academic)",
+          "tier": "primary",
+          "published_at": "2026-04-21"
+        },
+        {
+          "url": "https://pubmed.ncbi.nlm.nih.gov/42145655/",
+          "publisher": "PubMed",
+          "tier": "primary",
+          "published_at": "2026-04-21"
+        }
+      ]
+    },
+    {
+      "entity_id": "asset_jskn016",
+      "name": "JSKN016",
+      "type": "frontier_asset",
+      "holders": [
+        "Alphamab Oncology"
+      ],
+      "priority": "high",
+      "categories": [
+        "trial_readout"
+      ],
+      "what_it_is": "A first-in-class TROP2/HER3 bispecific antibody-drug conjugate from Alphamab Oncology, with Phase I data in HER2-negative breast cancer and a Phase III TNBC study ongoing.",
+      "development": "Alphamab presented Phase I data from JSKN016-101 (NCT06592417) at ASCO 2026: 64.5% overall response rate in triple-negative breast cancer and 51.7% in HR+/HER2-negative breast cancer at the recommended Phase II dose, with a Phase III TNBC study now ongoing.",
+      "proposed_relation": "target_twin",
+      "read_through": {
+        "relation": "target_twin",
+        "thesis_bearing": "confirms",
+        "established_by": "run_20260720_1521",
+        "text": "Of everything that moved this cycle, this is the only HER3 co-targeting asset with human efficacy attached, and the numbers are not marginal \u2014 64.5% ORR in TNBC at RP2D, already carried into Phase III. Its bearing on HMBD-001 is oblique but real: it is a target twin whose HER3 arm rides alongside TROP2 and a payload, so a win reads as 'HER3 is a useful thing to bind', never as 'HER3 signalling is a useful thing to block'. That distinction is the whole reason to type it carefully rather than let a strong response rate frighten the program. On the ADC thesis it is confirming and rather pointedly so: Alphamab's differentiation is bispecific format and payload engineering, and the HER3 arm is one of two targets chosen in service of the chemistry. The genuine consequence for the decision-owner is that the field's HER3 narrative is being rewritten in breast cancer by a sponsor with no lung program, at the same moment the lung HER3 flagship stalled \u2014 so the next thing 'everyone knows' about HER3 may come from a setting HMBD-001 does not compete in, and will still set the tone in which its data is received.",
+        "text_note": null
+      },
+      "promotion_proposal": {
+        "promote_to_competitors": true,
+        "reason": "The strongest evidentiary case among this cycle's discoveries: primary-source clinical efficacy at RP2D, a Phase III already running, and an unambiguous HER3 arm that makes the target_twin typing defensible rather than speculative. Its indications (TNBC, HR+/HER2-) do not overlap HMBD-001's arenas, which lowers direct competitive pressure but not narrative influence \u2014 and the roster exists to research things, not only to fear them. Promoting it means the next cycle tracks the Phase III, which is the readout most likely to define HER3's reputation."
+      },
+      "sources": [
+        {
+          "url": "https://www.alphamabonc.com/en/html/news/2810.html",
+          "publisher": "Alphamab Oncology",
+          "tier": "primary",
+          "published_at": "2026-06-02"
+        },
+        {
+          "url": "https://www.biopharminternational.com/view/alphamab-oncology-to-present-phase-1-data-on-bispecific-adc-jskn016-in-her2-negative-breast-cancer-at-asco-2026",
+          "publisher": "BioPharm International",
+          "tier": "trade",
+          "published_at": "2026-04-23"
+        }
+      ]
+    },
+    {
+      "entity_id": "asset_ak138d1",
+      "name": "AK138D1",
+      "type": "frontier_asset",
+      "holders": [
+        "Akeso"
+      ],
+      "priority": "medium",
+      "categories": [
+        "trial_start"
+      ],
+      "what_it_is": "Akeso's next-generation HER3-targeted antibody-drug conjugate \u2014 an anti-HER3 antibody carrying a topoisomerase I inhibitor payload.",
+      "development": "Akeso announced on 2026-06-15 that the first patient was enrolled in Phase Ib/II trial AK138D1-202, testing AK138D1 as monotherapy or in combination with ivonescimab (a PD-1/VEGF bispecific, not itself HER3-targeted) in HR+/HER2- and triple-negative breast cancer. The trial plans to enroll more than 860 patients across sites in China, as part of what Akeso calls an 'IO2.0 + ADC2.0' strategy.",
+      "proposed_relation": "target_twin",
+      "read_through": {
+        "relation": "target_twin",
+        "thesis_bearing": "confirms",
+        "established_by": "run_20260720_1521",
+        "text": "AK138D1 is an anti-HER3 antibody plus a topoisomerase-I payload \u2014 which is to say, it is architecturally the same bet as HER3-DXd, restarted by a different sponsor in the same quarter that Daiichi's version lost its launch date. That timing is the finding. It is a target twin to HMBD-001: same antigen, payload delivery instead of signalling blockade, so nothing it produces will speak to HMBD-001's mechanism either way. What earns it attention is the company attached. Akeso is the sponsor the platform-vs-asset thesis names as the proof that a mid-cap with one Phase 3 curve moves Big Pharma, and it is now pairing a HER3 ADC with its own setting-rival bispecific in a single 860-patient protocol. On the ADC thesis this confirms cleanly \u2014 a new entrant picking the identical target and differentiating on payload and combination rather than on target selection. The near-term relevance to HMBD-001 is low: it is breast cancer, Phase Ib/II, China-sited, and nowhere near the squamous arena. The medium-term relevance is the combination architecture, which is a template that travels to lung if it works.",
+        "text_note": null
+      },
+      "promotion_proposal": {
+        "promote_to_competitors": true,
+        "reason": "Clinical-stage, unambiguously HER3-targeted, and sponsored by a company already represented on the roster through ivonescimab \u2014 which means the system will be researching Akeso regardless, and leaving its HER3 ADC untyped would create exactly the blind edge the roster exists to prevent. The target_twin typing is direct from the asset's own description (anti-HER3 antibody + topo-I payload) and requires no inference. Promoted at medium priority because the current indications and geography sit well outside HMBD-001's arenas."
+      },
+      "sources": [
+        {
+          "url": "https://www.prnewswire.com/news-releases/akesos-next-generation-her3-adc-ak138d1-combined-with-ivonescimab-first-patient-enrolled-in-phase-ibii-breast-cancer-study-advancing-the-io2-0--adc2-0-strategy-302800044.html",
+          "publisher": "PR Newswire",
+          "tier": "trade",
+          "published_at": "2026-06-15"
+        }
+      ]
+    },
+    {
+      "entity_id": "asset_bcg044",
+      "name": "BCG044",
+      "type": "frontier_asset",
+      "holders": [
+        "Biocytogen"
+      ],
+      "priority": "low",
+      "categories": [
+        "preclinical_data"
+      ],
+      "what_it_is": "A novel EpCAM/HER3 bispecific antibody-drug conjugate from Biocytogen, at preclinical stage.",
+      "development": "Biocytogen presented preclinical data for BCG044 at AACR 2026, showing activity in colorectal and other tumor models. The item is dated 2026-04-01, before this issue's 2026-05-01 coverage window opened: it is a discovery for the roster, not an in-window event.",
+      "proposed_relation": "target_twin",
+      "read_through": {
+        "relation": "target_twin",
+        "thesis_bearing": "confirms",
+        "established_by": "run_20260720_1521",
+        "text": "Preclinical, colorectal-focused, and years from telling anyone anything \u2014 on its own merits this would not reach the page. It is here because of what it is the fourth of. Across this coverage window and the weeks immediately preceding it, four distinct China-linked sponsors were seen advancing HER3-co-targeting ADCs, and BCG044 is the earliest \u2014 dated 2026-04-01, before the window \u2014 and therefore the most informative about intent: HER3 is being designed into new bispecific ADC programs, and it was being designed in before the field's flagship HER3 ADC publicly missed. On the ADC thesis this confirms \u2014 the differentiating choice is the EpCAM partner and the conjugation, with HER3 selected as a commodity input to the design. For HMBD-001 the direct read-through is essentially nil this cycle; the indirect one is that HER3's supply of target twins is replenishing faster than the English feed can enumerate, which is a statement about the program's competitive future rather than its present.",
+        "text_note": null
+      },
+      "promotion_proposal": {
+        "promote_to_competitors": false,
+        "reason": "Preclinical with a single conference-abstract data point and no clinical, regulatory or financing event to track \u2014 promoting it would put an entity on the roster that generates a 'quiet this cycle' line for years while consuming research budget every run. It is introduced here so the slug resolves, the discovery is auditable, and a later cycle can promote it the moment it enters the clinic. Declining promotion is the honest call, not a deferral of one."
+      },
+      "sources": [
+        {
+          "url": "https://biocytogen.com/resource/2026-preclinical-study-of-bcg044-a-novel-bispecific-adc-targeting-epcam-and-her3-for-the-treatment-of-colorectal-and-other-tumors",
+          "publisher": "Biocytogen",
+          "tier": "primary",
+          "published_at": "2026-04-01"
+        }
+      ]
+    }
+  ],
+  "house_view": {
+    "partnership_bd": [
+      {
+        "name": "Hummingbird Bioscience \u2014 no in-window BD, licensing or M&A activity",
+        "summary": "The house sweep found no partnership, licensing or M&A activity involving Hummingbird Bioscience or HMBD-001 inside the 2026-05-01 to 2026-07-20 window. The company's HER3-ADC deals with Endeavor BioMedicines ($430M, October 2023), Synaffix ($150M, 2025) and Callio Therapeutics (March 2025) all predate the window and are cited here only as the prior-state context that makes the silence legible. The single in-window company item is non-financial: an APAC Trailblazer award at the 2026 Nebius AI Discovery Awards, announced 2026-07-14, carrying $30K in compute credits and no BD or capital significance.",
+        "read_through": {
+          "lens": "partnership_bd",
+          "established_by": "run_20260720_1521",
+          "text": "This is a reported absence, not an unexamined one \u2014 the sweep ran seven distinct BD queries and came back with a compute-credit award, and that distinction is the whole value of the entry. The context that makes it worth stating: Hummingbird's monetised HER3 work to date has been its ADC assets, licensed out to Endeavor, Synaffix and Callio, while HMBD-001 \u2014 the signalling antibody, the differentiated bet \u2014 has stayed in-house. Three quiet months does not change that shape, but it does mean the house enters a cycle of HER3 turbulence without a partner sharing the risk on its lead differentiated asset. Read the award for what it is and nothing more; presenting a $30K credit grant as corporate momentum would be the exact laundering this section exists to avoid."
+        },
+        "sources": [
+          {
+            "url": "https://www.globenewswire.com/news-release/2026/07/14/3326631/0/en/hummingbird-bioscience-wins-apac-trailblazer-award-at-2026-nebius-ai-discovery-awards.html",
+            "publisher": "GlobeNewswire",
+            "tier": "trade",
+            "published_at": "2026-07-14"
+          }
+        ]
+      }
+    ],
+    "threat_financing": [
+      {
+        "name": "Daiichi Sankyo FY2025 results and 5-year plan \u2014 HER3-DXd demoted, DXd platform reallocated",
+        "summary": "Daiichi Sankyo's FY2025 (Q4) results and 5-year business plan, presented 2026-05-11, disclosed that HER3-DXd 'did not demonstrate positive results' in the EGFR-mutated lung setting \u2014 a program previously positioned as a third pillar alongside Enhertu and Datroway \u2014 and revised its launch timing without a new target date. The profit-forecast cut was linked in part to the US withdrawal and an ADC supply-strategy shift, against a five-year plan targeting JPY 3 trillion in oncology revenues. Competing DXd programs I-DXd and R-DXd are being accelerated by contrast; that acceleration detail comes from an aggregator's readout of the earnings call rather than from the presentation itself.",
+        "read_through": {
+          "lens": "threat_financing",
+          "established_by": "run_20260720_1521",
+          "text": "At house altitude this is a capital-allocation event before it is a clinical one. The largest and most credible ADC franchise in oncology examined a HER3 program inside a JPY 3-trillion oncology plan and moved the money to other targets on the same chemistry \u2014 which tells the house something about how ADC platform owners price a target that disappoints. The payload survives the target's failure; the target does not survive the payload's opportunity cost. Any house asset whose value proposition rests on target choice rather than on chemistry ownership should read that as the going rate. It also removes the most likely acquirer-of-conviction for HER3 biology in the near term: Daiichi and Merck have just paid the price of being wrong here, which raises the evidentiary bar any HER3 asset must clear to attract a comparable partner, and lengthens the time before one appears."
+        },
+        "sources": [
+          {
+            "url": "https://www.daiichisankyo.com/files/investors/library/materials/2026/FY2025%20Financial%20Results%20and%205Year%20Business%20Plan%20Presentation_E.pdf",
+            "publisher": "Daiichi Sankyo Co., Ltd.",
+            "tier": "primary",
+            "published_at": "2026-05-11"
+          },
+          {
+            "url": "https://allsci.com/news/earnings-call-insights/daiichi-sankyos-q426-earnings-call-five-year-plan-target-for-jpy-3-tril-oncology-revenues/",
+            "publisher": "AllSci",
+            "tier": "aggregator",
+            "published_at": "2026-05-13"
+          }
+        ]
+      },
+      {
+        "name": "Summit Therapeutics \u2014 $500M public offering withdrawn one day after announcement",
+        "summary": "Summit Therapeutics withdrew its previously announced $500M underwritten public stock offering effective 2026-06-10, one day after announcing it, citing 'market conditions'. The offering was intended to fund continued development of ivonescimab, the PD-1xVEGF bispecific partnered with Akeso. The withdrawal came nine days after Akeso presented Phase 3 HARMONi-6 data, amid investor debate over whether China-trial results generalize globally.",
+        "read_through": {
+          "lens": "threat_financing",
+          "established_by": "run_20260720_1521",
+          "text": "The house-level signal is about the discount, not the drug. A Phase 3 dataset landed and the equity window shut nine days later \u2014 because the market was arguing about where the trial was run, not about what it showed. That is a provenance discount applied to evidence itself, and it is directly relevant to a house whose competitive landscape is filling with China-originated assets: the same discount that made Summit's raise fail is the discount that will be applied to SDP0505's China BLA, to JSKN016's Phase III, and to Akeso's AK138D1 data when they arrive. The house should not read a Chinese-sited readout as automatically pressuring its own valuation, and should not assume Western investors will price those readouts the way the science would. The corollary cuts the other way too: a discounted rival is a cheaper rival to in-license."
+        },
+        "sources": [
+          {
+            "url": "https://www.biopharmadive.com/news/summit-therapeutics-pulls-500-million-share-sale-pd1-vegf-ivonescimab/822619/",
+            "publisher": "BioPharma Dive",
+            "tier": "trade",
+            "published_at": "2026-06-10"
+          }
+        ]
+      },
+      {
+        "name": "Sidewinder Therapeutics \u2014 $137M Series B for bispecific ADCs (targets undisclosed) \u2014 UNCONFIRMED as HER3-relevant",
+        "summary": "Sidewinder Therapeutics raised a $137M Series B announced 2026-04-08, co-led by Frazier Life Sciences and Novartis's venture arm with OrbiMed and Astellas Venture Management participating, to advance bispecific antibody-drug conjugates into the clinic across lung, head-and-neck, GI and colorectal cancers. UNCONFIRMED / EXPLICITLY NOT ESTABLISHED: no antigen targets were disclosed in the announcement, so there is no confirmed HER3 tie whatsoever. The connection to this program is an inference from modality and tumour-type focus only, and is presented here as a hypothesis about a re-aimable platform \u2014 not as a finding that Sidewinder is working on HER3.",
+        "read_through": {
+          "lens": "threat_financing",
+          "relation": "platform_threat",
+          "established_by": "run_20260720_1521",
+          "text": "Typed platform_threat because the threat is the engine, not any asset \u2014 a funded bispecific-ADC platform with $137M and named tumour types can aim its next construct at HER3 without announcing an intention, and lung and head-and-neck sit directly over HMBD-001's squamous arena. That is precisely why it belongs at house altitude and cannot enter competitors[]: there is no asset to type and no target to check. The investor list is the substantive part. Novartis's venture arm and Astellas Venture Management co-funding a bispecific-ADC platform is two large pharmas buying optionality on the format rather than on a target, which is the ADC thesis playing out on the capital side one stage earlier than usual \u2014 value being placed on the chemistry engine before anyone knows what it will be pointed at. The house should treat this as a watch item with an explicit trigger, not as a competitive fact: the moment Sidewinder discloses an antigen pair, it either becomes a typed target twin or it becomes irrelevant, and until then any stronger claim would be inventing evidence the source does not contain."
+        },
+        "sources": [
+          {
+            "url": "https://www.biopharmadive.com/news/sidewinder-bispecific-antibody-drug-conjugates-orbimed-financing/816942/",
+            "publisher": "BioPharma Dive",
+            "tier": "trade",
+            "published_at": "2026-04-08"
+          }
+        ]
+      }
+    ],
+    "themes_and_signals": [
+      {
+        "theme": "HER3 is being re-approached as a bispecific ADC input, not as a standalone target \u2014 and almost entirely from China",
+        "evidence_refs": [
+          "asset_her3_dxd",
+          "asset_sdp0505",
+          "asset_jskn016",
+          "asset_ak138d1",
+          "asset_bcg044"
+        ],
+        "argument": "Four sponsors is a pattern; the shape of the four is the argument. Two of the four moved inside this window \u2014 Akeso's AK138D1 first-patient enrollment (2026-06-15) and Alphamab's JSKN016 ASCO readout (2026-06-02) \u2014 and two are dated in the weeks just before it opened: SDP0505 (2026-04-21) and BCG044 (2026-04-01). So the cluster is what this cycle's sweep can now see, not four synchronous in-window advances, and the timing claim is stated that way deliberately. What survives that correction is the shape: three of the four pair HER3 with a second antigen \u2014 c-Met (SDP0505), TROP2 (JSKN016), EpCAM (BCG044). The fourth, Akeso's AK138D1, is monospecific but is being developed only in combination, with ivonescimab. Read together, these are not four independent target picks. They are one collective revision of a design assumption: that HER3 alone does not carry an ADC, and that its value is as a second binding arm that adds tumour selectivity or resistance coverage to a payload aimed by something else. That reading is corroborated by the negative case \u2014 the one recent program that treated HER3 as sufficient on its own is the one that just failed \u2014 though note that the two pre-window items were designed before Daiichi's May disclosure, so they are evidence of a converging design assumption rather than a reaction to that specific miss. The geographic concentration is not a separate coincidence either; it is the same phenomenon seen through a keyhole, since every one of these four surfaced only because it cleared into an English journal or a PR wire, and the sweep states plainly that it did not query CDE, chictr.org.cn or HKEX. The true population is larger than four.",
+        "thesis_impact": "If true, it sharpens the ADC stance and complicates it in the same motion. Sharpens: target selection is commoditising even faster than the stance claims \u2014 HER3 has been demoted from a target you build a program around to an arm you add to a construct, which is target-picking becoming a design detail rather than a strategy. Complicates: the stance says value accrues to the linker-payload platform owner, and the platform owner is exactly who just lost here, while the gains are accruing to sponsors whose differentiation is the antigen PAIR \u2014 a targeting choice, not a chemistry one. If the bispecific ADC wave is where HER3 value lands, the stance's clean split between commoditised targeting and defensible chemistry needs a third category for format. For HMBD-001 the implication is direct and, unusually, favourable: as the ADC field converges on HER3-as-second-arm, a signalling-blockade antibody becomes the only asset in the field still testing whether the HER3 axis is therapeutically real on its own terms.",
+        "proposes_interest": {
+          "tier": "strong",
+          "note": "Bispecific ADCs carrying a HER3 arm (SDP0505, JSKN016, BCG044, and successors) \u2014 the format through which HER3 is now actually being drugged. The existing strong interest is written against HER3-DXd encroaching on the squamous setting, and that specific risk just receded when Daiichi pulled its launch timing; the live version of the same risk is a bispecific whose HER3 arm rides alongside a target aimed at HMBD-001's patients. Proposed at strong tier because it would have caught all four of this cycle's discoveries at a raised bar, where the current list caught none of them by name."
+        }
+      },
+      {
+        "theme": "Evidence from China is being discounted on provenance, and the discount is now visible in the capital markets as a separate variable from the data",
+        "evidence_refs": [
+          "asset_ivonescimab",
+          "asset_sdp0505",
+          "asset_jskn016"
+        ],
+        "argument": "Summit announced a $500M offering, then withdrew it the next day citing market conditions \u2014 nine days after its partner presented Phase 3 HARMONi-6 data, with the reported investor debate being whether China-trial results generalize globally. The data did not change between the announcement and the withdrawal; the willingness to fund it did. Set that against the discovery side of this cycle, where the three most substantive new HER3 assets are all China-originated and one of them, JSKN016, carries a 64.5% TNBC response rate at RP2D. The pattern is that Chinese-origin evidence is now generating two distinct signals that must be read separately \u2014 a scientific one that is often strong, and a financing one that is systematically weaker than the science warrants. Treating them as one number is how a reader concludes either that these assets are not real or that they are fully priced, and both conclusions are wrong.",
+        "thesis_impact": "This challenges the platform-vs-asset stance at its sharpest point. The stance holds that capital without a readout moves nobody and an asset with a Phase 3 curve moves everyone \u2014 Akeso is its named exemplar. This cycle the exemplar produced the curve and the capital still refused, which means the stance is missing a term: a readout's power to move capital is conditioned on where it was generated, not only on whether it exists. It also interacts with the china-licensing-wave stance, which argues the discount is closing from the top down above ~$1B upfront while mid-size in-licensing still clears cheap. Summit's withdrawal is consistent with that unevenness \u2014 public equity is not the same instrument as an upfront payment, and the discount may be closing in BD while widening in the public market. One cycle is not enough to log a revision on either stance, but a second confirming instance should force one.",
+        "proposes_interest": null
+      }
+    ],
+    "blind_spots": {
+      "cap": 5,
+      "ranked": [
+        {
+          "rank": 1,
+          "blind_spot": "Chinese-language regulatory and registry sources are not queried at all: the sweep did not touch CDE (China's drug regulator), chictr.org.cn, or HKEX filings. Every China-originated HER3 asset in this issue surfaced only because it happened to clear into an English journal or a PR wire.",
+          "why_it_matters": "This is the failure mode where the system reports what it can see and the reader mistakes it for what exists. Four China-linked HER3 programs entered this issue through an accidental channel \u2014 and two of them (SDP0505, BCG044) reached the sweep only weeks after they were published, which is the same latency defect showing up as a dating problem rather than as a miss. The population that did not clear into English is unmeasured and, by the sweep's own assessment, very likely larger. SDP0505's China BLA is targeted for 2026 and would be filed into a registry this system does not read \u2014 meaning the most consequential near-term HER3 regulatory event could occur and be invisible here until it reached Western trade press months later. It is ranked first because it is the only blind spot in this list that can hide a competitor entirely rather than merely delay or blur it, and because it directly undercuts the watching-tier interest that was written to cover exactly this.",
+          "signal_magnitude": "high",
+          "mitigation": "Add a CDE / chictr.org.cn / HKEX-filings pass to the house sweep, even a low-frequency one, and accept machine translation as sufficient for triage \u2014 a mistranslated trial title that surfaces an asset beats a perfect English feed that never sees it. Failing that, add a named-sponsor watch (Hengrui, Shengdi, Alphamab, Akeso, Biocytogen) so at least the known China-linked HER3 sponsors are polled by name rather than discovered by luck."
+        },
+        {
+          "rank": 2,
+          "blind_spot": "Both indication arenas were uncovered this cycle \u2014 the squamous-NSCLC scan failed and the NRG1-fusion scan is dormant \u2014 so the program has no setting-level competitive read for either of its indications.",
+          "why_it_matters": "Squamous NSCLC is the declared active arena and the subject of the standing strong-tier interest, and this issue can say nothing independent about it: no benchmark standard of care, no efficacy bar, no setting rivals beyond what the biology and house scans happened to surface. NRG1-fusion is worse, because it is where HMBD-001's mechanism is most differentiated from the ADC field and it is not scanned at all. The consequence is that competitive pressure in exactly the settings the program is being developed in is currently inferred from adjacent sources rather than measured, and a rival advancing in squamous specifically would not have appeared in this issue.",
+          "signal_magnitude": "high",
+          "mitigation": "Re-run the squamous-NSCLC arena scan before the next issue and treat a second consecutive failure as an aperture defect rather than a transient error. For NRG1-fusion, put the dormancy decision back in front of the human \u2014 it is a priority indication carrying no coverage, which is a deliberate choice worth re-confirming rather than a default worth inheriting."
+        },
+        {
+          "rank": 3,
+          "blind_spot": "Several load-bearing primary sources could not be read directly: WebFetch to the Taylor & Francis article returned HTTP 403, live ClinicalTrials.gov study pages returned only a navigation shell with no extractable trial data, and paywalled analyst interpretation (STAT+, Evaluate, PitchBook) on HER3 competitive positioning was not accessed.",
+          "why_it_matters": "Registry state is the cheapest early warning a competitive system has \u2014 enrollment status changes, cohort additions and quiet terminations show up there months before a press release. With ClinicalTrials.gov unreadable, this cycle could not confirm a noted March 2026 update to the HMBD-501 record and emitted no registry delta at all, which means trial-level movement across the entire competitive set is currently invisible. The paywall gap matters less for facts than for the framing the program's counterparties are reading.",
+          "signal_magnitude": "medium",
+          "mitigation": "Use the ClinicalTrials.gov API rather than fetching study pages \u2014 the shell response is a rendering problem, not an access denial, and the API returns structured module data. For 403s, route through a PubMed or DOI resolver first. Decide explicitly whether paywalled analyst access is worth buying, or accept the gap as a standing limitation and stop re-noting it."
+        },
+        {
+          "rank": 4,
+          "blind_spot": "The Daiichi disclosure's most decision-relevant details \u2014 the revised launch timing and the reallocation toward I-DXd and R-DXd \u2014 reached this issue through an aggregator's readout of the earnings call, not through the primary presentation or a transcript.",
+          "why_it_matters": "The headline claim that HER3-DXd 'did not demonstrate positive results' is anchored in Daiichi's own primary presentation and is solid. What is thinner is everything that gives it forward meaning: what the new timing is, whether the program continues outside EGFRm lung, and how firm the reallocation is. Those are precisely the facts that determine whether HER3-as-a-target is delayed or abandoned, and this issue is relying on a paraphrase for them. A reader could reasonably act on a conclusion the underlying source states less definitively than the summary implies.",
+          "signal_magnitude": "medium",
+          "mitigation": "Pull the FY2025 earnings-call transcript and the Q&A directly, and re-anchor the launch-timing and portfolio-reallocation claims to primary text before the next issue treats them as settled. Track Daiichi's next quarterly disclosure specifically for a restated HER3-DXd development plan."
+        }
+      ],
+      "overflow": null
+    }
+  },
   "thesis_updates": [],
-  "critic_report": {},
+  "critic_report": {
+    "verdict": "pass_with_advisories",
+    "retries_used": 1,
+    "blocking_findings": [],
+    "advisory_findings": [
+      {
+        "kind": "thread_dropped",
+        "where": "quiet_this_cycle.open_threads",
+        "note": "The prior issue kept active threads on izalontamab brengitecan moving into squamous NSCLC and on SDP0505\u2019s 2026 China BLA target. This issue neither revisits nor closes them, and they are absent from quiet_this_cycle.open_threads, so both open threads were dropped without resolution.",
+        "source": null
+      }
+    ],
+    "validator_report": {
+      "passed": true,
+      "retries_used": 2,
+      "findings": [
+        {
+          "kind": "malformed_treatment_landscape",
+          "where": "indications[squamous-nsclc].treatment_landscape",
+          "note": "missing required key(s) as_of, last_changed, changed_by, keyed_by, lines (has: bar_direction, degradation, emerging_therapies_note, entries, indication_id)"
+        },
+        {
+          "kind": "malformed_treatment_landscape",
+          "where": "indications[nrg1-fusion-solid-tumors].treatment_landscape",
+          "note": "missing required key(s) as_of, last_changed, changed_by, keyed_by, lines (has: bar_direction, degradation, emerging_therapies_note, entries, indication_id)"
+        },
+        {
+          "kind": "malformed_shape",
+          "where": "critic_report",
+          "note": "missing required key(s) validator_report (has: advisory_findings, blocking_findings, retries_used, validator_report, verdict)"
+        },
+        {
+          "kind": "malformed_shape",
+          "where": "sources_and_method.registry_watch",
+          "note": "missing required key(s) input_class, tracked_nct_ids, polled_by, diffs_observed, coverage_note (has: deltas_emitted, note)"
+        },
+        {
+          "kind": "malformed_shape",
+          "where": "sources_and_method.interest_list",
+          "note": "missing required key(s) source, interests (has: last_edited, last_edited_by, rot_status, version)"
+        },
+        {
+          "kind": "missing_read_through",
+          "where": "newly_discovered[asset_sdp0505]",
+          "note": "read_through.relation None is outside the enum"
+        },
+        {
+          "kind": "missing_read_through",
+          "where": "newly_discovered[asset_jskn016]",
+          "note": "read_through.relation None is outside the enum"
+        },
+        {
+          "kind": "missing_read_through",
+          "where": "newly_discovered[asset_ak138d1]",
+          "note": "read_through.relation None is outside the enum"
+        },
+        {
+          "kind": "missing_read_through",
+          "where": "newly_discovered[asset_bcg044]",
+          "note": "read_through.relation None is outside the enum"
+        },
+        {
+          "kind": "malformed_treatment_landscape",
+          "where": "indications[squamous-nsclc].treatment_landscape",
+          "note": "missing required key(s) last_changed, changed_by (has: as_of, bar_direction, changed_by, degradation, emerging_therapies_note, indication_id, keyed_by, last_changed, lines)"
+        },
+        {
+          "kind": "malformed_treatment_landscape",
+          "where": "indications[nrg1-fusion-solid-tumors].treatment_landscape",
+          "note": "missing required key(s) last_changed, changed_by (has: as_of, bar_direction, changed_by, degradation, emerging_therapies_note, indication_id, keyed_by, last_changed, lines)"
+        },
+        {
+          "kind": "malformed_shape",
+          "where": "critic_report.validator_report",
+          "note": "missing required key(s) passed, retries_used, findings (has: advisory_findings, blocking_findings, note, run_id, status)"
+        }
+      ]
+    }
+  },
   "sources_and_method": {
+    "apertures_run": [
+      {
+        "aperture": "biology_scan",
+        "scope": "target=HER3 (ERBB3), moa=signalling_blockade",
+        "status": "ok"
+      },
+      {
+        "aperture": "arena_scan",
+        "scope": "squamous-nsclc",
+        "status": "failed"
+      },
+      {
+        "aperture": "arena_scan",
+        "scope": "nrg1-fusion-solid-tumors",
+        "status": "dormant"
+      },
+      {
+        "aperture": "house_sweep",
+        "scope": "partnership_bd + threat_financing + blind_spots",
+        "status": "ok"
+      }
+    ],
     "apertures_degraded": [
       "arena_scan:squamous-nsclc",
       "arena_scan:nrg1-fusion-solid-tumors"
-    ]
+    ],
+    "registry_watch": {
+      "input_class": "clinicaltrials_gov",
+      "tracked_nct_ids": [
+        "NCT06592417"
+      ],
+      "polled_by": "run_20260720_1521",
+      "diffs_observed": [],
+      "coverage_note": "No registry deltas were emitted this cycle. A March 2026 'last update' on the HMBD-501 ClinicalTrials.gov record was noted secondhand, but the live record could not be loaded to confirm module-level changes, so no delta was written rather than one being inferred. Live ClinicalTrials.gov study pages returned only a navigation shell with no extractable trial data across this run."
+    },
+    "source_tier_counts": {
+      "primary": 6,
+      "trade": 5,
+      "aggregator": 1
+    },
+    "paywalled_flagged": [],
+    "interest_list": {
+      "version": 1,
+      "source": "state/programs/hmbd-001/interest-list.json",
+      "interests": [
+        {
+          "tier": "strong",
+          "note": "HER3-DXd encroaching on the squamous-NSCLC setting \u2014 the standing strong-tier interest this issue's active arena is written against."
+        },
+        {
+          "tier": "watching",
+          "note": "China-first HER3 assets \u2014 the watching-tier interest that SDP0505 arrived through this cycle."
+        }
+      ],
+      "last_edited": "2026-07-18",
+      "last_edited_by": "owner",
+      "rot_status": "fresh"
+    }
   }
 }

@@ -1,0 +1,507 @@
+{
+  "entity_id": "co_daiichi_sankyo",
+  "kind": "company",
+  "first_seen": "2026-07-20",
+  "coverage": {
+    "thin_sections": [
+      "funding"
+    ]
+  },
+  "as_of": "2026-07-20",
+  "facts": {
+    "identity": {
+      "value": {
+        "legal_name": "Daiichi Sankyo Company, Limited",
+        "aliases": [
+          "Daiichi Sankyo Co., Ltd.",
+          "\u7b2c\u4e00\u4e09\u5171\u682a\u5f0f\u4f1a\u793e",
+          "Daiichi Sankyo, Inc. (US subsidiary)"
+        ],
+        "founded": "2005-09-28",
+        "hq": "Chuo, Tokyo, Japan",
+        "status": "public",
+        "listings": [
+          {
+            "exchange": "Tokyo Stock Exchange",
+            "ticker": "4568"
+          }
+        ]
+      },
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "origin": {
+      "value": {
+        "founding_story": "Daiichi Sankyo Company, Limited was formed by the joint-share-transfer merger of two century-old Japanese pharmaceutical firms, Daiichi Pharmaceutical Co., Ltd. (est. 1897) and Sankyo Co., Ltd. (est. 1899, founded by Jokichi Takamine). The holding company was established 2005-09-28; full operational integration of the two businesses into a single entity completed 2007-04-01.",
+        "founders": [
+          "Daiichi Pharmaceutical Co., Ltd. (predecessor)",
+          "Sankyo Co., Ltd. (predecessor)",
+          "Jokichi Takamine (founder of Sankyo, 1899)"
+        ],
+        "founding_thesis": "The stated objective of the 2005 integration was creation of a 'Japan-based Global Pharma Innovator' with the mission of providing 'a steady stream of innovative products and services that satisfy unmet medical needs,' pursued by combining scale so the merged company could choose in-house development and marketing of priority pipeline projects rather than relying on licensing partners, per the SEC Rule 425 merger filing."
+      },
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "funding": {
+      "value": {},
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "pipeline": {
+      "value": [
+        {
+          "indication": "HER2-positive/HER2-low breast cancer and other HER2-expressing solid tumours",
+          "phase": "approved (Enhertu / trastuzumab deruxtecan, DS-8201)",
+          "status": "marketed, co-developed/co-commercialised with AstraZeneca",
+          "first_disclosed": "2015-08-28"
+        },
+        {
+          "indication": "FLT3-ITD-positive acute myeloid leukemia",
+          "phase": "approved (Vanflyta / quizartinib)",
+          "status": "marketed in US (since 2023) and Japan (since 2019); US approval followed a 2019 FDA rejection of an earlier filing"
+        },
+        {
+          "indication": "EGFR-mutated non-small cell lung cancer",
+          "phase": "Phase 3 (HERTHENA-Lung02)",
+          "status": "BLA voluntarily withdrawn 2025-05-29 by Daiichi Sankyo and Merck following HERTHENA-Lung02 missing statistical significance on overall survival; prior BLA received an FDA Complete Response Letter in June 2024 over third-party manufacturing-facility inspection findings, unrelated to efficacy/safety data"
+        },
+        {
+          "indication": "solid tumours (multiple), squamous cell carcinoma programs",
+          "phase": "various clinical stage",
+          "status": "ifinatamab deruxtecan (I-DXd) and raludotatug deruxtecan (R-DXd), co-developed with Merck under the 2023 collaboration"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "deals": {
+      "value": [
+        {
+          "date": "2019-03-28",
+          "type": "collab",
+          "counterparty": "AstraZeneca",
+          "direction": "out",
+          "upfront": "$1.35 billion (half on execution, remainder 12 months later)",
+          "milestones": "up to $5.55 billion in additional regulatory/commercial milestones (total deal value reported at $6.9 billion)",
+          "royalty": "unconfirmed \u2014 profit/cost share structure reported, exact royalty terms not located in this scan",
+          "territory": "worldwide except Japan, where Daiichi Sankyo retains exclusive rights and remains sole manufacturer"
+        },
+        {
+          "date": "2023-10-20",
+          "type": "collab",
+          "counterparty": "Merck & Co. (MSD)",
+          "direction": "out",
+          "upfront": "$4 billion, plus $1.5 billion in continuation payments over 24 months",
+          "milestones": "up to $16.5 billion contingent on sales milestones; total potential consideration up to $22 billion",
+          "royalty": "unconfirmed \u2014 not disclosed in the primary press releases reviewed",
+          "territory": "worldwide except Japan, where Daiichi Sankyo retains exclusive rights and remains sole manufacturer, for patritumab deruxtecan (HER3-DXd), ifinatamab deruxtecan (I-DXd) and raludotatug deruxtecan (R-DXd)"
+        },
+        {
+          "date": "2008-06-10",
+          "type": "M&A",
+          "counterparty": "Ranbaxy Laboratories (India)",
+          "direction": "in",
+          "upfront": "approx. $4.6 billion for 64% majority stake",
+          "milestones": "not applicable",
+          "royalty": "not applicable",
+          "territory": "global, primarily emerging-markets generics footprint"
+        },
+        {
+          "date": "2014-04-07",
+          "type": "M&A",
+          "counterparty": "Sun Pharmaceutical Industries",
+          "direction": "out",
+          "upfront": "entire 63.4% Ranbaxy stake sold in an all-share deal valued at approximately $4 billion",
+          "milestones": "not applicable",
+          "royalty": "not applicable",
+          "territory": "India / global generics"
+        },
+        {
+          "date": "2011-02-08",
+          "type": "M&A",
+          "counterparty": "Plexxikon Inc.",
+          "direction": "in",
+          "upfront": "$805 million upfront",
+          "milestones": "up to $130 million tied to approvals for Zelboraf (vemurafenib)",
+          "royalty": "unconfirmed",
+          "territory": "global oncology (melanoma BRAF inhibitor and precision-medicine discovery platform)"
+        },
+        {
+          "date": "2014-01-07",
+          "type": "M&A",
+          "counterparty": "Ambit Biosciences",
+          "direction": "in",
+          "upfront": "$315 million upfront",
+          "milestones": "additional payments bringing total deal value to $410 million",
+          "royalty": "unconfirmed",
+          "territory": "global oncology (kinase inhibitors including quizartinib)"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "people": {
+      "value": [
+        {
+          "name": "Sunao Manabe",
+          "role": "Representative Director, Executive Chairperson (formerly President & CEO)",
+          "since": "2016-06-01",
+          "until": "2025-04-01 (as CEO; continues as Executive Chairperson, and retired from the Corporate Officer system 2026-03-31)",
+          "prior": [
+            "President & COO, Daiichi Sankyo"
+          ],
+          "departure_signal": "Planned, orderly leadership succession as part of company's stated management-structure transition, not a disclosed for-cause departure."
+        },
+        {
+          "name": "Hiroyuki Okuzawa",
+          "role": "Representative Director, President and CEO",
+          "since": "2025-04-01",
+          "prior": [
+            "unconfirmed \u2014 not established in this scan"
+          ]
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "pivots": {
+      "value": [
+        {
+          "date": "2014-04-07",
+          "from": "The 2005 merger's stated 'hybrid business model' strategy \u2014 combining patented-drug innovation with Ranbaxy's generics scale and emerging-market reach, acquired for approx. $4.6bn in 2008 \u2014 was framed as core to becoming a 'Japan-based Global Pharma Innovator.'",
+          "to": "Complete exit from the generics/hybrid model: Daiichi Sankyo sold its entire 63.4% Ranbaxy stake to Sun Pharma in an all-share deal, ending the hybrid strategy and redirecting the company toward a pure innovative-oncology/ADC focus.",
+          "trigger": "Repeated US FDA manufacturing-quality actions at Ranbaxy facilities (2008 Paonta Sahib/Dewas import alert; a further Toansa API import alert in early 2014) and a $3.9 billion write-off taken on the Ranbaxy purchase in January 2009.",
+          "evidence": [
+            "SEC Rule 425 merger filing describing the 2005 integration strategy",
+            "C&EN 'Daiichi Quits On Ranbaxy' retrospective on the 2008 FDA import alerts and the $3.9bn write-off",
+            "Forbes coverage of the 2014-04-07 Sun Pharma sale announcement"
+          ],
+          "outcome": "Through 2026 Daiichi Sankyo has not re-entered generics; its subsequent large-scale strategic bets (AstraZeneca 2019, Merck 2023) are exclusively innovative-oncology ADC collaborations, and the company now states an ambition to be a top-5 global oncology player by 2035."
+        },
+        {
+          "date": "2022-01-12",
+          "from": "The 2011 Plexxikon acquisition ($805M+) was pursued as an in-house small-molecule precision-oncology discovery platform, delivering two approved drugs (Zelboraf, Turalio).",
+          "to": "Daiichi Sankyo announced closure of the 60-person Plexxikon R&D site in South San Francisco, reallocating investment to its three lead antibody-drug-conjugate (ADC/DXd) programs.",
+          "trigger": "unconfirmed \u2014 coverage attributes the closure to a capital-reallocation decision favoring the DXd ADC platform following Enhertu's commercial and clinical success, but no single named trigger event (e.g., a specific readout) was found in this scan.",
+          "evidence": [
+            "Fierce Biotech: 'Daiichi axes 60-person Plexxikon R&D facility in California to free up cash for ADC development' (2022-01-12)",
+            "Daiichi Sankyo press release 'Announces Reorganization of R&D Structure' (2022-01-12)"
+          ],
+          "outcome": "unconfirmed \u2014 this scan did not establish whether any Plexxikon-originated small-molecule programs continued elsewhere in the pipeline after the site closure (separations began 2022-03-31)."
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "setbacks": {
+      "value": [
+        {
+          "date": "2008-09-16",
+          "kind": "clinical_hold",
+          "detail": "FDA import alert banning approximately 30 drugs manufactured at Ranbaxy's Paonta Sahib and Dewas facilities in India, issued within months of Daiichi Sankyo's June 2008 majority-stake acquisition of Ranbaxy; contributed to a $3.9 billion write-off Daiichi took on the purchase in January 2009 and to a subsequent $500 million FDA fine paid by Ranbaxy.",
+          "program": "Ranbaxy manufacturing operations (generics division, post-acquisition)"
+        },
+        {
+          "date": "2019-06-01",
+          "kind": "CRL",
+          "detail": "FDA issued a Complete Response Letter rejecting quizartinib's US application for relapsed/refractory FLT3-ITD AML on safety concerns, based on QuANTUM-R data, even as the same drug was approved in Japan (as Vanflyta) the same month. US approval was not obtained until 2023-07-20, nearly four years later, for a broader newly-diagnosed-AML indication.",
+          "program": "quizartinib / Vanflyta (FLT3-ITD AML)"
+        },
+        {
+          "date": "2015-10-20",
+          "kind": "layoff",
+          "detail": "Daiichi Sankyo announced plans to lay off 1,000-1,200 US workers, primarily in commercial operations, its second major US layoff round within 18 months following a 16% headquarters workforce cut in spring 2015.",
+          "program": "US commercial organization (company-wide, not asset-specific)"
+        },
+        {
+          "date": "2022-01-12",
+          "kind": "restructuring",
+          "detail": "Closure of the 60-person Plexxikon R&D site in South San Francisco, with earliest employee separations effective 2022-03-31 and full transition by end of June 2022, redirecting capital to the DXd ADC pipeline.",
+          "program": "Plexxikon small-molecule discovery platform"
+        },
+        {
+          "date": "2024-06-26",
+          "kind": "CRL",
+          "detail": "FDA issued a Complete Response Letter for the patritumab deruxtecan (HER3-DXd) BLA in EGFR-mutated NSCLC, citing inspection findings at a third-party manufacturing facility; the CRL did not cite efficacy or safety data issues.",
+          "program": "patritumab deruxtecan / HER3-DXd (EGFR-mutated NSCLC)"
+        },
+        {
+          "date": "2025-05-29",
+          "kind": "discontinuation",
+          "detail": "Daiichi Sankyo and Merck voluntarily withdrew the patritumab deruxtecan BLA for EGFR-mutated NSCLC after the Phase 3 HERTHENA-Lung02 trial failed to reach statistical significance on overall survival; the companies stated the withdrawal was unrelated to the 2024 manufacturing-related CRL.",
+          "program": "patritumab deruxtecan / HER3-DXd (EGFR-mutated NSCLC)"
+        },
+        {
+          "date": "2025-01-01",
+          "kind": "restructuring",
+          "detail": "Daiichi Sankyo reported a $610 million profit hit tied to a precautionary/risk-adjusted overbuild of its ADC manufacturing capacity, including a 75.7 billion yen compensation payment to contractors reflecting a change from its prior manufacturing strategy; the company subsequently disclosed a $1.3 billion efficiency drive as part of a new five-year plan. Exact disclosure date within FY2025 reporting is unconfirmed from this scan.",
+          "program": "ADC (DXd platform) manufacturing and supply chain, company-wide"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    }
+  },
+  "drift_log": [
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "identity",
+      "from": null,
+      "to": {
+        "legal_name": "Daiichi Sankyo Company, Limited",
+        "aliases": [
+          "Daiichi Sankyo Co., Ltd.",
+          "\u7b2c\u4e00\u4e09\u5171\u682a\u5f0f\u4f1a\u793e",
+          "Daiichi Sankyo, Inc. (US subsidiary)"
+        ],
+        "founded": "2005-09-28",
+        "hq": "Chuo, Tokyo, Japan",
+        "status": "public",
+        "listings": [
+          {
+            "exchange": "Tokyo Stock Exchange",
+            "ticker": "4568"
+          }
+        ]
+      },
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "origin",
+      "from": null,
+      "to": {
+        "founding_story": "Daiichi Sankyo Company, Limited was formed by the joint-share-transfer merger of two century-old Japanese pharmaceutical firms, Daiichi Pharmaceutical Co., Ltd. (est. 1897) and Sankyo Co., Ltd. (est. 1899, founded by Jokichi Takamine). The holding company was established 2005-09-28; full operational integration of the two businesses into a single entity completed 2007-04-01.",
+        "founders": [
+          "Daiichi Pharmaceutical Co., Ltd. (predecessor)",
+          "Sankyo Co., Ltd. (predecessor)",
+          "Jokichi Takamine (founder of Sankyo, 1899)"
+        ],
+        "founding_thesis": "The stated objective of the 2005 integration was creation of a 'Japan-based Global Pharma Innovator' with the mission of providing 'a steady stream of innovative products and services that satisfy unmet medical needs,' pursued by combining scale so the merged company could choose in-house development and marketing of priority pipeline projects rather than relying on licensing partners, per the SEC Rule 425 merger filing."
+      },
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "funding",
+      "from": null,
+      "to": {},
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "pipeline",
+      "from": null,
+      "to": [
+        {
+          "indication": "HER2-positive/HER2-low breast cancer and other HER2-expressing solid tumours",
+          "phase": "approved (Enhertu / trastuzumab deruxtecan, DS-8201)",
+          "status": "marketed, co-developed/co-commercialised with AstraZeneca",
+          "first_disclosed": "2015-08-28"
+        },
+        {
+          "indication": "FLT3-ITD-positive acute myeloid leukemia",
+          "phase": "approved (Vanflyta / quizartinib)",
+          "status": "marketed in US (since 2023) and Japan (since 2019); US approval followed a 2019 FDA rejection of an earlier filing"
+        },
+        {
+          "indication": "EGFR-mutated non-small cell lung cancer",
+          "phase": "Phase 3 (HERTHENA-Lung02)",
+          "status": "BLA voluntarily withdrawn 2025-05-29 by Daiichi Sankyo and Merck following HERTHENA-Lung02 missing statistical significance on overall survival; prior BLA received an FDA Complete Response Letter in June 2024 over third-party manufacturing-facility inspection findings, unrelated to efficacy/safety data"
+        },
+        {
+          "indication": "solid tumours (multiple), squamous cell carcinoma programs",
+          "phase": "various clinical stage",
+          "status": "ifinatamab deruxtecan (I-DXd) and raludotatug deruxtecan (R-DXd), co-developed with Merck under the 2023 collaboration"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "deals",
+      "from": null,
+      "to": [
+        {
+          "date": "2019-03-28",
+          "type": "collab",
+          "counterparty": "AstraZeneca",
+          "direction": "out",
+          "upfront": "$1.35 billion (half on execution, remainder 12 months later)",
+          "milestones": "up to $5.55 billion in additional regulatory/commercial milestones (total deal value reported at $6.9 billion)",
+          "royalty": "unconfirmed \u2014 profit/cost share structure reported, exact royalty terms not located in this scan",
+          "territory": "worldwide except Japan, where Daiichi Sankyo retains exclusive rights and remains sole manufacturer"
+        },
+        {
+          "date": "2023-10-20",
+          "type": "collab",
+          "counterparty": "Merck & Co. (MSD)",
+          "direction": "out",
+          "upfront": "$4 billion, plus $1.5 billion in continuation payments over 24 months",
+          "milestones": "up to $16.5 billion contingent on sales milestones; total potential consideration up to $22 billion",
+          "royalty": "unconfirmed \u2014 not disclosed in the primary press releases reviewed",
+          "territory": "worldwide except Japan, where Daiichi Sankyo retains exclusive rights and remains sole manufacturer, for patritumab deruxtecan (HER3-DXd), ifinatamab deruxtecan (I-DXd) and raludotatug deruxtecan (R-DXd)"
+        },
+        {
+          "date": "2008-06-10",
+          "type": "M&A",
+          "counterparty": "Ranbaxy Laboratories (India)",
+          "direction": "in",
+          "upfront": "approx. $4.6 billion for 64% majority stake",
+          "milestones": "not applicable",
+          "royalty": "not applicable",
+          "territory": "global, primarily emerging-markets generics footprint"
+        },
+        {
+          "date": "2014-04-07",
+          "type": "M&A",
+          "counterparty": "Sun Pharmaceutical Industries",
+          "direction": "out",
+          "upfront": "entire 63.4% Ranbaxy stake sold in an all-share deal valued at approximately $4 billion",
+          "milestones": "not applicable",
+          "royalty": "not applicable",
+          "territory": "India / global generics"
+        },
+        {
+          "date": "2011-02-08",
+          "type": "M&A",
+          "counterparty": "Plexxikon Inc.",
+          "direction": "in",
+          "upfront": "$805 million upfront",
+          "milestones": "up to $130 million tied to approvals for Zelboraf (vemurafenib)",
+          "royalty": "unconfirmed",
+          "territory": "global oncology (melanoma BRAF inhibitor and precision-medicine discovery platform)"
+        },
+        {
+          "date": "2014-01-07",
+          "type": "M&A",
+          "counterparty": "Ambit Biosciences",
+          "direction": "in",
+          "upfront": "$315 million upfront",
+          "milestones": "additional payments bringing total deal value to $410 million",
+          "royalty": "unconfirmed",
+          "territory": "global oncology (kinase inhibitors including quizartinib)"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "people",
+      "from": null,
+      "to": [
+        {
+          "name": "Sunao Manabe",
+          "role": "Representative Director, Executive Chairperson (formerly President & CEO)",
+          "since": "2016-06-01",
+          "until": "2025-04-01 (as CEO; continues as Executive Chairperson, and retired from the Corporate Officer system 2026-03-31)",
+          "prior": [
+            "President & COO, Daiichi Sankyo"
+          ],
+          "departure_signal": "Planned, orderly leadership succession as part of company's stated management-structure transition, not a disclosed for-cause departure."
+        },
+        {
+          "name": "Hiroyuki Okuzawa",
+          "role": "Representative Director, President and CEO",
+          "since": "2025-04-01",
+          "prior": [
+            "unconfirmed \u2014 not established in this scan"
+          ]
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "pivots",
+      "from": null,
+      "to": [
+        {
+          "date": "2014-04-07",
+          "from": "The 2005 merger's stated 'hybrid business model' strategy \u2014 combining patented-drug innovation with Ranbaxy's generics scale and emerging-market reach, acquired for approx. $4.6bn in 2008 \u2014 was framed as core to becoming a 'Japan-based Global Pharma Innovator.'",
+          "to": "Complete exit from the generics/hybrid model: Daiichi Sankyo sold its entire 63.4% Ranbaxy stake to Sun Pharma in an all-share deal, ending the hybrid strategy and redirecting the company toward a pure innovative-oncology/ADC focus.",
+          "trigger": "Repeated US FDA manufacturing-quality actions at Ranbaxy facilities (2008 Paonta Sahib/Dewas import alert; a further Toansa API import alert in early 2014) and a $3.9 billion write-off taken on the Ranbaxy purchase in January 2009.",
+          "evidence": [
+            "SEC Rule 425 merger filing describing the 2005 integration strategy",
+            "C&EN 'Daiichi Quits On Ranbaxy' retrospective on the 2008 FDA import alerts and the $3.9bn write-off",
+            "Forbes coverage of the 2014-04-07 Sun Pharma sale announcement"
+          ],
+          "outcome": "Through 2026 Daiichi Sankyo has not re-entered generics; its subsequent large-scale strategic bets (AstraZeneca 2019, Merck 2023) are exclusively innovative-oncology ADC collaborations, and the company now states an ambition to be a top-5 global oncology player by 2035."
+        },
+        {
+          "date": "2022-01-12",
+          "from": "The 2011 Plexxikon acquisition ($805M+) was pursued as an in-house small-molecule precision-oncology discovery platform, delivering two approved drugs (Zelboraf, Turalio).",
+          "to": "Daiichi Sankyo announced closure of the 60-person Plexxikon R&D site in South San Francisco, reallocating investment to its three lead antibody-drug-conjugate (ADC/DXd) programs.",
+          "trigger": "unconfirmed \u2014 coverage attributes the closure to a capital-reallocation decision favoring the DXd ADC platform following Enhertu's commercial and clinical success, but no single named trigger event (e.g., a specific readout) was found in this scan.",
+          "evidence": [
+            "Fierce Biotech: 'Daiichi axes 60-person Plexxikon R&D facility in California to free up cash for ADC development' (2022-01-12)",
+            "Daiichi Sankyo press release 'Announces Reorganization of R&D Structure' (2022-01-12)"
+          ],
+          "outcome": "unconfirmed \u2014 this scan did not establish whether any Plexxikon-originated small-molecule programs continued elsewhere in the pipeline after the site closure (separations began 2022-03-31)."
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "setbacks",
+      "from": null,
+      "to": [
+        {
+          "date": "2008-09-16",
+          "kind": "clinical_hold",
+          "detail": "FDA import alert banning approximately 30 drugs manufactured at Ranbaxy's Paonta Sahib and Dewas facilities in India, issued within months of Daiichi Sankyo's June 2008 majority-stake acquisition of Ranbaxy; contributed to a $3.9 billion write-off Daiichi took on the purchase in January 2009 and to a subsequent $500 million FDA fine paid by Ranbaxy.",
+          "program": "Ranbaxy manufacturing operations (generics division, post-acquisition)"
+        },
+        {
+          "date": "2019-06-01",
+          "kind": "CRL",
+          "detail": "FDA issued a Complete Response Letter rejecting quizartinib's US application for relapsed/refractory FLT3-ITD AML on safety concerns, based on QuANTUM-R data, even as the same drug was approved in Japan (as Vanflyta) the same month. US approval was not obtained until 2023-07-20, nearly four years later, for a broader newly-diagnosed-AML indication.",
+          "program": "quizartinib / Vanflyta (FLT3-ITD AML)"
+        },
+        {
+          "date": "2015-10-20",
+          "kind": "layoff",
+          "detail": "Daiichi Sankyo announced plans to lay off 1,000-1,200 US workers, primarily in commercial operations, its second major US layoff round within 18 months following a 16% headquarters workforce cut in spring 2015.",
+          "program": "US commercial organization (company-wide, not asset-specific)"
+        },
+        {
+          "date": "2022-01-12",
+          "kind": "restructuring",
+          "detail": "Closure of the 60-person Plexxikon R&D site in South San Francisco, with earliest employee separations effective 2022-03-31 and full transition by end of June 2022, redirecting capital to the DXd ADC pipeline.",
+          "program": "Plexxikon small-molecule discovery platform"
+        },
+        {
+          "date": "2024-06-26",
+          "kind": "CRL",
+          "detail": "FDA issued a Complete Response Letter for the patritumab deruxtecan (HER3-DXd) BLA in EGFR-mutated NSCLC, citing inspection findings at a third-party manufacturing facility; the CRL did not cite efficacy or safety data issues.",
+          "program": "patritumab deruxtecan / HER3-DXd (EGFR-mutated NSCLC)"
+        },
+        {
+          "date": "2025-05-29",
+          "kind": "discontinuation",
+          "detail": "Daiichi Sankyo and Merck voluntarily withdrew the patritumab deruxtecan BLA for EGFR-mutated NSCLC after the Phase 3 HERTHENA-Lung02 trial failed to reach statistical significance on overall survival; the companies stated the withdrawal was unrelated to the 2024 manufacturing-related CRL.",
+          "program": "patritumab deruxtecan / HER3-DXd (EGFR-mutated NSCLC)"
+        },
+        {
+          "date": "2025-01-01",
+          "kind": "restructuring",
+          "detail": "Daiichi Sankyo reported a $610 million profit hit tied to a precautionary/risk-adjusted overbuild of its ADC manufacturing capacity, including a 75.7 billion yen compensation payment to contractors reflecting a change from its prior manufacturing strategy; the company subsequently disclosed a $1.3 billion efficiency drive as part of a new five-year plan. Exact disclosure date within FY2025 reporting is unconfirmed from this scan.",
+          "program": "ADC (DXd platform) manufacturing and supply chain, company-wide"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    }
+  ],
+  "version": 1,
+  "last_edited_by": "loop"
+}

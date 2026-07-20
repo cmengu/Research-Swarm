@@ -1,0 +1,364 @@
+{
+  "entity_id": "co_akeso",
+  "kind": "company",
+  "first_seen": "2026-07-20",
+  "coverage": {
+    "thin_sections": [
+      "pivots",
+      "setbacks"
+    ]
+  },
+  "as_of": "2026-07-20",
+  "facts": {
+    "identity": {
+      "value": {
+        "legal_name": "Akeso, Inc.",
+        "aliases": [
+          "Akeso Biopharma",
+          "\u5eb7\u65b9\u751f\u7269",
+          "\u5eb7\u65b9\u751f\u7269\u79d1\u6280\uff08\u5f00\u66fc\uff09\u6709\u9650\u516c\u53f8",
+          "\u5eb7\u65b9\u751f\u7269\u79d1\u6280\uff08\u958b\u66fc\uff09\u6709\u9650\u516c\u53f8"
+        ],
+        "founded": "2012",
+        "hq": "Zhongshan, Guangdong, China",
+        "status": "public",
+        "listings": [
+          {
+            "exchange": "HKEX",
+            "ticker": "9926"
+          }
+        ]
+      },
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "origin": {
+      "value": {
+        "founding_story": "Founded in Zhongshan, Guangdong in March 2012 by Michelle Xia (Yu Xia) together with co-founders Peng Zhang, Baiyong Li and Zhongmin Wang, building an in-house antibody discovery platform (the ACE and Tetrabody bispecific platforms) targeting oncology and autoimmune disease.",
+        "founders": [
+          "Michelle Xia (Yu Xia)",
+          "Peng Zhang",
+          "Baiyong Li",
+          "Zhongmin Wang"
+        ]
+      },
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "funding": {
+      "value": {
+        "total_raised": "at least ~US$464M across disclosed pre-IPO rounds and IPO (Series C + Series D + IPO); full private-round history not fully reconstructed within budget",
+        "rounds": [
+          {
+            "date": "2019-10-30",
+            "stage": "Series C",
+            "amount": "undisclosed total",
+            "currency": "USD",
+            "lead": "Ally Bridge Group",
+            "investors": [
+              "Shenzhen Capital Group",
+              "Triwise Capital",
+              "Jianxin Capital"
+            ]
+          },
+          {
+            "date": "2019-11-01",
+            "stage": "Series D",
+            "amount": "150000000",
+            "currency": "USD",
+            "lead": "Loyal Valley Capital, Sino Biopharmaceutical",
+            "investors": [
+              "Lake Bleu Capital",
+              "AIHC Capital",
+              "OrbiMed",
+              "Shenzhen Capital Group",
+              "CDG International"
+            ]
+          }
+        ],
+        "ipo": {
+          "date": "2020-04-24",
+          "exchange": "HKEX",
+          "raised": "HK$2.4 billion (~US$314 million)",
+          "price": "HK$16.18 per share (top of indicative range, oversubscribed 639.2x)"
+        }
+      },
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "pipeline": {
+      "value": [
+        {
+          "indication": "relapsed/metastatic cervical cancer (first indication); later expanded to first-line gastric/GEJ cancer and other solid tumors",
+          "phase": "approved",
+          "status": "marketed in China as \u5f00\u5766\u5c3c/cadonilimab (AK104), a PD-1/CTLA-4 bispecific antibody described by the company as the first dual immune-checkpoint-inhibitor bispecific approved for marketing globally",
+          "first_disclosed": "2022-06-29"
+        },
+        {
+          "indication": "first-line gastric/GEJ adenocarcinoma (second approved indication for cadonilimab)",
+          "phase": "approved",
+          "status": "NMPA supplemental approval granted",
+          "first_disclosed": "2024-09-01"
+        },
+        {
+          "indication": "multiple solid tumors including NSCLC, gastrointestinal, hepatocellular and colorectal cancer (17 indications in active trials as of 2026)",
+          "phase": "Phase 3 (multiple trials) / out-licensed for ex-China territories",
+          "status": "ivonescimab (AK112), PD-1/VEGF bispecific antibody; China rights retained by Akeso, ex-China rights (US, Canada, EU, Japan, and since June 2024 also Latin America, Middle East and Africa) held by Summit Therapeutics",
+          "first_disclosed": "2022-12-06"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "deals": {
+      "value": [
+        {
+          "date": "2015",
+          "type": "license",
+          "counterparty": "Merck & Co.",
+          "direction": "out",
+          "upfront": "undisclosed (part of deal worth up to US$200M total)",
+          "milestones": "up to US$200M total consideration",
+          "royalty": "not disclosed in sources reached",
+          "territory": "not disclosed in sources reached"
+        },
+        {
+          "date": "2022-12-05",
+          "type": "license",
+          "counterparty": "Summit Therapeutics Inc.",
+          "direction": "out",
+          "upfront": "US$500 million (paid as US$300M at closing 2023-01-20 plus US$200M on 2023-03-06)",
+          "milestones": "up to US$4.5 billion in regulatory and commercial milestones (deal described by parties as worth up to US$5 billion total)",
+          "royalty": "tiered double-digit royalties on net sales",
+          "territory": "originally United States, Canada, European Union, Japan; expanded June 2024 to also include Latin America, Middle East and Africa. China and rest-of-world rights retained by Akeso."
+        },
+        {
+          "date": "unconfirmed",
+          "type": "collab",
+          "counterparty": "Chia Tai Tianqing Pharmaceutical Group / Sino Biopharmaceutical (joint venture: CTTQ-Akeso)",
+          "direction": "out",
+          "upfront": "not disclosed in sources reached",
+          "milestones": "not disclosed in sources reached",
+          "royalty": "not applicable \u2014 commercialization joint venture, not a royalty-bearing license",
+          "territory": "China"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "people": {
+      "value": [
+        {
+          "name": "Michelle Xia (Yu Xia)",
+          "role": "Chairwoman, President and Chief Executive Officer",
+          "since": "2012",
+          "prior": [
+            "Biochemistry degree, Sun Yat-sen University, Guangzhou (1988)",
+            "PhD, molecular biology and microbiology, Newcastle University, UK"
+          ]
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "pivots": {
+      "value": [],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "setbacks": {
+      "value": [],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    }
+  },
+  "drift_log": [
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "identity",
+      "from": null,
+      "to": {
+        "legal_name": "Akeso, Inc.",
+        "aliases": [
+          "Akeso Biopharma",
+          "\u5eb7\u65b9\u751f\u7269",
+          "\u5eb7\u65b9\u751f\u7269\u79d1\u6280\uff08\u5f00\u66fc\uff09\u6709\u9650\u516c\u53f8",
+          "\u5eb7\u65b9\u751f\u7269\u79d1\u6280\uff08\u958b\u66fc\uff09\u6709\u9650\u516c\u53f8"
+        ],
+        "founded": "2012",
+        "hq": "Zhongshan, Guangdong, China",
+        "status": "public",
+        "listings": [
+          {
+            "exchange": "HKEX",
+            "ticker": "9926"
+          }
+        ]
+      },
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "origin",
+      "from": null,
+      "to": {
+        "founding_story": "Founded in Zhongshan, Guangdong in March 2012 by Michelle Xia (Yu Xia) together with co-founders Peng Zhang, Baiyong Li and Zhongmin Wang, building an in-house antibody discovery platform (the ACE and Tetrabody bispecific platforms) targeting oncology and autoimmune disease.",
+        "founders": [
+          "Michelle Xia (Yu Xia)",
+          "Peng Zhang",
+          "Baiyong Li",
+          "Zhongmin Wang"
+        ]
+      },
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "funding",
+      "from": null,
+      "to": {
+        "total_raised": "at least ~US$464M across disclosed pre-IPO rounds and IPO (Series C + Series D + IPO); full private-round history not fully reconstructed within budget",
+        "rounds": [
+          {
+            "date": "2019-10-30",
+            "stage": "Series C",
+            "amount": "undisclosed total",
+            "currency": "USD",
+            "lead": "Ally Bridge Group",
+            "investors": [
+              "Shenzhen Capital Group",
+              "Triwise Capital",
+              "Jianxin Capital"
+            ]
+          },
+          {
+            "date": "2019-11-01",
+            "stage": "Series D",
+            "amount": "150000000",
+            "currency": "USD",
+            "lead": "Loyal Valley Capital, Sino Biopharmaceutical",
+            "investors": [
+              "Lake Bleu Capital",
+              "AIHC Capital",
+              "OrbiMed",
+              "Shenzhen Capital Group",
+              "CDG International"
+            ]
+          }
+        ],
+        "ipo": {
+          "date": "2020-04-24",
+          "exchange": "HKEX",
+          "raised": "HK$2.4 billion (~US$314 million)",
+          "price": "HK$16.18 per share (top of indicative range, oversubscribed 639.2x)"
+        }
+      },
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "pipeline",
+      "from": null,
+      "to": [
+        {
+          "indication": "relapsed/metastatic cervical cancer (first indication); later expanded to first-line gastric/GEJ cancer and other solid tumors",
+          "phase": "approved",
+          "status": "marketed in China as \u5f00\u5766\u5c3c/cadonilimab (AK104), a PD-1/CTLA-4 bispecific antibody described by the company as the first dual immune-checkpoint-inhibitor bispecific approved for marketing globally",
+          "first_disclosed": "2022-06-29"
+        },
+        {
+          "indication": "first-line gastric/GEJ adenocarcinoma (second approved indication for cadonilimab)",
+          "phase": "approved",
+          "status": "NMPA supplemental approval granted",
+          "first_disclosed": "2024-09-01"
+        },
+        {
+          "indication": "multiple solid tumors including NSCLC, gastrointestinal, hepatocellular and colorectal cancer (17 indications in active trials as of 2026)",
+          "phase": "Phase 3 (multiple trials) / out-licensed for ex-China territories",
+          "status": "ivonescimab (AK112), PD-1/VEGF bispecific antibody; China rights retained by Akeso, ex-China rights (US, Canada, EU, Japan, and since June 2024 also Latin America, Middle East and Africa) held by Summit Therapeutics",
+          "first_disclosed": "2022-12-06"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "deals",
+      "from": null,
+      "to": [
+        {
+          "date": "2015",
+          "type": "license",
+          "counterparty": "Merck & Co.",
+          "direction": "out",
+          "upfront": "undisclosed (part of deal worth up to US$200M total)",
+          "milestones": "up to US$200M total consideration",
+          "royalty": "not disclosed in sources reached",
+          "territory": "not disclosed in sources reached"
+        },
+        {
+          "date": "2022-12-05",
+          "type": "license",
+          "counterparty": "Summit Therapeutics Inc.",
+          "direction": "out",
+          "upfront": "US$500 million (paid as US$300M at closing 2023-01-20 plus US$200M on 2023-03-06)",
+          "milestones": "up to US$4.5 billion in regulatory and commercial milestones (deal described by parties as worth up to US$5 billion total)",
+          "royalty": "tiered double-digit royalties on net sales",
+          "territory": "originally United States, Canada, European Union, Japan; expanded June 2024 to also include Latin America, Middle East and Africa. China and rest-of-world rights retained by Akeso."
+        },
+        {
+          "date": "unconfirmed",
+          "type": "collab",
+          "counterparty": "Chia Tai Tianqing Pharmaceutical Group / Sino Biopharmaceutical (joint venture: CTTQ-Akeso)",
+          "direction": "out",
+          "upfront": "not disclosed in sources reached",
+          "milestones": "not disclosed in sources reached",
+          "royalty": "not applicable \u2014 commercialization joint venture, not a royalty-bearing license",
+          "territory": "China"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "people",
+      "from": null,
+      "to": [
+        {
+          "name": "Michelle Xia (Yu Xia)",
+          "role": "Chairwoman, President and Chief Executive Officer",
+          "since": "2012",
+          "prior": [
+            "Biochemistry degree, Sun Yat-sen University, Guangzhou (1988)",
+            "PhD, molecular biology and microbiology, Newcastle University, UK"
+          ]
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "pivots",
+      "from": null,
+      "to": [],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "setbacks",
+      "from": null,
+      "to": [],
+      "run_id": "run_20260720_1521"
+    }
+  ],
+  "version": 1,
+  "last_edited_by": "loop"
+}

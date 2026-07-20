@@ -1,0 +1,97 @@
+{
+  "entity_id": "asset_ak138d1",
+  "first_seen": "2026-07-20",
+  "facts": {
+    "name": {
+      "value": "AK138D1",
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "type": {
+      "value": "frontier_asset",
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "holders": {
+      "value": [
+        "Akeso"
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "categories": {
+      "value": [
+        "trial_start"
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "sources": {
+      "value": [
+        {
+          "url": "https://www.prnewswire.com/news-releases/akesos-next-generation-her3-adc-ak138d1-combined-with-ivonescimab-first-patient-enrolled-in-phase-ibii-breast-cancer-study-advancing-the-io2-0--adc2-0-strategy-302800044.html",
+          "publisher": "PR Newswire",
+          "tier": "trade",
+          "published_at": "2026-06-15"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    }
+  },
+  "drift_log": [
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "name",
+      "from": null,
+      "to": "AK138D1",
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "type",
+      "from": null,
+      "to": "frontier_asset",
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "holders",
+      "from": null,
+      "to": [
+        "Akeso"
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "categories",
+      "from": null,
+      "to": [
+        "trial_start"
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "sources",
+      "from": null,
+      "to": [
+        {
+          "url": "https://www.prnewswire.com/news-releases/akesos-next-generation-her3-adc-ak138d1-combined-with-ivonescimab-first-patient-enrolled-in-phase-ibii-breast-cancer-study-advancing-the-io2-0--adc2-0-strategy-302800044.html",
+          "publisher": "PR Newswire",
+          "tier": "trade",
+          "published_at": "2026-06-15"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    }
+  ],
+  "version": 1,
+  "last_edited_by": "loop"
+}

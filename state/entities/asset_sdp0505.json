@@ -1,0 +1,113 @@
+{
+  "entity_id": "asset_sdp0505",
+  "first_seen": "2026-07-20",
+  "facts": {
+    "name": {
+      "value": "SDP0505",
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "type": {
+      "value": "frontier_asset",
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "holders": {
+      "value": [
+        "Shanghai Shengdi Pharmaceutical",
+        "Jiangsu Hengrui"
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "categories": {
+      "value": [
+        "preclinical_data",
+        "regulatory"
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "sources": {
+      "value": [
+        {
+          "url": "https://doi.org/10.1093/abt/tbag015",
+          "publisher": "Antibody Therapeutics (Oxford Academic)",
+          "tier": "primary",
+          "published_at": "2026-04-21"
+        },
+        {
+          "url": "https://pubmed.ncbi.nlm.nih.gov/42145655/",
+          "publisher": "PubMed",
+          "tier": "primary",
+          "published_at": "2026-04-21"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    }
+  },
+  "drift_log": [
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "name",
+      "from": null,
+      "to": "SDP0505",
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "type",
+      "from": null,
+      "to": "frontier_asset",
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "holders",
+      "from": null,
+      "to": [
+        "Shanghai Shengdi Pharmaceutical",
+        "Jiangsu Hengrui"
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "categories",
+      "from": null,
+      "to": [
+        "preclinical_data",
+        "regulatory"
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "sources",
+      "from": null,
+      "to": [
+        {
+          "url": "https://doi.org/10.1093/abt/tbag015",
+          "publisher": "Antibody Therapeutics (Oxford Academic)",
+          "tier": "primary",
+          "published_at": "2026-04-21"
+        },
+        {
+          "url": "https://pubmed.ncbi.nlm.nih.gov/42145655/",
+          "publisher": "PubMed",
+          "tier": "primary",
+          "published_at": "2026-04-21"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    }
+  ],
+  "version": 1,
+  "last_edited_by": "loop"
+}

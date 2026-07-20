@@ -1,0 +1,109 @@
+{
+  "entity_id": "asset_jskn016",
+  "first_seen": "2026-07-20",
+  "facts": {
+    "name": {
+      "value": "JSKN016",
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "type": {
+      "value": "frontier_asset",
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "holders": {
+      "value": [
+        "Alphamab Oncology"
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "categories": {
+      "value": [
+        "trial_readout"
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "sources": {
+      "value": [
+        {
+          "url": "https://www.alphamabonc.com/en/html/news/2810.html",
+          "publisher": "Alphamab Oncology",
+          "tier": "primary",
+          "published_at": "2026-06-02"
+        },
+        {
+          "url": "https://www.biopharminternational.com/view/alphamab-oncology-to-present-phase-1-data-on-bispecific-adc-jskn016-in-her2-negative-breast-cancer-at-asco-2026",
+          "publisher": "BioPharm International",
+          "tier": "trade",
+          "published_at": "2026-04-23"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    }
+  },
+  "drift_log": [
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "name",
+      "from": null,
+      "to": "JSKN016",
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "type",
+      "from": null,
+      "to": "frontier_asset",
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "holders",
+      "from": null,
+      "to": [
+        "Alphamab Oncology"
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "categories",
+      "from": null,
+      "to": [
+        "trial_readout"
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "sources",
+      "from": null,
+      "to": [
+        {
+          "url": "https://www.alphamabonc.com/en/html/news/2810.html",
+          "publisher": "Alphamab Oncology",
+          "tier": "primary",
+          "published_at": "2026-06-02"
+        },
+        {
+          "url": "https://www.biopharminternational.com/view/alphamab-oncology-to-present-phase-1-data-on-bispecific-adc-jskn016-in-her2-negative-breast-cancer-at-asco-2026",
+          "publisher": "BioPharm International",
+          "tier": "trade",
+          "published_at": "2026-04-23"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    }
+  ],
+  "version": 1,
+  "last_edited_by": "loop"
+}

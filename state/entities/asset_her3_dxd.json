@@ -21,8 +21,94 @@
       ],
       "established_by": "seed:roster-migration-2026-07-20",
       "issue": null
+    },
+    "status": {
+      "value": "developing",
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "summary": {
+      "value": "Daiichi Sankyo's FY2025 (Q4) results and 5-year business plan presentation on 2026-05-11 disclosed that patritumab deruxtecan 'did not demonstrate positive results' in the EGFR-mutated lung cancer setting \u2014 a program Daiichi had previously positioned as a third pillar alongside Enhertu and Datroway. Management revised the drug's launch timing without disclosing a new date, and the company's profit-forecast cut was linked in part to the US withdrawal and an ADC supply-strategy shift. The earnings-call readout of the same event adds that competing Daiichi ADC programs (I-DXd, R-DXd) are being accelerated by contrast; that launch-timing detail reached us through an aggregator paraphrase (AllSci, 2026-05-13) of the call and is reported here as such. This follows the May 2025 voluntary BLA withdrawal after HERTHENA-Lung02 missed overall survival \u2014 an event outside this coverage window and cited here only as context.",
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "categories": {
+      "value": [
+        "trial_readout",
+        "corporate_disclosure"
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "sources": {
+      "value": [
+        {
+          "url": "https://www.daiichisankyo.com/files/investors/library/materials/2026/FY2025%20Financial%20Results%20and%205Year%20Business%20Plan%20Presentation_E.pdf",
+          "publisher": "Daiichi Sankyo Co., Ltd.",
+          "tier": "primary",
+          "published_at": "2026-05-11"
+        },
+        {
+          "url": "https://allsci.com/news/earnings-call-insights/daiichi-sankyos-q426-earnings-call-five-year-plan-target-for-jpy-3-tril-oncology-revenues/",
+          "publisher": "AllSci",
+          "tier": "aggregator",
+          "published_at": "2026-05-13"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
     }
   },
-  "last_edited_by": "owner",
-  "drift_log": []
+  "last_edited_by": "loop",
+  "drift_log": [
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "status",
+      "from": null,
+      "to": "developing",
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "summary",
+      "from": null,
+      "to": "Daiichi Sankyo's FY2025 (Q4) results and 5-year business plan presentation on 2026-05-11 disclosed that patritumab deruxtecan 'did not demonstrate positive results' in the EGFR-mutated lung cancer setting \u2014 a program Daiichi had previously positioned as a third pillar alongside Enhertu and Datroway. Management revised the drug's launch timing without disclosing a new date, and the company's profit-forecast cut was linked in part to the US withdrawal and an ADC supply-strategy shift. The earnings-call readout of the same event adds that competing Daiichi ADC programs (I-DXd, R-DXd) are being accelerated by contrast; that launch-timing detail reached us through an aggregator paraphrase (AllSci, 2026-05-13) of the call and is reported here as such. This follows the May 2025 voluntary BLA withdrawal after HERTHENA-Lung02 missed overall survival \u2014 an event outside this coverage window and cited here only as context.",
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "categories",
+      "from": null,
+      "to": [
+        "trial_readout",
+        "corporate_disclosure"
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "sources",
+      "from": null,
+      "to": [
+        {
+          "url": "https://www.daiichisankyo.com/files/investors/library/materials/2026/FY2025%20Financial%20Results%20and%205Year%20Business%20Plan%20Presentation_E.pdf",
+          "publisher": "Daiichi Sankyo Co., Ltd.",
+          "tier": "primary",
+          "published_at": "2026-05-11"
+        },
+        {
+          "url": "https://allsci.com/news/earnings-call-insights/daiichi-sankyos-q426-earnings-call-five-year-plan-target-for-jpy-3-tril-oncology-revenues/",
+          "publisher": "AllSci",
+          "tier": "aggregator",
+          "published_at": "2026-05-13"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    }
+  ],
+  "version": 1
 }

@@ -1,19 +1,25 @@
 {
   "program_id": "hmbd-001",
-  "generated_at": "2026-07-20T14:58:46+08:00",
+  "generated_at": "2026-07-20T15:21:59+08:00",
   "issues": [
     {
       "id": "2026-07-20",
-      "published_at": "2026-07-20T14:58:46.377659",
+      "published_at": "2026-07-20T15:21:59.737313",
       "coverage_window": {
         "from": "2026-05-01",
         "to": "2026-07-20"
       },
-      "status": "failed",
-      "headline_title": null,
-      "stats": {},
+      "status": "published",
+      "headline_title": "Daiichi concedes HER3-DXd missed in EGFR-mutated lung and pushes launch timing out \u2014 while four China-originated HER3 ADCs move up behind it",
+      "stats": {
+        "competitors_moved": 1,
+        "sources_cited": 16,
+        "indications_covered": 2,
+        "newly_discovered": 4
+      },
       "flags": [
-        "failed"
+        "arena_scan_failed",
+        "arena_scan_dormant"
       ]
     },
     {

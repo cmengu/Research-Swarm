@@ -1,0 +1,241 @@
+{
+  "entity_id": "co_merck",
+  "kind": "company",
+  "first_seen": "2026-07-20",
+  "coverage": {
+    "thin_sections": [
+      "funding"
+    ],
+    "degradation": "prior submission failed validation: dossier.pivots[1] missing provenance; this resubmission reduces to a single, fully-provenanced pivot entry rather than attempting to repair the unrecoverable second entry"
+  },
+  "as_of": "2026-07-20",
+  "facts": {
+    "identity": {
+      "value": {
+        "legal_name": "Merck & Co., Inc.",
+        "aliases": [
+          "MSD (Merck Sharp & Dohme, used outside the US and Canada)",
+          "Merck"
+        ],
+        "founded": "1891-01-01",
+        "hq": "Rahway, New Jersey, United States",
+        "status": "public",
+        "listings": [
+          {
+            "exchange": "NYSE",
+            "ticker": "MRK"
+          }
+        ]
+      },
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "origin": {
+      "value": {
+        "founding_story": "Merck & Co. began as the US subsidiary of the German company E. Merck, established in New York in 1891; it was seized and sold as an independent American company by the US government's Alien Property Custodian during World War I, becoming fully independent of the German parent in 1919.",
+        "founders": [
+          "George Merck"
+        ],
+        "spun_out_of": "E. Merck (Darmstadt, Germany)"
+      },
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "pipeline": {
+      "value": [
+        {
+          "indication": "metastatic melanoma / multiple oncology indications (PD-1 inhibitor)",
+          "phase": "approved",
+          "status": "marketed",
+          "first_disclosed": "2014-09-04"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "deals": {
+      "value": [
+        {
+          "date": "2009-11-03",
+          "type": "M&A",
+          "counterparty": "Schering-Plough Corporation",
+          "direction": "in",
+          "upfront": "$41.1 billion",
+          "territory": "global"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "people": {
+      "value": [
+        {
+          "name": "Robert M. Davis",
+          "role": "Chairman and Chief Executive Officer",
+          "since": "2021-06-30",
+          "prior": [
+            "Merck Executive Vice President and CFO",
+            "Baxter International"
+          ]
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "pivots": {
+      "value": [
+        {
+          "date": "2021-06-02",
+          "from": "Merck's 2020 10-K described a broadly diversified business spanning Pharmaceutical, Animal Health, and Women's Health/Biosimilars/Legacy Brands segments as core to its strategy",
+          "to": "Merck spun off its women's health, legacy brands, and biosimilars businesses into a standalone independent public company, Organon & Co.",
+          "trigger": "activist and investor pressure to focus capital allocation on the high-growth oncology and vaccines pipeline following Keytruda's commercial success",
+          "evidence": [
+            "Merck 2020 Form 10-K business-segment description",
+            "Merck press release announcing the Organon spin-off completion, 2021-06-02"
+          ],
+          "outcome": "Merck has not re-entered the women's health/legacy brands business through 2026; Organon has traded as an independent NYSE-listed company (OGN) since June 2021"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "setbacks": {
+      "value": [
+        {
+          "date": "2021-01-25",
+          "kind": "discontinuation",
+          "detail": "Merck discontinued development of two COVID-19 vaccine candidates, V590 and V591, after Phase 1 studies showed immune responses inferior to natural infection and to other approved vaccines; the company pivoted resources toward its therapeutic candidate molnupiravir.",
+          "program": "Merck's COVID-19 vaccine candidates V590 and V591"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    }
+  },
+  "drift_log": [
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "identity",
+      "from": null,
+      "to": {
+        "legal_name": "Merck & Co., Inc.",
+        "aliases": [
+          "MSD (Merck Sharp & Dohme, used outside the US and Canada)",
+          "Merck"
+        ],
+        "founded": "1891-01-01",
+        "hq": "Rahway, New Jersey, United States",
+        "status": "public",
+        "listings": [
+          {
+            "exchange": "NYSE",
+            "ticker": "MRK"
+          }
+        ]
+      },
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "origin",
+      "from": null,
+      "to": {
+        "founding_story": "Merck & Co. began as the US subsidiary of the German company E. Merck, established in New York in 1891; it was seized and sold as an independent American company by the US government's Alien Property Custodian during World War I, becoming fully independent of the German parent in 1919.",
+        "founders": [
+          "George Merck"
+        ],
+        "spun_out_of": "E. Merck (Darmstadt, Germany)"
+      },
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "pipeline",
+      "from": null,
+      "to": [
+        {
+          "indication": "metastatic melanoma / multiple oncology indications (PD-1 inhibitor)",
+          "phase": "approved",
+          "status": "marketed",
+          "first_disclosed": "2014-09-04"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "deals",
+      "from": null,
+      "to": [
+        {
+          "date": "2009-11-03",
+          "type": "M&A",
+          "counterparty": "Schering-Plough Corporation",
+          "direction": "in",
+          "upfront": "$41.1 billion",
+          "territory": "global"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "people",
+      "from": null,
+      "to": [
+        {
+          "name": "Robert M. Davis",
+          "role": "Chairman and Chief Executive Officer",
+          "since": "2021-06-30",
+          "prior": [
+            "Merck Executive Vice President and CFO",
+            "Baxter International"
+          ]
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "pivots",
+      "from": null,
+      "to": [
+        {
+          "date": "2021-06-02",
+          "from": "Merck's 2020 10-K described a broadly diversified business spanning Pharmaceutical, Animal Health, and Women's Health/Biosimilars/Legacy Brands segments as core to its strategy",
+          "to": "Merck spun off its women's health, legacy brands, and biosimilars businesses into a standalone independent public company, Organon & Co.",
+          "trigger": "activist and investor pressure to focus capital allocation on the high-growth oncology and vaccines pipeline following Keytruda's commercial success",
+          "evidence": [
+            "Merck 2020 Form 10-K business-segment description",
+            "Merck press release announcing the Organon spin-off completion, 2021-06-02"
+          ],
+          "outcome": "Merck has not re-entered the women's health/legacy brands business through 2026; Organon has traded as an independent NYSE-listed company (OGN) since June 2021"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "setbacks",
+      "from": null,
+      "to": [
+        {
+          "date": "2021-01-25",
+          "kind": "discontinuation",
+          "detail": "Merck discontinued development of two COVID-19 vaccine candidates, V590 and V591, after Phase 1 studies showed immune responses inferior to natural infection and to other approved vaccines; the company pivoted resources toward its therapeutic candidate molnupiravir.",
+          "program": "Merck's COVID-19 vaccine candidates V590 and V591"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    }
+  ],
+  "version": 1,
+  "last_edited_by": "loop"
+}

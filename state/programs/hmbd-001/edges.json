@@ -1,6 +1,117 @@
 {
   "program_id": "hmbd-001",
   "_comment": "Per-program relation edges: (program_id x entity_id) -> relation + read_through (spec/03). One entry per typed competitor. The shared FACT about an entity lives once in state/entities/<entity_id>.json; the READ-THROUGH (what that fact means for THIS program) lives here. Seeded empty: entities are typed onto the program at run time via the promotion path (config seed_competitors, then house-sweep discovery). Populating this from the v1 roster is a deferred HITL curation session, not a compile step (spec/03 'Migrating the seeded roster').",
-  "edges": [],
-  "drift_log": []
+  "edges": [
+    {
+      "entity_id": "asset_her3_dxd",
+      "relation": "target_twin",
+      "read_through": {
+        "relation": "target_twin",
+        "thesis_bearing": "confirms",
+        "text": "HER3-DXd is a target twin, not a mechanism twin: it shares HER3 with HMBD-001 but delivers a topoisomerase-I payload rather than blocking signalling, so its outcomes speak to the target's tractability and to ADC chemistry \u2014 never to whether signalling blockade works. That distinction is what makes this cycle readable. On the ADC thesis \u2014 that value accrues to the linker-payload platform owner rather than to whoever picks the target \u2014 this is confirming evidence of the uncomfortable kind: Daiichi picked the target that HMBD-001 also picked, missed with it, and responded not by defending HER3 but by reallocating to I-DXd and R-DXd, the same DXd chemistry aimed elsewhere. The platform absorbed the loss; the target ate it. For HMBD-001 the practical consequence is that the field's loudest HER3 validation event is gone and no ADC readout is scheduled to replace it, which removes both a threat and a crutch: nobody is going to prove HER3 is drug-worthy on this program's behalf before its own Phase 1b data exists. Read the launch-timing revision as a portfolio verdict on this asset, not as evidence about the HER3 axis \u2014 the EGFRm-lung miss is confounded by setting and by payload, and a signalling antibody's failure modes do not overlap with an ADC's.",
+        "established_by": "run_20260720_1521"
+      },
+      "promoted_by": "run_20260720_1521",
+      "drift_log": [
+        {
+          "date": "2026-07-20",
+          "action": "promoted",
+          "to_relation": "target_twin",
+          "run_id": "run_20260720_1521"
+        }
+      ]
+    },
+    {
+      "entity_id": "asset_sdp0505",
+      "relation": "target_twin",
+      "read_through": {
+        "relation": "target_twin",
+        "thesis_bearing": "confirms",
+        "established_by": "run_20260720_1521",
+        "text": "This is the asset the watching-tier interest was written to catch, and it arrived through the one channel the sweep can read \u2014 an English-language journal \u2014 which is itself the argument for that interest. SDP0505 shares HER3 with HMBD-001 but couples it to c-Met and delivers a payload, so it is a target twin: its success would validate that HER3 is worth binding, not that blocking HER3 signalling does anything. It matters more than its stage suggests because it is aimed at EGFR-TKI-resistant NSCLC \u2014 the exact setting where HER3-DXd just failed \u2014 and because a 2026 China BLA would put a HER3-directed agent in front of a regulator years before HMBD-001 reaches that conversation. On the ADC thesis, it confirms: another sponsor picking HER3 and betting the differentiation on chemistry and a second antigen rather than on the target choice. The read for the decision-owner is timing, not threat \u2014 a China approval sets a global reference point for what HER3 engagement is worth, and it would land while HMBD-001's Phase 1b is still generating.",
+        "text_note": null
+      },
+      "promoted_by": "run_20260720_1521",
+      "drift_log": [
+        {
+          "date": "2026-07-20",
+          "action": "promoted",
+          "to_relation": "target_twin",
+          "run_id": "run_20260720_1521"
+        }
+      ]
+    },
+    {
+      "entity_id": "asset_jskn016",
+      "relation": "target_twin",
+      "read_through": {
+        "relation": "target_twin",
+        "thesis_bearing": "confirms",
+        "established_by": "run_20260720_1521",
+        "text": "Of everything that moved this cycle, this is the only HER3 co-targeting asset with human efficacy attached, and the numbers are not marginal \u2014 64.5% ORR in TNBC at RP2D, already carried into Phase III. Its bearing on HMBD-001 is oblique but real: it is a target twin whose HER3 arm rides alongside TROP2 and a payload, so a win reads as 'HER3 is a useful thing to bind', never as 'HER3 signalling is a useful thing to block'. That distinction is the whole reason to type it carefully rather than let a strong response rate frighten the program. On the ADC thesis it is confirming and rather pointedly so: Alphamab's differentiation is bispecific format and payload engineering, and the HER3 arm is one of two targets chosen in service of the chemistry. The genuine consequence for the decision-owner is that the field's HER3 narrative is being rewritten in breast cancer by a sponsor with no lung program, at the same moment the lung HER3 flagship stalled \u2014 so the next thing 'everyone knows' about HER3 may come from a setting HMBD-001 does not compete in, and will still set the tone in which its data is received.",
+        "text_note": null
+      },
+      "promoted_by": "run_20260720_1521",
+      "drift_log": [
+        {
+          "date": "2026-07-20",
+          "action": "promoted",
+          "to_relation": "target_twin",
+          "run_id": "run_20260720_1521"
+        }
+      ]
+    },
+    {
+      "entity_id": "asset_ak138d1",
+      "relation": "target_twin",
+      "read_through": {
+        "relation": "target_twin",
+        "thesis_bearing": "confirms",
+        "established_by": "run_20260720_1521",
+        "text": "AK138D1 is an anti-HER3 antibody plus a topoisomerase-I payload \u2014 which is to say, it is architecturally the same bet as HER3-DXd, restarted by a different sponsor in the same quarter that Daiichi's version lost its launch date. That timing is the finding. It is a target twin to HMBD-001: same antigen, payload delivery instead of signalling blockade, so nothing it produces will speak to HMBD-001's mechanism either way. What earns it attention is the company attached. Akeso is the sponsor the platform-vs-asset thesis names as the proof that a mid-cap with one Phase 3 curve moves Big Pharma, and it is now pairing a HER3 ADC with its own setting-rival bispecific in a single 860-patient protocol. On the ADC thesis this confirms cleanly \u2014 a new entrant picking the identical target and differentiating on payload and combination rather than on target selection. The near-term relevance to HMBD-001 is low: it is breast cancer, Phase Ib/II, China-sited, and nowhere near the squamous arena. The medium-term relevance is the combination architecture, which is a template that travels to lung if it works.",
+        "text_note": null
+      },
+      "promoted_by": "run_20260720_1521",
+      "drift_log": [
+        {
+          "date": "2026-07-20",
+          "action": "promoted",
+          "to_relation": "target_twin",
+          "run_id": "run_20260720_1521"
+        }
+      ]
+    }
+  ],
+  "drift_log": [
+    {
+      "date": "2026-07-20",
+      "action": "promoted",
+      "entity_id": "asset_her3_dxd",
+      "relation": "target_twin",
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "promoted",
+      "entity_id": "asset_sdp0505",
+      "relation": "target_twin",
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "promoted",
+      "entity_id": "asset_jskn016",
+      "relation": "target_twin",
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "promoted",
+      "entity_id": "asset_ak138d1",
+      "relation": "target_twin",
+      "run_id": "run_20260720_1521"
+    }
+  ],
+  "version": 1,
+  "last_edited_by": "loop"
 }

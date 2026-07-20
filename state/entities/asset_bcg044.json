@@ -1,0 +1,97 @@
+{
+  "entity_id": "asset_bcg044",
+  "first_seen": "2026-07-20",
+  "facts": {
+    "name": {
+      "value": "BCG044",
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "type": {
+      "value": "frontier_asset",
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "holders": {
+      "value": [
+        "Biocytogen"
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "categories": {
+      "value": [
+        "preclinical_data"
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    },
+    "sources": {
+      "value": [
+        {
+          "url": "https://biocytogen.com/resource/2026-preclinical-study-of-bcg044-a-novel-bispecific-adc-targeting-epcam-and-her3-for-the-treatment-of-colorectal-and-other-tumors",
+          "publisher": "Biocytogen",
+          "tier": "primary",
+          "published_at": "2026-04-01"
+        }
+      ],
+      "established_by": "run_20260720_1521",
+      "issue": "2026-07-20"
+    }
+  },
+  "drift_log": [
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "name",
+      "from": null,
+      "to": "BCG044",
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "type",
+      "from": null,
+      "to": "frontier_asset",
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "holders",
+      "from": null,
+      "to": [
+        "Biocytogen"
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "categories",
+      "from": null,
+      "to": [
+        "preclinical_data"
+      ],
+      "run_id": "run_20260720_1521"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "sources",
+      "from": null,
+      "to": [
+        {
+          "url": "https://biocytogen.com/resource/2026-preclinical-study-of-bcg044-a-novel-bispecific-adc-targeting-epcam-and-her3-for-the-treatment-of-colorectal-and-other-tumors",
+          "publisher": "Biocytogen",
+          "tier": "primary",
+          "published_at": "2026-04-01"
+        }
+      ],
+      "run_id": "run_20260720_1521"
+    }
+  ],
+  "version": 1,
+  "last_edited_by": "loop"
+}
