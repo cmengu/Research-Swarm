@@ -3,13 +3,13 @@
   "issue": {
     "id": "2026-07-20",
     "program_id": "hmbd-001",
-    "published_at": "2026-07-20T09:33:01.898105",
+    "published_at": "2026-07-20T11:02:17.995067",
     "coverage_window": {
       "from": "2026-07-18",
       "to": "2026-07-20"
     },
     "run": {
-      "run_id": "run_20260720_0933",
+      "run_id": "run_20260720_1102",
       "status": "failed",
       "critic_verdict": "not_run",
       "critic_retries": 0,
@@ -19,7 +19,7 @@
     },
     "failure": {
       "stage": "validation",
-      "detail": "manager: claude exited 1: stdout='{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":true,\"api_error_status\":null,\"duration_ms\":67323,\"duration_api_ms\":68881,\"num_turns\":1,\"result\":\"API Error: Connection closed mid-response. The response above may be incomplete.\",\"stop_reason\":\"stop_sequence\",\"session_id\":\"821ba525-870c-4a2f-9252-8ad1175a7cf4\",\"total_cost_usd\":0.16114749999999997,\"usage\":{\"input_tokens\":0,\"cache_creation_input_tokens' stderr=''"
+      "detail": "validation still blocking after 2 retries: malformed_source@headline.sources[0], malformed_source@headline.sources[0], malformed_source@headline.sources[1], malformed_source@headline.sources[1], malformed_source@quiet_this_cycle.dropped_with_receipt[0].source, malformed_source@quiet_this_cycle.dropped_with_receipt[1].source, malformed_source@quiet_this_cycle.dropped_with_receipt[2].source, malformed_source@quiet_this_cycle.dropped_with_receipt[3].source, malformed_source@quiet_this_cycle.dropped_with_receipt[4].source, empty_section@competitors, empty_section@indications[squamous-nsclc].arena, malformed_shape@stats, malformed_open_thread@quiet_this_cycle.open_threads[1], malformed_shape@critic_report.validator_report"
     }
   },
   "program": {

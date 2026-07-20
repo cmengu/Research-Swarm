@@ -23,6 +23,7 @@ is supplied.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from datetime import date
 from pathlib import Path
@@ -482,6 +483,21 @@ class TestResearchFailure:
 # ---------------------------------------------------------------------------
 
 
+
+def _unverify_calendar_v2(root) -> None:
+    """Blank every window's verification — see `test_run_cli._unverify_calendar`.
+
+    Duplicated rather than shared because the two suites keep separate fixture
+    vocabularies, and a helper reaching across test modules is a coupling that
+    outlives the reason for it.
+    """
+    path = root / "config" / "calendar.toml"
+    text = path.read_text()
+    for key in ("starts", "ends", "verified_at"):
+        text = re.sub(rf'^{key}(\s*)= .*$', rf'{key}\1= ""', text, flags=re.M)
+    path.write_text(text)
+
+
 class TestTheSpine:
     def test_every_stage_runs_in_order(self, wired):
         assert _run(wired["root"]) == run.EXIT_OK
@@ -507,7 +523,14 @@ class TestTheSpine:
         }
 
     def test_the_stale_calendar_advisory_reaches_the_validator(self, wired):
-        """A stale calendar is the one failure that would otherwise be silent."""
+        """A stale calendar is the one failure that would otherwise be silent.
+
+        The stale state is constructed, not inherited. This fixture copies the
+        REAL config, and config/calendar.toml is rewritten by the loop whenever a
+        window verifies — so borrowing its state made this test pass only while
+        the verifier was broken. It broke the day verification started working,
+        which is the correct outcome for a test that was pinning runtime data."""
+        _unverify_calendar_v2(wired["root"])
         _run(wired["root"])
         assert wired["validation"].calls[0]["calendar_stale"] is True
 

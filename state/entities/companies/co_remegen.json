@@ -1,0 +1,221 @@
+{
+  "entity_id": "co_remegen",
+  "kind": "company",
+  "first_seen": "2026-07-20",
+  "coverage": {
+    "thin_sections": [
+      "funding",
+      "pivots",
+      "setbacks"
+    ],
+    "degradation": "Seeded by hand during the roster migration from public company and deal sources \u2014 no dossier scan has run on this company yet. Funding, pivots and setbacks were not researched, so they read as unmeasured rather than empty."
+  },
+  "as_of": "2026-07-20",
+  "facts": {
+    "identity": {
+      "value": {
+        "legal_name": "RemeGen Co., Ltd.",
+        "aliases": [
+          "RemeGen",
+          "\u69ae\u660c\u751f\u7269"
+        ],
+        "founded": "2008",
+        "hq": "Yantai, Shandong, China",
+        "status": "public",
+        "listings": [
+          {
+            "exchange": "HKEX",
+            "ticker": "9995"
+          }
+        ]
+      },
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
+    },
+    "origin": {
+      "value": {
+        "founding_story": "Founded in 2008 in Yantai by Dr. Jianmin Fang and Weidong Wang, built on in-house antibody and antibody-drug-conjugate engineering rather than in-licensed assets. Fang is the named inventor of both marketed products.",
+        "founders": [
+          "Jianmin Fang",
+          "Weidong Wang"
+        ]
+      },
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
+    },
+    "pipeline": {
+      "value": [
+        {
+          "asset_entity_id": "asset_rc148",
+          "indication": "Advanced solid tumours (NSCLC, CRC)",
+          "phase": "Phase 2",
+          "status": "active"
+        },
+        {
+          "asset_entity_id": "asset_disitamab_vedotin",
+          "indication": "Gastric and urothelial carcinoma",
+          "phase": "Marketed (China)",
+          "status": "active"
+        },
+        {
+          "asset_entity_id": "asset_telitacicept",
+          "indication": "SLE, rheumatoid arthritis, myasthenia gravis",
+          "phase": "Marketed (China)",
+          "status": "active"
+        },
+        {
+          "asset_entity_id": "asset_rc88",
+          "indication": "Mesothelin-expressing solid tumours",
+          "phase": "Clinical",
+          "status": "active"
+        }
+      ],
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
+    },
+    "deals": {
+      "value": [
+        {
+          "date": "2026-01-12",
+          "counterparty": "AbbVie",
+          "direction": "out",
+          "upfront": "$650M",
+          "milestones": "up to $4.95B",
+          "royalty": "tiered double-digit on ex-China sales",
+          "territory": "ex-Greater China (RemeGen retains mainland China, Hong Kong, Macau, Taiwan)"
+        },
+        {
+          "date": "2021-08",
+          "counterparty": "Seagen",
+          "direction": "out",
+          "territory": "exclusive worldwide licence and co-development for disitamab vedotin"
+        }
+      ],
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
+    },
+    "people": {
+      "value": [
+        {
+          "name": "Jianmin Fang",
+          "role": "Co-founder and Chief Executive Officer",
+          "since": "2008"
+        }
+      ],
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
+    }
+  },
+  "drift_log": [
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "identity",
+      "from": null,
+      "to": {
+        "legal_name": "RemeGen Co., Ltd.",
+        "aliases": [
+          "RemeGen",
+          "\u69ae\u660c\u751f\u7269"
+        ],
+        "founded": "2008",
+        "hq": "Yantai, Shandong, China",
+        "status": "public",
+        "listings": [
+          {
+            "exchange": "HKEX",
+            "ticker": "9995"
+          }
+        ]
+      },
+      "run_id": "seed:roster-migration-2026-07-20"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "origin",
+      "from": null,
+      "to": {
+        "founding_story": "Founded in 2008 in Yantai by Dr. Jianmin Fang and Weidong Wang, built on in-house antibody and antibody-drug-conjugate engineering rather than in-licensed assets. Fang is the named inventor of both marketed products.",
+        "founders": [
+          "Jianmin Fang",
+          "Weidong Wang"
+        ]
+      },
+      "run_id": "seed:roster-migration-2026-07-20"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "pipeline",
+      "from": null,
+      "to": [
+        {
+          "asset_entity_id": "asset_rc148",
+          "indication": "Advanced solid tumours (NSCLC, CRC)",
+          "phase": "Phase 2",
+          "status": "active"
+        },
+        {
+          "asset_entity_id": "asset_disitamab_vedotin",
+          "indication": "Gastric and urothelial carcinoma",
+          "phase": "Marketed (China)",
+          "status": "active"
+        },
+        {
+          "asset_entity_id": "asset_telitacicept",
+          "indication": "SLE, rheumatoid arthritis, myasthenia gravis",
+          "phase": "Marketed (China)",
+          "status": "active"
+        },
+        {
+          "asset_entity_id": "asset_rc88",
+          "indication": "Mesothelin-expressing solid tumours",
+          "phase": "Clinical",
+          "status": "active"
+        }
+      ],
+      "run_id": "seed:roster-migration-2026-07-20"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "deals",
+      "from": null,
+      "to": [
+        {
+          "date": "2026-01-12",
+          "counterparty": "AbbVie",
+          "direction": "out",
+          "upfront": "$650M",
+          "milestones": "up to $4.95B",
+          "royalty": "tiered double-digit on ex-China sales",
+          "territory": "ex-Greater China (RemeGen retains mainland China, Hong Kong, Macau, Taiwan)"
+        },
+        {
+          "date": "2021-08",
+          "counterparty": "Seagen",
+          "direction": "out",
+          "territory": "exclusive worldwide licence and co-development for disitamab vedotin"
+        }
+      ],
+      "run_id": "seed:roster-migration-2026-07-20"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "people",
+      "from": null,
+      "to": [
+        {
+          "name": "Jianmin Fang",
+          "role": "Co-founder and Chief Executive Officer",
+          "since": "2008"
+        }
+      ],
+      "run_id": "seed:roster-migration-2026-07-20"
+    }
+  ],
+  "version": 1,
+  "last_edited_by": "owner"
+}

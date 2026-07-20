@@ -210,6 +210,14 @@ def repo(tmp_path):
 
     issue = _load_sample()
     entities = tmp_path / "state" / "entities"
+    # START FROM AN EMPTY ENTITY LAYER. This fixture builds precisely the entities
+    # each test needs, and several assert on the ABSENCE of a company record or a
+    # dossier. Inheriting the repo's own `state/entities/` made those assertions
+    # depend on whatever the roster migration had last seeded — the day real
+    # company records were seeded (co_remegen, co_abbvie), fourteen tests broke at
+    # once. The copy above is still wanted for the rest of `state/`; the entity
+    # layer is this fixture's to construct.
+    shutil.rmtree(entities, ignore_errors=True)
     entities.mkdir(parents=True, exist_ok=True)
     for entity_id in _entity_refs(issue):
         (entities / f"{entity_id}.json").write_text(

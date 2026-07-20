@@ -57,6 +57,21 @@ def parse_result_json(result_text: str) -> dict:
     re-punctuate is a bad trade.
     """
     text = result_text.strip()
+    if not text:
+        # EMPTY IS NOT MALFORMED, and conflating them cost a live cycle.
+        # `json.loads("")` raises "Expecting value: line 1 column 1 (char 0)",
+        # which reads as a punctuation problem in the model's output and sends
+        # you looking at prompts and fences. The actual fact is that `claude -p`
+        # returned an envelope with `is_error` false and NO final message — the
+        # run turned turns and produced no text. Three subsystems share this
+        # parser (researcher, calendar verifier, manager), so the same misleading
+        # sentence appeared in three different places during one run and looked
+        # like three different bugs.
+        raise TransportInvalid(
+            "claude returned an empty final message (envelope reported no error) — "
+            "the call produced no text to parse, which is a transport/turn-budget "
+            "failure, not malformed output"
+        )
     if text.startswith("```"):
         lines = text.split("\n")
         text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
