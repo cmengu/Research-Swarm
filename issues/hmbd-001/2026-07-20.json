@@ -3,13 +3,13 @@
   "issue": {
     "id": "2026-07-20",
     "program_id": "hmbd-001",
-    "published_at": "2026-07-20T14:08:31.552032",
+    "published_at": "2026-07-20T14:25:12.219234",
     "coverage_window": {
       "from": "2026-05-01",
       "to": "2026-07-20"
     },
     "run": {
-      "run_id": "run_20260720_1408",
+      "run_id": "run_20260720_1425",
       "status": "failed",
       "critic_verdict": "not_run",
       "critic_retries": 0,
@@ -19,7 +19,7 @@
     },
     "failure": {
       "stage": "validation",
-      "detail": "validation still blocking after 2 retries: malformed_shape@stats"
+      "detail": "validation still blocking after 2 retries: dangling_entity@quiet_this_cycle.open_threads[0].entity_id, dangling_entity@quiet_this_cycle.open_threads[1].entity_id, malformed_shape@stats"
     }
   },
   "program": {
