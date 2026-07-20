@@ -18,6 +18,17 @@
     --s1: .375rem; --s2: .75rem; --s3: 1.25rem; --s4: 2rem; --s5: 3rem;
     --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
     color-scheme: dark;
+
+    /* THE TYPE SCALE — three sizes, one home. Every heading on the page picks
+       one of these rather than an ad-hoc rem value, because the ad-hoc values
+       had drifted into five sizes for what the IA treats as ONE tier: a
+       competitor was 1.65, a company 1.45, an indication 1.4, a house item 1.3
+       (an inline style, no less) and a theme 1.2. Same altitude, five sizes, so
+       the eye read them as a hierarchy that does not exist — and `themes` sat
+       at the bottom of a ranking it was never meant to be in. */
+    --fs-section: 1.75rem;   /* a section: Competitors that moved, Themes & signals */
+    --fs-item: 1.5rem;       /* one item in a section: a competitor, a company, a theme */
+    --fs-subitem: 1.3rem;    /* a division INSIDE an item: a dossier section */
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
@@ -107,7 +118,7 @@
   /* Section headings were .72rem mono against 1.08rem body — the label was
      smaller than everything it labelled, so the page read as one long column
      with no landmarks. A heading has to outrank its own content. */
-  .sechead h2 { font-family: var(--serif); font-size: 1.75rem; line-height: 1.15; letter-spacing: -.015em;
+  .sechead h2 { font-family: var(--serif); font-size: var(--fs-section); line-height: 1.15; letter-spacing: -.015em;
                 color: var(--ink); font-weight: 600; }
   .sechead .sub { font-size: .92rem; color: var(--ink-3); flex: 1 1 20rem; max-width: 46ch; }
   /* Anything openable looks openable. The first reader could not find the
@@ -165,7 +176,7 @@
   .entity.archived { opacity: .72; border-left-style: dashed; }
   .ehead { display: flex; flex-direction: column; gap: var(--s2); }
   .enameline { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: baseline; }
-  .ehead h3 { font-family: var(--serif); font-size: 1.65rem; letter-spacing: -.015em; line-height: 1.15; }
+  .ehead h3 { font-family: var(--serif); font-size: var(--fs-item); letter-spacing: -.015em; line-height: 1.15; }
   .etags { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s2); align-items: center; }
   .slug { font-family: var(--mono); font-size: .72rem; color: var(--ink-3); }
   .holders { font-family: var(--mono); font-size: .68rem; color: var(--ink-3); }
@@ -180,6 +191,10 @@
   .rt .estab { font-family: var(--mono); font-size: .58rem; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
   .impact { font-family: var(--mono); font-size: .58rem; letter-spacing: .05em; text-transform: uppercase; }
   .impact.confirms { color: var(--confirms); } .impact.challenges { color: var(--challenges); } .impact.neutral { color: var(--neutral); }
+  /* A theme's "what it changes if true" — the read-through block, in hema so it
+     reads as a sibling of a read-through rather than as one. */
+  .rt.whatif { border-left-color: var(--hema); }
+  .rt.whatif .rtlbl { color: var(--hema); }
 
   /* ── the double-click dossier ── */
   details.dossier { border: 1px solid var(--rule); border-radius: 4px; }
@@ -223,7 +238,7 @@
             cursor: pointer; display: flex; flex-direction: column; gap: var(--s1); }
   .cocard:hover { border-color: var(--hema); }
   .cocard:focus-visible { outline: 2px solid var(--hema); outline-offset: 2px; }
-  .cocard .cn { font-family: var(--serif); font-size: 1.45rem; line-height: 1.2; letter-spacing: -.01em; }
+  .cocard .cn { font-family: var(--serif); font-size: var(--fs-item); line-height: 1.2; letter-spacing: -.01em; }
   .cocard .cid { font-family: var(--mono); font-size: .62rem; color: var(--ink-3); letter-spacing: .06em; }
   .cocard .cmeta { font-family: var(--mono); font-size: .64rem; color: var(--ink-3); margin-top: var(--s1); }
   .cocard .cthin { font-family: var(--mono); font-size: .62rem; color: var(--challenges); }
@@ -250,7 +265,7 @@
   .coclose:focus-visible { outline: 2px solid var(--hema); outline-offset: 2px; }
   .cobody { padding: var(--s3); display: flex; flex-direction: column; gap: var(--s4); }
   .cosec { display: flex; flex-direction: column; gap: var(--s2); }
-  .cosec > h4 { font-family: var(--serif); font-size: 1.3rem; letter-spacing: -.01em; color: var(--ink);
+  .cosec > h4 { font-family: var(--serif); font-size: var(--fs-subitem); letter-spacing: -.01em; color: var(--ink);
                 padding-bottom: var(--s1); border-bottom: 1px solid var(--rule);
                 display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
   /* Provenance is per FIELD, so each section carries its own. Hoisting one date
@@ -304,7 +319,7 @@
   /* ── indication + arena + treatment landscape ── */
   .indic { border: 1px solid var(--rule-strong); border-radius: 6px; padding: var(--s3) var(--s4); display: flex; flex-direction: column; gap: var(--s3); }
   .indic > .ih { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: baseline; }
-  .indic > .ih h3 { font-family: var(--serif); font-size: 1.4rem; }
+  .indic > .ih h3 { font-family: var(--serif); font-size: var(--fs-item); line-height: 1.2; letter-spacing: -.015em; }
   .indic > .ih .role { font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase;
                        color: var(--hema); border: 1px solid var(--hema); border-radius: 3px; padding: .15rem .45rem; }
   .indic .ctx { color: var(--ink-2); font-size: .96rem; max-width: 74ch; }
@@ -337,15 +352,17 @@
   .dropped { font-size: .9rem; color: var(--ink-3); border-left: 2px dashed var(--rule-strong); padding-left: var(--s3); }
   .dropped b { color: var(--ink-2); font-weight: 600; }
 
-  .block { display: flex; flex-direction: column; gap: var(--s2); }
-  .block h3 { font-family: var(--serif); font-size: 1.2rem; }
+  /* One theme. Now carries a full argument and a what-if block, so it is spaced
+     as an item rather than as a caption. */
+  .block { display: flex; flex-direction: column; gap: var(--s3); }
+  .block h3 { font-family: var(--serif); font-size: var(--fs-item); line-height: 1.2; letter-spacing: -.015em; max-width: 62ch; }
   .block p { color: var(--ink-2); font-size: 1rem; max-width: 74ch; }
   .block .why { color: var(--eosin); }
 
   /* ── house view: subordinate, set apart ── */
   #houseWrap { background: var(--paper-2); border-radius: 8px; padding: 0 var(--s4); margin-top: var(--s4); }
   #houseWrap > .hvhead { padding: var(--s4) 0 0; display: flex; flex-direction: column; gap: var(--s1); }
-  #houseWrap > .hvhead .hvt { font-family: var(--serif); font-size: 1.3rem; }
+  #houseWrap > .hvhead .hvt { font-family: var(--serif); font-size: var(--fs-subitem); }
   #houseWrap > .hvhead .hvs { font-size: .9rem; color: var(--ink-3); max-width: 74ch; }
   #houseWrap section { border-top: 1px solid var(--rule); }
   .lens { display: flex; flex-direction: column; gap: var(--s2); }
@@ -354,8 +371,15 @@
   .bspot .rank { font-family: var(--serif); font-size: 1.4rem; color: var(--eosin); }
   .bspot .bwhy { font-size: .92rem; color: var(--ink-2); }
   .bspot .bmag { font-family: var(--mono); font-size: .6rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
-  .propint { font-family: var(--mono); font-size: .68rem; color: var(--confirms); border: 1px dashed var(--confirms);
-             border-radius: 3px; padding: .1rem .45rem; }
+  /* A proposed interest is a SENTENCE the owner has to read and act on, so it
+     is set as one. It was a dashed inline chip sized for a two-word label, and
+     a real note wrapped to six lines of dashed-underlined monospace — the
+     border tracing every line break. Same information, given a block. */
+  .propint { display: flex; flex-direction: column; gap: var(--s1); border-left: 2px solid var(--confirms);
+             padding: var(--s1) 0 var(--s1) var(--s3); max-width: 74ch; }
+  .propint .pilbl { font-family: var(--mono); font-size: .58rem; letter-spacing: .12em; text-transform: uppercase;
+                    color: var(--confirms); }
+  .propint .pinote { font-size: .98rem; color: var(--ink-2); }
 
   .drift { border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
   .drift .dh { font-family: var(--mono); font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; padding: var(--s2) var(--s3);
@@ -520,12 +544,12 @@
       <div id="houseWrap">
         <div class="hvhead"><div class="hvt">House view — the wider board</div>
           <div class="hvs">Deliberately subordinate to the program. Two lenses on the same names: who could partner or buy, and who threatens or is financing the space — plus the cross-cutting themes and what we know we cannot see.</div></div>
-        <section id="lensBD" class="lens-sec"><div class="sechead"><h2>Partnership &amp; BD lens</h2></div>
+        <section id="lensBD" class="lens-sec"><div class="sechead"><h2>Partnership &amp; BD lens</h2><span class="sub">Who could partner, license or acquire — read at house altitude, not against this one program.</span></div>
           <div id="lensBDBody" style="display:flex;flex-direction:column;gap:1.5rem"></div></section>
-        <section id="lensThreat"><div class="sechead"><h2>Threat &amp; financing lens</h2></div>
+        <section id="lensThreat"><div class="sechead"><h2>Threat &amp; financing lens</h2><span class="sub">Who threatens the space and who is funding them — including platforms that can be re-aimed.</span></div>
           <div id="lensThreatBody" style="display:flex;flex-direction:column;gap:1.5rem"></div></section>
-        <section id="themes"><div class="sechead"><h2>Themes &amp; signals</h2></div>
-          <div id="themesBody" style="display:flex;flex-direction:column;gap:1.75rem"></div></section>
+        <section id="themes"><div class="sechead"><h2>Themes &amp; signals</h2><span class="sub">Cross-cutting patterns no single item above shows on its own — and what each would change if it holds.</span></div>
+          <div id="themesBody" style="display:flex;flex-direction:column;gap:var(--s5)"></div></section>
         <section id="blind"><div class="sechead"><h2>Known blind spots</h2>
           <span class="sub" id="blindSub"></span></div>
           <div id="blindBody" style="display:flex;flex-direction:column;gap:1.25rem"></div></section>
@@ -843,14 +867,37 @@ const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_
 
   // ── house view ──
   const houseItem = (h) => '<article class="entity ' + esc(h.relation === 'platform_threat' ? 'challenges' : 'neutral') + '"><div class="ehead">' +
-    '<div class="enameline"><h3 style="font-size:1.3rem">' + esc(h.name) + '</h3>' + (h.relation ? relBadge(h.relation) : '') + '<span class="slug">' + esc(h.entity_id) + '</span></div></div>' +
+    '<div class="enameline"><h3>' + esc(h.name) + '</h3>' + (h.relation ? relBadge(h.relation) : '') + '<span class="slug">' + esc(h.entity_id) + '</span></div></div>' +
     '<p class="summary">' + esc(h.summary) + '</p>' + rtBlock(h.read_through) + srcs(h.sources) + '</article>';
   $('lensBDBody').innerHTML = d.house_view.partnership_bd.map(houseItem).join('');
   $('lensThreatBody').innerHTML = d.house_view.threat_financing.map(houseItem).join('');
+  // A theme's `thesis_impact` arrives in one of TWO shapes, and the difference
+  // is the whole reason this section read as broken. The v1-era shape is the
+  // three-value enum (confirms | challenges | neutral) — a badge. The shape the
+  // v2 manager actually writes is PROSE: "what this would change if true", 900
+  // to 1000 characters of it. Rendering that as a badge put a thousand
+  // characters of argument through `font-size:.58rem; text-transform:uppercase`
+  // INSIDE the heading — the tiny uppercase wall of text in Themes & signals —
+  // and additionally interpolated the whole paragraph into a CSS class name.
+  //
+  // Both shapes are legal and both are live (the inlined prototype SAMPLE still
+  // carries the enum), so this branches on the value rather than picking a side.
+  const IMPACT_ENUM = ['confirms', 'challenges', 'neutral'];
+  const impactBadge = (v) => IMPACT_ENUM.indexOf(v) >= 0
+    ? ' <span class="impact ' + esc(v) + '">' + esc(v) + '</span>' : '';
+  // Prose gets the read-through treatment every other item on the page already
+  // uses — same block, same label bar, hema rather than eosin so it does not
+  // impersonate a read-through. A theme now reads like its peers: what it is,
+  // the argument, what it would change, the evidence.
+  const impactProse = (v) => IMPACT_ENUM.indexOf(v) >= 0 || !v ? ''
+    : '<div class="rt whatif"><div class="rtlbl">What it changes if true</div><p>' + esc(v) + '</p></div>';
+
   $('themesBody').innerHTML = d.house_view.themes_and_signals.map(t =>
-    '<div class="block"><h3>' + esc(t.theme) + ' <span class="impact ' + esc(t.thesis_impact) + '">' + esc(t.thesis_impact) + '</span></h3>' +
-    '<p>' + esc(t.argument) + '</p><div class="srcs">' + t.evidence_refs.map(r => '<span class="slug">' + esc(r) + '</span>').join('') + '</div>' +
-    (t.proposes_interest ? '<div><span class="propint">proposes ' + esc(t.proposes_interest.tier) + ' interest: ' + esc(t.proposes_interest.note) + '</span></div>' : '') + '</div>').join('');
+    '<div class="block"><h3>' + esc(t.theme) + impactBadge(t.thesis_impact) + '</h3>' +
+    '<p>' + esc(t.argument) + '</p>' + impactProse(t.thesis_impact) +
+    '<div class="srcs">' + t.evidence_refs.map(r => '<span class="slug">' + esc(r) + '</span>').join('') + '</div>' +
+    (t.proposes_interest ? '<div class="propint"><span class="pilbl">proposes ' + esc(t.proposes_interest.tier) + ' interest</span>' +
+      '<span class="pinote">' + esc(t.proposes_interest.note) + '</span></div>' : '') + '</div>').join('');
   const bs = d.house_view.blind_spots;
   $('blindSub').textContent = 'Capped at ' + bs.cap + ', ranked by signal magnitude — overflow is never silent.';
   $('blindBody').innerHTML = bs.ranked.map(b =>
