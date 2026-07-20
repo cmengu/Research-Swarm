@@ -172,6 +172,85 @@
   .histrow { display: flex; gap: var(--s2); align-items: baseline; }
   .histrow .hwhen { font-family: var(--mono); font-size: .64rem; color: var(--ink-3); white-space: nowrap; }
 
+  /* ── the company view (#98) — a holder you can open ──
+     A holder WITH a published dossier is a button; one without stays plain text.
+     The two must not look alike: an unscanned company that rendered as a link
+     would promise a page that does not exist, and "we have not looked yet" is a
+     state this page renders rather than hides. */
+  .colink { font: inherit; color: var(--hema); background: var(--eosin-soft); border: 1px solid var(--rule-strong);
+            border-radius: 3px; padding: .05em .4em .05em .35em; cursor: pointer; text-decoration: none;
+            font-weight: 600; white-space: nowrap; }
+  /* A trailing marker, because the holders line is small grey mono type and an
+     underline alone did not read as "openable" — the first reader could not find
+     the feature at all. */
+  .colink::after { content: "›"; margin-left: .3em; opacity: .7; }
+  .colink:hover { color: var(--eosin); border-color: var(--eosin); }
+  .colink:focus-visible { outline: 2px solid var(--hema); outline-offset: 2px; border-radius: 2px; }
+
+  /* The Companies section — the entry point. The holder links alone were not
+     discoverable: they sit in a small grey mono line and the first reader could
+     not find the feature. A named section with its own cards is what makes a
+     dossier something you can go looking for rather than stumble onto. */
+  .cogrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); gap: var(--s3); }
+  .cocard { text-align: left; font: inherit; color: inherit; background: var(--paper-2);
+            border: 1px solid var(--rule); border-radius: 4px; padding: var(--s3);
+            cursor: pointer; display: flex; flex-direction: column; gap: var(--s1); }
+  .cocard:hover { border-color: var(--hema); }
+  .cocard:focus-visible { outline: 2px solid var(--hema); outline-offset: 2px; }
+  .cocard .cn { font-family: var(--serif); font-size: 1.15rem; line-height: 1.25; }
+  .cocard .cid { font-family: var(--mono); font-size: .62rem; color: var(--ink-3); letter-spacing: .06em; }
+  .cocard .cmeta { font-family: var(--mono); font-size: .64rem; color: var(--ink-3); margin-top: var(--s1); }
+  .cocard .cthin { font-family: var(--mono); font-size: .62rem; color: var(--challenges); }
+  .cocard .copen { font-family: var(--mono); font-size: .62rem; letter-spacing: .08em;
+                   text-transform: uppercase; color: var(--hema); margin-top: var(--s1); }
+  .coempty { color: var(--ink-3); font-style: italic; }
+
+  /* A drawer, not a route: opening a company must not cost the reader their
+     place in the issue they were reading. */
+  .coscrim { position: fixed; inset: 0; background: rgba(20,17,32,.5); z-index: 40; }
+  .codrawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(46rem, 100%);
+              background: var(--paper); border-left: 1px solid var(--rule-strong); z-index: 41;
+              overflow-y: auto; display: flex; flex-direction: column; }
+  @media (prefers-reduced-motion: no-preference) {
+    .codrawer { animation: coslide .18s ease-out; }
+    @keyframes coslide { from { transform: translateX(1.5rem); opacity: 0; } }
+  }
+  .cohead { position: sticky; top: 0; background: var(--paper); border-bottom: 1px solid var(--rule);
+            padding: var(--s3); display: flex; align-items: flex-start; gap: var(--s3); }
+  .cohead .coname { font-family: var(--serif); font-size: 1.5rem; letter-spacing: -.01em; }
+  .cohead .coid { font-family: var(--mono); font-size: .64rem; color: var(--ink-3); letter-spacing: .06em; }
+  .coclose { margin-left: auto; font: inherit; font-size: .8rem; background: none; border: 1px solid var(--rule-strong);
+             color: var(--ink-2); border-radius: 3px; padding: .2rem .55rem; cursor: pointer; flex: none; }
+  .coclose:focus-visible { outline: 2px solid var(--hema); outline-offset: 2px; }
+  .cobody { padding: var(--s3); display: flex; flex-direction: column; gap: var(--s4); }
+  .cosec { display: flex; flex-direction: column; gap: var(--s2); }
+  .cosec > h4 { font-family: var(--mono); font-size: .66rem; letter-spacing: .1em; text-transform: uppercase;
+                color: var(--ink-3); display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
+  /* Provenance is per FIELD, so each section carries its own. Hoisting one date
+     to the top would imply the whole record was verified at once. */
+  .coestab { font-family: var(--mono); font-size: .6rem; color: var(--ink-3); text-transform: none; letter-spacing: 0; }
+  .cothin { font-family: var(--mono); font-size: .6rem; letter-spacing: .04em; color: var(--challenges);
+            border: 1px dashed var(--challenges); border-radius: 3px; padding: .1rem .4rem; text-transform: none; }
+  .cosec .empty { color: var(--ink-3); font-style: italic; font-size: .92rem; }
+  .corow { display: grid; grid-template-columns: 9rem 1fr; gap: var(--s1) var(--s3); font-size: .95rem; }
+  .corow .k { font-family: var(--mono); font-size: .64rem; letter-spacing: .06em; text-transform: uppercase;
+              color: var(--ink-3); padding-top: .2rem; }
+  .coitem { border-left: 2px solid var(--rule-strong); padding-left: var(--s2); display: flex;
+            flex-direction: column; gap: .15rem; font-size: .95rem; }
+  .coitem .t { font-weight: 600; }
+  .coitem .m { font-family: var(--mono); font-size: .66rem; color: var(--ink-3); }
+  /* The drift log is the whole point — what we believed before, and what corrected it. */
+  .drift { display: flex; flex-direction: column; gap: var(--s2); }
+  .driftrow { display: grid; grid-template-columns: 5.5rem 1fr; gap: var(--s2); font-size: .88rem;
+              border-top: 1px solid var(--rule); padding-top: var(--s2); }
+  .driftrow .when { font-family: var(--mono); font-size: .64rem; color: var(--ink-3); }
+  .driftrow .act { font-family: var(--mono); font-size: .62rem; letter-spacing: .06em; text-transform: uppercase; }
+  .driftrow .act.established { color: var(--confirms); }
+  .driftrow .act.corrected { color: var(--challenges); }
+  .driftrow .was { color: var(--ink-3); font-size: .82rem; }
+  .driftrow pre { font-family: var(--mono); font-size: .72rem; white-space: pre-wrap; word-break: break-word;
+                  background: var(--paper-2); border-radius: 3px; padding: .35rem .5rem; margin-top: .2rem; }
+
   .srcs { display: flex; flex-wrap: wrap; gap: var(--s2); font-family: var(--mono); font-size: .66rem; }
   .srcs a { color: var(--ink-3); text-decoration: none; border-bottom: 1px dotted var(--rule-strong); }
   .srcs a:hover, .srcs a:focus-visible { color: var(--eosin); border-bottom-color: var(--eosin); outline: none; }
@@ -393,6 +472,9 @@
         <span class="sub">Typed by relation to HMBD-001. The badge is the answer to "why is this a competitor."</span>
         <button class="ghost" id="toggleAll" type="button">Open all dossiers</button></div>
         <div id="competitorsBody" style="display:flex;flex-direction:column;gap:2.25rem"></div></section>
+      <section id="companies"><div class="sechead"><h2>Companies</h2>
+        <span class="sub">The deep record behind the assets — who they are, where they came from, what they have already abandoned. Every fact cites the run that established it, and corrections append rather than overwrite.</span></div>
+        <div id="companiesBody" class="cogrid"></div></section>
       <section id="indications"><div class="sechead"><h2>Indications</h2>
         <span class="sub">First-class arenas. Each carries its setting rivals, its standard of care, and where the bar is heading.</span></div>
         <div id="indicationsBody" style="display:flex;flex-direction:column;gap:1.75rem"></div></section>
@@ -460,6 +542,12 @@
 // persistent prototype banner. On http(s):// a failed fetch renders an error — the sample is NEVER substituted.
 // A quiet fallback would be silence, and silence was the bug. See spec/08 "The prototype/production split".
 const SAMPLE = {"schema_version":"2.0.0","issue":{"id":"2026-07-18","program_id":"hmbd-001","published_at":"2026-07-18T07:41:00+08:00","coverage_window":{"from":"2026-07-14","to":"2026-07-18"},"run":{"run_id":"run_20260718_0700","status":"published","critic_verdict":"pass_with_advisories","critic_retries":1,"thesis_version":3,"interest_list_version":4,"models":{"researchers":"claude-sonnet-5","manager":"claude-opus-4-8","critic":"gpt-5.6-codex"}}},"program":{"id":"hmbd-001","name":"HMBD-001","sponsor":"Hummingbird Bioscience","modality":"anti-HER3 IgG1 signalling antibody","target":"HER3 (ERBB3)","moa":"signalling_blockade","one_line":"A HER3 signalling antibody differentiated from the HER3 ADC field — it blocks the heregulin-driven signalling node rather than delivering a payload to HER3-expressing cells.","priority_indications":["nrg1-fusion","mcrpc","mcrc","sccHN"],"clinical_stage":"Phase 1b in squamous NSCLC (chemotherapy backbone, ± cetuximab)","config_source":"config/programs/hmbd-001.toml","aperture":{"biology_scan":{"target":"HER3 (ERBB3)","moa":"signalling_blockade"},"arena_scans":["squamous-nsclc","nrg1-fusion-solid-tumors"]}},"headline":{"title":"ESMO 2026 titles land with HER3 and squamous readouts in HMBD-001's lane — text still embargoed","summary":"ESMO 2026 regular-abstract titles posted 17 Jul, one cycle after the arena's defining event: ivonescimab's HARMONi-6 first-line squamous-NSCLC overall-survival win (HR 0.66) at ASCO 2026 in June. No mechanism twin — a HER3 antibody blocking the same signalling node — has surfaced in the clinic; every moving HER3 competitor is an ADC or bispecific ADC, a target twin, not a mechanism twin.","so_what":"The bar HMBD-001's Phase 1b must eventually clear is being reset in first line by an ADC-and-bispecific field, while HMBD-001's actual mechanistic differentiation faces no direct rival. That is simultaneously the opportunity and the exposure: the signalling thesis is unproven precisely because no one else is testing it.","entity_refs":["asset_ivonescimab","asset_her3_dxd","asset_sdp0505"],"confidence":"medium","sources":[{"url":"https://www.esmo.org/meeting-calendar/esmo-congress-2026/abstracts","publisher":"ESMO","tier":"primary","published_at":"2026-07-17"},{"url":"https://ascopost.com/news/june-2026/overall-survival-benefit-with-ivonescimab-plus-chemotherapy-in-advanced-squamous-nsclc/","publisher":"The ASCO Post","tier":"trade","published_at":"2026-06-01"}]},"stats":{"competitors_moved":2,"competitors_quiet":1,"newly_discovered":1,"indications_covered":2,"house_items":3,"blind_spots_ranked":2,"sources_cited":11,"critic_catches":1,"previous_issue":"2026-07-11"},"tldr_bullets":[{"text":"ESMO 2026 titles dropped 17 Jul; a HER3-DXd squamous cohort title appeared, text embargoed to the autumn congress.","entity_refs":["asset_her3_dxd"],"priority":"high"},{"text":"Ivonescimab's HARMONi-6 OS win (HR 0.66) resets the first-line squamous bar HMBD-001's later-line combo must eventually beat.","entity_refs":["asset_ivonescimab"],"priority":"high"},{"text":"SDP0505 (HER3 x c-Met bispecific ADC) remains a China-first blind spot — CDE/chictr, no clean free feed; China BLA still targeted 2026.","entity_refs":["asset_sdp0505"],"priority":"medium"},{"text":"Still no mechanism twin in the clinic: HMBD-001's signalling-blockade MOA has no direct HER3-antibody rival.","entity_refs":[],"priority":"medium"}],"catalyst_queue":{"snapshot_of":"state/programs/hmbd-001/catalyst-queue.json","recut_at":"2026-07-01","items":[{"id":"sdp0505_china_bla","asset":"SDP0505","entity_ids":["asset_sdp0505","hengrui"],"holders":["Shengdi Pharmaceutical","Jiangsu Hengrui Pharma"],"catalyst":"China BLA submission for SDP0505 in EGFR-TKI-resistant NSCLC","first_expected_window":"2026-Q4","expected_window":"2026-Q4","window_source":{"url":"https://doi.org/10.1093/abt/tbag015","publisher":"Antibody Therapeutics (Oxford Academic)","tier":"primary","published_at":"2026-05-10"},"status":"pending","slip_log":[],"what_it_would_prove":"That a HER3-directed ADC can reach registration in NSCLC ahead of any signalling-antibody data — target validation running well ahead of mechanism validation.","bears_on_thesis_slot":"her3-target-vs-mechanism","fed_by":"competitor_discovery","sources":[{"url":"https://doi.org/10.1093/abt/tbag015","publisher":"Antibody Therapeutics (Oxford Academic)","tier":"primary","published_at":"2026-05-10"}]},{"id":"esmo26_her3_dxd_squamous","asset":"patritumab deruxtecan (HER3-DXd)","entity_ids":["asset_her3_dxd","daiichi_sankyo","merck_co"],"holders":["Daiichi Sankyo","Merck & Co."],"catalyst":"ESMO 2026 presentation of the HER3-DXd cohort whose title posted 17 Jul","first_expected_window":"2026-Q4","expected_window":"2026-Q4","window_source":{"url":"https://www.esmo.org/meeting-calendar/esmo-congress-2026/abstracts","publisher":"ESMO","tier":"primary","published_at":"2026-07-17"},"status":"pending","slip_log":[],"what_it_would_prove":"Whether the DXd ADC is being steered toward the squamous setting HMBD-001's Phase 1b occupies — direct arena encroachment vs a non-overlapping cohort.","bears_on_thesis_slot":"her3-target-vs-mechanism","fed_by":"competitor_discovery","sources":[{"url":"https://www.esmo.org/meeting-calendar/esmo-congress-2026/abstracts","publisher":"ESMO","tier":"primary","published_at":"2026-07-17"}]}]},"competitors":[{"entity_id":"asset_her3_dxd","name":"Patritumab deruxtecan (HER3-DXd)","type":"frontier_asset","holders":["Daiichi Sankyo","Merck & Co."],"status":"developing","priority":"high","categories":["trial_readout","regulatory"],"summary":"HER3-directed antibody-drug conjugate. HERTHENA-Lung02's OS miss led Daiichi Sankyo and Merck to voluntarily withdraw the EGFR-mutant-NSCLC BLA in May 2025; the program continues across ~15 tumour types. An ESMO 2026 title referencing a squamous cohort posted 17 Jul (text embargoed).","read_through":{"relation":"target_twin","thesis_bearing":"neutral","text":"Same target (HER3), different MOA (an ADC delivering a payload, not blocking signalling). A HER3-DXd win validates HER3 as expressed and druggable — it does not validate HMBD-001's signalling-blockade thesis, and an ADC failure does not refute it. The live risk is arena, not biology: if the ESMO cohort is squamous, an ADC readout would reset HMBD-001's Phase 1b setting before the signalling data exists to argue against it.","established_by":"run_20260620_0700"},"failure":{"tier":"indication_tier","indication":"EGFR-mutant NSCLC","status":"BLA withdrawn May 2025 (HERTHENA-Lung02 OS miss)","archived":true,"note":"Indication-tier failure: demoted and archived for EGFR-NSCLC while the program-tier entity survives across ~15 other tumour types. A target twin's failure is two-tier; only the affected indication archives.","established_by":"run_20250520_0700"},"sources":[{"url":"https://www.merck.com/news/patritumab-deruxtecan-biologics-license-application-for-patients-with-previously-treated-locally-advanced-or-metastatic-egfr-mutated-non-small-cell-lung-cancer-voluntarily-withdrawn/","publisher":"Merck & Co.","tier":"primary","published_at":"2025-05-20"},{"url":"https://www.esmo.org/meeting-calendar/esmo-congress-2026/abstracts","publisher":"ESMO","tier":"primary","published_at":"2026-07-17"}]},{"entity_id":"asset_sdp0505","name":"SDP0505 (SHR9265)","type":"frontier_asset","holders":["Shengdi Pharmaceutical","Jiangsu Hengrui Pharma"],"status":"developing","priority":"medium","categories":["trial_readout","platform_tech"],"summary":"First-in-class HER3 x c-Met bispecific ADC, global Phase 2 in EGFR-TKI-resistant NSCLC, China BLA targeted 2026. Primary movement registers on China's CDE and chictr.org.cn, which have no clean free feed and are language-gated.","degradation":{"kind":"china_feed_partial","marker":"China-first asset — registry movement tracked at low confidence via CDE/chictr; last verified from a journal review, not a live registry diff."},"read_through":{"relation":"target_twin","thesis_bearing":"neutral","text":"Another HER3 ADC (bispecific), so target-twin logic applies: it validates HER3 expression, not signalling blockade. Named here mainly because it is the competitor the detective is structurally worst at seeing — the China registry blind spot lands squarely on HMBD-001's closest modality-adjacent rival, so its read-through is deliberately hedged low-confidence rather than dropped.","established_by":"run_20260704_0700"},"sources":[{"url":"https://doi.org/10.1093/abt/tbag015","publisher":"Antibody Therapeutics (Oxford Academic)","tier":"primary","published_at":"2026-05-10"}]}],"indications":[{"indication_id":"squamous-nsclc","name":"Squamous non-small cell lung cancer","role":"active_arena","program_context":"HMBD-001's Phase 1b setting: chemotherapy backbone ± cetuximab, later-line.","arena":{"setting_rivals":[{"entity_id":"asset_ivonescimab","name":"Ivonescimab (AK112)","holders":["Akeso"],"line":"1L","summary":"PD-1 x VEGF bispecific. HARMONi-6 showed an OS benefit (HR 0.66, 27.9 vs 23.7 months) over PD-1 plus chemotherapy in first-line squamous NSCLC, presented at the ASCO 2026 Plenary. Trial was China-only; regional generalizability is a live analyst dispute.","read_through":{"relation":"setting_rival","thesis_bearing":"challenges","text":"Not a HER3 asset — it shares HMBD-001's patients, not its biology. It resets the first-line squamous bar upward, which raises the efficacy any later-line HMBD-001 combo must eventually justify itself against, and compresses the window in which a differentiated mechanism can enter earlier lines. The China-only-trial caveat is the one lever that keeps the ex-China bar softer.","established_by":"run_20260601_0700"},"sources":[{"url":"https://ascopost.com/news/june-2026/overall-survival-benefit-with-ivonescimab-plus-chemotherapy-in-advanced-squamous-nsclc/","publisher":"The ASCO Post","tier":"trade","published_at":"2026-06-01"},{"url":"https://www.prnewswire.com/news-releases/harmoni-6-demonstrates-significant-overall-survival-benefit-hr0-66-ivonescimab-plus-chemotherapy-superior-to-pd-1-plus-chemotherapy-in-first-line-sq-nsclc-landmark-results-to-be-presented-at-asco-2026-plenary-session-302786433.html","publisher":"Akeso (PRNewswire)","tier":"primary","published_at":"2026-05-25"}]}],"benchmark_soc":[{"entity_id":"asset_pembrolizumab","name":"Pembrolizumab + platinum/taxane (KEYNOTE-407 regimen)","holders":["Merck & Co."],"line":"1L","biomarker_subgroup":"all-comers (PD-L1 agnostic)","role":"current standard of care","read_through":{"relation":"benchmark_soc","thesis_bearing":"neutral","text":"The floor HMBD-001's setting is measured against. It is the bar, not a mover: it changes the read-through only when it changes, which the ivonescimab OS win is now pressuring.","established_by":"run_20260601_0700"},"sources":[{"url":"https://ascopost.com/news/june-2026/overall-survival-benefit-with-ivonescimab-plus-chemotherapy-in-advanced-squamous-nsclc/","publisher":"The ASCO Post","tier":"trade","published_at":"2026-06-01"}]}]},"treatment_landscape":{"as_of":"2026-06-01","last_changed":"2026-06-01","changed_by":"run_20260601_0700","keyed_by":"indication x line x biomarker_subgroup","lines":[{"line":"1L","biomarker_subgroup":"all-comers","standard_of_care":"Pembrolizumab + platinum/taxane (KEYNOTE-407 regimen)","emerging":[{"entity_id":"asset_ivonescimab","note":"HARMONi-6 OS benefit; read-only view over the catalyst queue and setting-rival records."}],"bar_direction":"rising — ivonescimab's OS win is the first credible first-line displacement signal since KEYNOTE-407.","efficacy_source":{"url":"https://www.prnewswire.com/news-releases/harmoni-6-demonstrates-significant-overall-survival-benefit-hr0-66-ivonescimab-plus-chemotherapy-superior-to-pd-1-plus-chemotherapy-in-first-line-sq-nsclc-landmark-results-to-be-presented-at-asco-2026-plenary-session-302786433.html","publisher":"Akeso (PRNewswire)","tier":"primary","published_at":"2026-05-25"}},{"line":"2L+","biomarker_subgroup":"post-IO/platinum","standard_of_care":"Docetaxel +/- ramucirumab","emerging":[],"bar_direction":"static — no primary-sourced later-line displacement this cycle; HMBD-001's own setting.","efficacy_source":null}]}},{"indication_id":"nrg1-fusion-solid-tumors","name":"NRG1-fusion solid tumours","role":"priority_indication","program_context":"A priority indication where HMBD-001's signalling-blockade mechanism is most differentiated (NRG1 is the HER3 ligand), but with no active arena scan this cycle.","arena":{"setting_rivals":[],"benchmark_soc":[]},"treatment_landscape":{"as_of":"2026-05-02","last_changed":"2026-05-02","changed_by":"run_20260502_0700","keyed_by":"indication x line x biomarker_subgroup","degradation":{"kind":"arena_scan_dormant","marker":"Arena scan dormant this cycle — no-op landscape; last touched 2026-05-02. NRG1-fusion competition covered at the monthly knob, not per run."},"lines":[]}}],"quiet_this_cycle":{"no_news":[{"entity_id":"asset_zeno_her3","name":"Zenocutuzumab (adjacent NRG1 program)","cycles_quiet":3}],"critic_catches":[{"claim":"HER3-DXd 'refiled' its NSCLC BLA this month","rejected_because":"provenance_stale","detail":"The only support was an aggregator repost of the May 2025 voluntary-withdrawal news re-dated to July 2026. No primary or trade source confirms a refiling; the withdrawal, not a refiling, is the established fact.","caught_by":"critic","sources":[{"url":"https://www.merck.com/news/patritumab-deruxtecan-biologics-license-application-for-patients-with-previously-treated-locally-advanced-or-metastatic-egfr-mutated-non-small-cell-lung-cancer-voluntarily-withdrawn/","publisher":"Merck & Co.","tier":"primary","published_at":"2025-05-20"}]}],"open_threads":[{"entity_id":"asset_her3_dxd","thread":"Whether the ESMO 2026 HER3-DXd cohort is squamous (arena overlap) or a non-overlapping tumour type","since":"2026-07-17","next_expected":"Abstract text at the ESMO 2026 congress, autumn 2026"}],"dropped_with_receipt":[{"entity_id":"asset_generic_her2_adc","name":"A HER2 ADC squamous readout","dropped_because":"off-target — HER2, not HER3; no typed relation to HMBD-001. Recorded so a future run does not rediscover it as novel.","source":{"url":"https://example.com/her2-adc-readout","publisher":"Fierce Biotech","tier":"trade","published_at":"2026-07-15"}}]},"newly_discovered":[{"entity_id":"asset_her3_car_t","name":"An anti-HER3 CAR-T candidate (preclinical)","type":"frontier_asset","priority":"low","categories":["platform_tech"],"what_it_is":"Preclinical anti-HER3 CAR-T disclosed in a conference poster; earliest-stage HER3 competitor surfaced this cycle.","development":"Poster-stage; no clinical trial registered.","proposed_relation":"target_twin","read_through":{"relation":"target_twin","thesis_bearing":"neutral","text":"Third distinct HER3 modality (after ADC and bispecific ADC) — reinforces the theme that HER3 is being attacked as an antigen, not as a signalling node, which is exactly HMBD-001's white space. Preclinical, so priority is low.","established_by":"run_20260718_0700"},"promotion_proposal":{"promote_to_competitors":false,"reason":"Preclinical and modality-adjacent only; propose to track as a watching-tier interest, not a promoted competitor, until a trial registers.","proposes_interest":{"tier":"watching","note":"Emerging HER3 modalities beyond ADC (CAR-T, radioconjugate) — watch for the first that targets the signalling axis."}},"sources":[{"url":"https://example.com/her3-cart-poster","publisher":"AACR (poster)","tier":"primary","published_at":"2026-07-16"}]}],"house_view":{"partnership_bd":[{"entity_id":"merck_co","name":"Merck & Co. (MSD)","summary":"Owns HER3-DXd through its 2023 Daiichi Sankyo ADC license — the target twin above. Separately, cetuximab (marketed by Merck KGaA ex-US, a different corporate Merck) is the combination agent in HMBD-001's Phase 1b squamous arm.","read_through":{"lens":"partnership_bd","text":"The 'Merck' entanglement is two companies wearing one name: MSD is a rival that owns HMBD-001's closest target-twin ADC, while Merck KGaA's cetuximab sits inside HMBD-001's own trial. Read as BD signal, MSD's continued HER3 investment is a validation of the target that a partner-or-acquirer would price in; read as threat, it is the best-resourced HER3 rival in the field.","established_by":"run_20260620_0700"},"sources":[{"url":"https://www.merck.com/news/patritumab-deruxtecan-biologics-license-application-for-patients-with-previously-treated-locally-advanced-or-metastatic-egfr-mutated-non-small-cell-lung-cancer-voluntarily-withdrawn/","publisher":"Merck & Co.","tier":"primary","published_at":"2025-05-20"}]}],"threat_financing":[{"entity_id":"daiichi_sankyo","name":"Daiichi Sankyo","relation":"platform_threat","summary":"The DXd ADC platform is the modality engine behind HER3-DXd and a broad ADC franchise. Platform threat is a company-unit relation and lives here, not on the program's competitor list.","read_through":{"lens":"threat_financing","relation":"platform_threat","text":"The threat to HMBD-001 is not any single DXd asset but the platform's ability to point a validated payload at whichever HER3 setting reads out first. A signalling antibody competes one indication at a time; a payload platform re-aims cheaply. This is the strategic case for HMBD-001 owning the mechanism white space rather than racing on target.","established_by":"run_20260620_0700"},"sources":[{"url":"https://www.merck.com/news/patritumab-deruxtecan-biologics-license-application-for-patients-with-previously-treated-locally-advanced-or-metastatic-egfr-mutated-non-small-cell-lung-cancer-voluntarily-withdrawn/","publisher":"Merck & Co.","tier":"primary","published_at":"2025-05-20"}]}],"themes_and_signals":[{"theme":"HER3 is being validated as a target, not as a signalling node","evidence_refs":["asset_her3_dxd","asset_sdp0505","asset_her3_car_t"],"argument":"Every moving HER3 competitor this cycle attacks HER3 as an antigen to bind or deliver a payload to — ADC, bispecific ADC, CAR-T. None blocks the heregulin/NRG1 signalling axis, which is HMBD-001's mechanism. If this holds, HMBD-001's differentiation is real but also lonely: no comparator will de-risk the signalling thesis on its behalf.","thesis_impact":"neutral","proposes_interest":{"tier":"strong","note":"Track the first clinical HER3 asset that targets the signalling axis rather than expression — it would be HMBD-001's first true mechanism twin."}}],"blind_spots":{"cap":5,"ranked":[{"rank":1,"blind_spot":"China-first HER3 and squamous assets (SDP0505 via CDE/chictr; Akeso/ivonescimab financing via HKEX 9926.HK)","why_it_matters":"These are HMBD-001's closest modality-adjacent and setting rivals, and they are the ones the free-feed detective sees latest — language-gated registries and non-US-listed financing with no clean JSON feed.","signal_magnitude":"high","mitigation":"Journal/abstract review at the monthly knob; treat registry state as low-confidence between reviews."},{"rank":2,"blind_spot":"Analyst/broker interpretation and earnings-call transcripts","why_it_matters":"How the market prices a HER3 readout has no free substitute (Evaluate/broker reports are paywalled).","signal_magnitude":"medium","mitigation":"Out of scope while the reader is HMBD-001's decision-owner, not an investor; parked, not bought."}],"overflow":null}},"thesis_updates":[{"change":"amended","field":"her3-target-vs-mechanism","before":"HER3 target validation and HER3 mechanism validation will advance together as the field matures.","after":"Target validation is running years ahead of mechanism validation: ADCs and bispecifics are proving HER3 is druggable while no clinical asset tests signalling blockade, leaving HMBD-001's thesis differentiated but uncorroborated.","triggered_by":["asset_her3_dxd","asset_sdp0505","asset_her3_car_t"]}],"critic_report":{"verdict":"pass_with_advisories","retries_used":1,"blocking_findings":[],"advisory_findings":[{"kind":"weak_read_through","where":"competitors.asset_sdp0505","note":"Read-through is deliberately hedged because the underlying registry state is China-gated; flagged so the hedge is visible, not silently thin."},{"kind":"source_unreachable","where":"sources_and_method.registry_watch","note":"chictr.org.cn poll returned no parseable delta this cycle; SDP0505 registry state carried forward at low confidence."},{"kind":"calendar_stale","where":"sources_and_method","note":"Not stale — ESMO 2026 title-drop verified 17 Jul; recorded to show the surge-arming path even when surge is not yet active."}],"validator_report":{"passed":true,"retries_used":0,"findings":[]}},"sources_and_method":{"apertures_run":[{"aperture":"biology_scan","scope":"target=HER3, moa=signalling_blockade","status":"ok"},{"aperture":"arena_scan","scope":"squamous-nsclc","status":"ok"},{"aperture":"arena_scan","scope":"nrg1-fusion-solid-tumors","status":"dormant"},{"aperture":"house_sweep","scope":"partnership_bd + threat_financing + blind_spots","status":"ok"}],"apertures_degraded":["arena_scan:nrg1-fusion-solid-tumors"],"registry_watch":{"input_class":"registry_diff","tracked_nct_ids":["NCT-HER3DXd-cohort","NCT-ivonescimab-HARMONi6","NCT-hmbd001-ph1b"],"polled_by":"lastUpdatePostDate","diffs_observed":[{"source":"clinicaltrials.gov v2","note":"No in-window US-registry delta for tracked HER3-DXd NCTs this cycle; movement surfaced via ESMO title-drop instead."}],"coverage_note":"Near-complete for US/global registry; partial for China-first assets (CDE/chictr), which is the rank-1 blind spot."},"source_tier_counts":{"primary":7,"trade":3,"aggregator":1},"paywalled_flagged":[{"claim":"Analyst consensus on HER3-DXd's residual multi-tumour value post-withdrawal","publisher":"Evaluate","url":"https://example.com/evaluate-her3dxd","note":"Primary paywalled — interpretation, not fact; out of scope for the decision-owner reader."}],"interest_list":{"source":"config/interests.toml","version":4,"last_edited":"2026-06-30","last_edited_by":"owner","rot_status":"fresh","interests":[{"tier":"strong","note":"HER3-DXd encroachment into the squamous setting — the arena-overlap risk."},{"tier":"strong","note":"Any clinical HER3 asset that targets the signalling axis (the first true mechanism twin)."},{"tier":"watching","note":"China-first HER3 ADCs (SDP0505 and successors) despite the feed blind spot."}]}}};
+
+// The company layer's prototype twin (#98). Same shape `issues/companies/` publishes,
+// so file:// exercises the real render path rather than a mock of it. Real public
+// facts, hand-assembled like SAMPLE above — not a live dossier scan.
+const SAMPLE_COMPANIES = {"generated_at": "2026-07-18T07:41:00+08:00", "companies": [{"entity_id": "co_daiichi_sankyo", "name": "Daiichi Sankyo Company, Limited", "as_of": "2026-07-18", "version": 3, "first_seen": "2026-06-20", "sections_held": ["identity", "origin", "pipeline", "deals", "setbacks"], "thin_sections": ["funding", "people"], "drift_entries": 5, "degradation": "Funding and people not scanned — a 2005-merged TSE-listed major has no venture financing history worth reconstructing, and the people section has not been opened. Absence here is unscanned, not empty."}, {"entity_id": "co_akeso", "name": "Akeso, Inc.", "as_of": "2026-07-18", "version": 2, "first_seen": "2026-06-01", "sections_held": ["identity", "origin", "funding", "pipeline", "deals", "people"], "thin_sections": ["setbacks"], "drift_entries": 3, "degradation": "China-first company — HKEX filings and CDE registry are language-gated with no clean free feed, so financing detail and any setback history are tracked at low confidence. This is the rank-1 blind spot, and a sparse record here means unmeasured, not clean."}]};
+const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_sankyo", "kind": "company", "name": "Daiichi Sankyo Company, Limited", "first_seen": "2026-06-20", "as_of": "2026-07-18", "version": 3, "facts": {"identity": {"value": {"legal_name": "Daiichi Sankyo Company, Limited", "aliases": ["Daiichi Sankyo", "DS"], "founded": "2005", "hq": "Chuo-ku, Tokyo, Japan", "status": "public", "listings": [{"exchange": "TSE", "ticker": "4568"}]}, "established_by": "run_20260620_0700", "issue": "2026-06-20"}, "origin": {"value": {"founding_story": "Formed in 2005 by the merger of Sankyo Co., Ltd. and Daiichi Pharmaceutical Co., Ltd., two Japanese pharmaceutical houses whose combined chemistry and biologics capability became the base for the later ADC platform.", "spun_out_of": "Sankyo Co., Ltd. + Daiichi Pharmaceutical Co., Ltd.", "founding_thesis": "A full-scale Japanese pharma with global reach; the ADC platform thesis came later and now defines the company."}, "established_by": "run_20260620_0700", "issue": "2026-06-20"}, "pipeline": {"value": [{"asset": "Patritumab deruxtecan (HER3-DXd)", "target": "HER3", "modality": "ADC", "stage": "Phase 3 / multi-tumour", "note": "The target twin. EGFR-mutant NSCLC BLA voluntarily withdrawn May 2025 after the HERTHENA-Lung02 OS miss; program continues across ~15 tumour types."}, {"asset": "Trastuzumab deruxtecan (Enhertu)", "target": "HER2", "modality": "ADC", "stage": "Marketed", "note": "The asset that validated the DXd payload and made the platform bankable."}, {"asset": "Datopotamab deruxtecan (Dato-DXd)", "target": "TROP2", "modality": "ADC", "stage": "Phase 3"}, {"asset": "Ifinatamab deruxtecan (I-DXd)", "target": "B7-H3", "modality": "ADC", "stage": "Phase 3"}], "established_by": "run_20260718_0700", "issue": "2026-07-18"}, "deals": {"value": [{"counterparty": "Merck & Co.", "year": "2023", "type": "co-development / co-commercialisation", "assets": "patritumab deruxtecan, ifinatamab deruxtecan, raludotatug deruxtecan", "note": "The deal that put HMBD-001's closest target twin behind the best-resourced oncology commercial organisation in the field."}, {"counterparty": "AstraZeneca", "year": "2019", "type": "collaboration", "assets": "trastuzumab deruxtecan (Enhertu)"}, {"counterparty": "AstraZeneca", "year": "2020", "type": "collaboration", "assets": "datopotamab deruxtecan"}], "established_by": "run_20260620_0700", "issue": "2026-06-20"}, "setbacks": {"value": [{"date": "2025-05", "what": "HERTHENA-Lung02 missed on overall survival; the EGFR-mutant-NSCLC BLA for patritumab deruxtecan was voluntarily withdrawn.", "tier": "indication_tier", "note": "Indication-tier, not program-tier: the asset survives across ~15 other tumour types. The distinction is the whole reason the failed-program afterlife is typed."}], "established_by": "run_20260620_0700", "issue": "2026-06-20"}}, "coverage": {"thin_sections": ["funding", "people"], "degradation": "Funding and people not scanned — a 2005-merged TSE-listed major has no venture financing history worth reconstructing, and the people section has not been opened. Absence here is unscanned, not empty."}, "drift_log": [{"date": "2026-06-20", "action": "established", "field": "identity", "from": null, "to": {"legal_name": "Daiichi Sankyo Company, Limited"}, "run_id": "run_20260620_0700"}, {"date": "2026-06-20", "action": "established", "field": "origin", "from": null, "to": {"founded": "2005"}, "run_id": "run_20260620_0700"}, {"date": "2026-06-20", "action": "established", "field": "deals", "from": null, "to": [{"counterparty": "Merck & Co.", "year": "2023"}], "run_id": "run_20260620_0700"}, {"date": "2026-06-20", "action": "established", "field": "setbacks", "from": null, "to": [{"date": "2025-05"}], "run_id": "run_20260620_0700"}, {"date": "2026-07-18", "action": "corrected", "field": "pipeline", "from": [{"asset": "Patritumab deruxtecan (HER3-DXd)", "stage": "Phase 3 / NSCLC only"}], "to": [{"asset": "Patritumab deruxtecan (HER3-DXd)", "stage": "Phase 3 / multi-tumour"}], "run_id": "run_20260718_0700"}]}, "co_akeso": {"entity_id": "co_akeso", "kind": "company", "name": "Akeso, Inc.", "first_seen": "2026-06-01", "as_of": "2026-07-18", "version": 2, "facts": {"identity": {"value": {"legal_name": "Akeso, Inc.", "aliases": ["Akeso Biopharma", "康方生物"], "founded": "2012", "hq": "Zhongshan, Guangdong, China", "status": "public", "listings": [{"exchange": "HKEX", "ticker": "9926"}]}, "established_by": "run_20260601_0700", "issue": "2026-06-01"}, "origin": {"value": {"founding_story": "Founded in 2012 by Dr. Michelle Xia and colleagues, built around an in-house bispecific antibody platform (Tetrabody) rather than in-licensed assets.", "founders": ["Michelle Xia"], "founding_thesis": "That a China-based company could originate first-in-class bispecifics rather than fast-follow, and take them global through partnership."}, "established_by": "run_20260601_0700", "issue": "2026-06-01"}, "funding": {"value": {"ipo": {"date": "2020-04", "exchange": "HKEX", "ticker": "9926"}, "rounds": [], "note": "Pre-IPO venture rounds not reconstructed — HKEX prospectus is the primary source and has not been read."}, "established_by": "run_20260601_0700", "issue": "2026-06-01"}, "pipeline": {"value": [{"asset": "Ivonescimab (AK112)", "target": "PD-1 x VEGF", "modality": "bispecific antibody", "stage": "Phase 3", "note": "The setting rival. HARMONi-6 showed an OS benefit (HR 0.66) in first-line squamous NSCLC — HMBD-001's setting, though not its biology."}, {"asset": "Cadonilimab (AK104)", "target": "PD-1 x CTLA-4", "modality": "bispecific antibody", "stage": "Marketed (China)"}, {"asset": "Penpulimab (AK105)", "target": "PD-1", "modality": "antibody", "stage": "Marketed (China)"}], "established_by": "run_20260601_0700", "issue": "2026-06-01"}, "deals": {"value": [{"counterparty": "Summit Therapeutics", "year": "2022", "type": "out-licence", "assets": "ivonescimab (ex-China rights)", "note": "The ex-China route for the asset resetting HMBD-001's first-line bar — which is why an ex-China readout can arrive without an Akeso announcement."}], "established_by": "run_20260601_0700", "issue": "2026-06-01"}, "people": {"value": [{"name": "Michelle Xia", "role": "Founder, Chair and CEO", "note": "Scientific founder; the platform thesis is hers."}], "established_by": "run_20260601_0700", "issue": "2026-06-01"}}, "coverage": {"thin_sections": ["setbacks"], "degradation": "China-first company — HKEX filings and CDE registry are language-gated with no clean free feed, so financing detail and any setback history are tracked at low confidence. This is the rank-1 blind spot, and a sparse record here means unmeasured, not clean."}, "drift_log": [{"date": "2026-06-01", "action": "established", "field": "identity", "from": null, "to": {"legal_name": "Akeso, Inc."}, "run_id": "run_20260601_0700"}, {"date": "2026-06-01", "action": "established", "field": "pipeline", "from": null, "to": [{"asset": "Ivonescimab (AK112)"}], "run_id": "run_20260601_0700"}, {"date": "2026-07-18", "action": "corrected", "field": "identity", "from": {"legal_name": "Akeso Biopharma Inc.", "hq": "Guangdong, China"}, "to": {"legal_name": "Akeso, Inc.", "hq": "Zhongshan, Guangdong, China"}, "run_id": "run_20260718_0700"}]}};
 </script>
 <script>
   const $ = (id) => document.getElementById(id);
@@ -619,7 +707,7 @@ const SAMPLE = {"schema_version":"2.0.0","issue":{"id":"2026-07-18","program_id"
     '<div class="cq"><div class="cqhead"><b>' + esc(it.asset) + '</b>' + windowLine(it) +
     '<span class="fed">' + esc(it.fed_by).replace(/_/g,' ') + '</span><span class="meta">' + esc(it.status) + '</span></div>' +
     '<div class="prove">' + esc(it.catalyst) + ' — <em>' + esc(it.what_it_would_prove) + '</em></div>' +
-    '<div class="holders">' + (it.holders||[]).map(esc).join(' · ') + '</div>' + srcs(it.sources) + '</div>').join('');
+    '<div class="holders">' + holdersHTML(it.holders, ' · ') + '</div>' + srcs(it.sources) + '</div>').join('');
 
   // ── the read-through block (shared) ──
   const rtBlock = (rt) => {
@@ -642,7 +730,7 @@ const SAMPLE = {"schema_version":"2.0.0","issue":{"id":"2026-07-18","program_id"
     const nextCat = (d.catalyst_queue.items.find(q => (q.holders||[]).some(h => (e.holders||[]).includes(h)) || (q.asset||'').toLowerCase().includes((e.name||'').toLowerCase().split(' ')[0].toLowerCase())) );
     const dossier = '<details class="dossier"><summary>Dossier — available data, development &amp; BD history, next catalyst, patents</summary>' +
       '<div class="dbody">' +
-      '<div class="drow"><div class="dk">Holders</div><div class="dv">' + (e.holders||[]).map(esc).join(', ') + '</div></div>' +
+      '<div class="drow"><div class="dk">Holders</div><div class="dv">' + holdersHTML(e.holders, ', ') + '</div></div>' +
       '<div class="drow"><div class="dk">Available data</div><div class="dv">' + esc(e.summary) + '</div></div>' +
       '<div class="drow"><div class="dk">Development history</div><div class="dv">' +
         (e.read_through ? '<div class="histrow"><span class="hwhen">' + esc(e.read_through.established_by) + '</span><span>relation typed: ' + relLabel(e.read_through.relation) + '</span></div>' : '') +
@@ -655,7 +743,7 @@ const SAMPLE = {"schema_version":"2.0.0","issue":{"id":"2026-07-18","program_id"
       '<div class="enameline"><h3>' + esc(e.name) + '</h3>' + relBadge(e.read_through ? e.read_through.relation : (e.proposed_relation||'')) + '<span class="slug">' + esc(e.entity_id) + '</span></div>' +
       '<div class="etags">' + chip(e.priority) + (e.categories||[]).map(c => '<span class="cat">' + esc(c) + '</span>').join('') +
       (e.status ? '<span class="meta ' + esc(e.status) + '">' + esc(e.status) + '</span>' : '') +
-      '<span class="holders">' + (e.holders||[]).map(esc).join(' · ') + '</span></div></div>' +
+      '<span class="holders">' + holdersHTML(e.holders, ' · ') + '</span></div></div>' +
       degr + setback +
       '<p class="summary">' + esc(e.summary || (e.what_it_is ? e.what_it_is + ' — ' + e.development : '')) + '</p>' +
       rtBlock(e.read_through) +
@@ -675,7 +763,7 @@ const SAMPLE = {"schema_version":"2.0.0","issue":{"id":"2026-07-18","program_id"
   const arenaCard = (r) => '<article class="entity ' + esc(r.read_through ? r.read_through.thesis_bearing : 'neutral') + '"><div class="ehead">' +
     '<div class="enameline"><h3 style="font-size:1.3rem">' + esc(r.name) + '</h3>' + relBadge(r.read_through.relation) +
     (r.line ? '<span class="cat">' + esc(r.line) + '</span>' : '') + '</div>' +
-    '<div class="holders">' + (r.holders||[]).map(esc).join(' · ') + (r.biomarker_subgroup ? ' · ' + esc(r.biomarker_subgroup) : '') + '</div></div>' +
+    '<div class="holders">' + holdersHTML(r.holders, ' · ') + (r.biomarker_subgroup ? ' · ' + esc(r.biomarker_subgroup) : '') + '</div></div>' +
     '<p class="summary">' + esc(r.summary || r.role) + '</p>' + rtBlock(r.read_through) + srcs(r.sources) + '</article>';
 
   const landTable = (tl) => {
@@ -840,6 +928,8 @@ const SAMPLE = {"schema_version":"2.0.0","issue":{"id":"2026-07-18","program_id"
     '<div class="arena-lbl">as of ' + esc(ind.treatment_landscape.as_of) + ' · last changed ' + esc(ind.treatment_landscape.last_changed) + ' by ' + esc(ind.treatment_landscape.changed_by || '—') + '</div>' +
     landTable(ind.treatment_landscape) + '</div>').join('');
 
+  renderCompanies();
+
   // ── open/close all dossiers (rebound after every render; the button is static,
   //    so `onclick` replaces rather than stacks listeners) ──
   const btn = $('toggleAll');
@@ -881,6 +971,265 @@ const SAMPLE = {"schema_version":"2.0.0","issue":{"id":"2026-07-18","program_id"
     if ((STATUS[(issue.issue.run || {}).status] || {}).stub || !issue.headline) renderStub(issue);
     else renderFull(issue);
   }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════════
+  // THE COMPANY VIEW (#98) — a fourth hop, fetched only when a reader opens one.
+  //
+  // The roster is asset-typed and a company appears in an issue only as a string
+  // in `holders`. This turns that string into a door: holder name → `co_` id →
+  // `issues/companies/<id>.json`, the published dossier (#97).
+  //
+  // Lazily, and that is the design. The index is fetched once, on the first
+  // render that needs to know which holders are openable; a dossier body is
+  // fetched only when its drawer opens. An unopened company costs nothing and
+  // the issue payload does not carry a second copy of a record that is SHARED
+  // across programs.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // Legal-form tokens stripped from the TAIL of a company name before slugging.
+  //
+  // THIS MIRRORS `apertures._LEGAL_FORM_TOKENS` AND IS TESTED AGAINST IT
+  // (tests/test_dashboard_vocabulary.py). The mirror is deliberate — the page
+  // must resolve a holder name to an id with no server round-trip — but the two
+  // lists resolving differently would silently produce dead links for exactly
+  // the companies whose names are written two ways, which is the case the
+  // resolver exists for.
+  //
+  // `kgaa` is DELIBERATELY absent from both: stripping it maps "Merck KGaA" onto
+  // `co_merck`, the same id as "Merck & Co." — two entirely different companies.
+  const LEGAL_FORM_TOKENS = new Set(['co','company','corp','corporation','inc','incorporated',
+    'ltd','limited','llc','plc','sa','ag','gmbh','nv','bv','ab','oy','as','kk',
+    'holdings','holding','group']);
+
+  function companyIdFromName(name) {
+    if (typeof name !== 'string' || !name.trim()) return null;
+    const tokens = name.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+    while (tokens.length && LEGAL_FORM_TOKENS.has(tokens[tokens.length - 1])) tokens.pop();
+    // A name that is ONLY a legal form ("Ltd.") identifies nothing.
+    return tokens.length ? 'co_' + tokens.join('_') : null;
+  }
+
+  let COMPANIES = null;              // entity_id → index row, once loaded
+  const COMPANY_CACHE = new Map();   // entity_id → fetched dossier
+
+  // Which holders are openable. A 404 is the pre-first-dossier state, not a
+  // failure: no scan has built a company record yet, so there is nothing to
+  // fetch and every holder correctly stays plain text.
+  async function loadCompanyIndex() {
+    if (COMPANIES) return COMPANIES;
+    COMPANIES = new Map();
+    if (PROTOTYPE) {
+      (SAMPLE_COMPANIES.companies || []).forEach(r => COMPANIES.set(r.entity_id, r));
+      return COMPANIES;
+    }
+    try {
+      const idx = await getJSON(ISSUES_BASE + 'companies/index.json');
+      (idx.companies || []).forEach(r => COMPANIES.set(r.entity_id, r));
+    } catch (err) {
+      if (!/HTTP 404/.test(err.message)) {
+        console.warn('company index unavailable:', err.message);
+      }
+    }
+    return COMPANIES;
+  }
+
+  // A holder with a dossier is a button; one without is plain text. Never a dead
+  // link, never a spinner over an empty page.
+  function holderHTML(name) {
+    const id = companyIdFromName(name);
+    if (!id || !COMPANIES || !COMPANIES.has(id)) return esc(name);
+    return '<button type="button" class="colink" data-company="' + esc(id) + '">' + esc(name) + '</button>';
+  }
+  function holdersHTML(list, sep) {
+    return (list || []).map(holderHTML).join(sep);
+  }
+
+  // The Companies section. Renders from the INDEX alone — no dossier body is
+  // fetched until a card is opened — so the section costs one request no matter
+  // how many companies we hold.
+  function renderCompanies() {
+    const body = $('companiesBody');
+    if (!body) return;
+    const rows = COMPANIES ? [...COMPANIES.values()] : [];
+    if (!rows.length) {
+      // Absence is a rendered state, not a hidden section. A reader who cannot
+      // see this section would never learn the layer exists.
+      body.innerHTML = '<p class="coempty">No company records yet. A company enters the roster when an asset ' +
+        'names it as a holder and a dossier scan builds its record — until then this is empty because nothing ' +
+        'has been scanned, not because nothing was found.</p>';
+      return;
+    }
+    body.innerHTML = rows.map(r => {
+      const held = (r.sections_held || []).length;
+      const thin = r.thin_sections || [];
+      return '<button type="button" class="cocard" data-company="' + esc(r.entity_id) + '">' +
+        '<span class="cn">' + esc(r.name || r.entity_id) + '</span>' +
+        '<span class="cid">' + esc(r.entity_id) + '</span>' +
+        '<span class="cmeta">' + held + ' section' + (held === 1 ? '' : 's') + ' held · ' +
+          esc(r.drift_entries || 0) + ' correction' + (r.drift_entries === 1 ? '' : 's') + ' logged · ' +
+          'as of ' + esc(r.as_of || '—') + '</span>' +
+        (thin.length ? '<span class="cthin">not measured: ' + thin.map(esc).join(', ') + '</span>' : '') +
+        '<span class="copen">Open dossier ›</span></button>';
+    }).join('');
+  }
+
+  const CO_SECTIONS = ['identity', 'origin', 'funding', 'pipeline', 'deals', 'people', 'pivots', 'setbacks'];
+  const CO_SECTION_LABEL = {
+    identity: 'Identity', origin: 'Origin', funding: 'Funding', pipeline: 'Pipeline',
+    deals: 'Deals', people: 'People', pivots: 'Pivots', setbacks: 'Setbacks',
+  };
+
+  // A value rendered as prose, or null when there is nothing to show.
+  //
+  // Nested objects are FLATTENED to "key: value" pairs rather than stringified.
+  // A listing rendering as {"exchange":"HKEX","ticker":"9926"} is machine output
+  // leaking into a reader surface — it says the same thing as "exchange: HKEX ·
+  // ticker: 9926" and says it in a shape nobody reads. Null-for-empty is what
+  // lets the caller drop the row entirely: an empty `rounds: []` printed as "[]"
+  // claims we looked and found none, which is a different and stronger claim
+  // than the silence the record actually holds.
+  function coVal(v) {
+    if (v == null || v === '') return null;
+    if (Array.isArray(v)) {
+      const parts = v.map(coVal).filter(Boolean);
+      return parts.length ? parts.join(' · ') : null;
+    }
+    if (typeof v === 'object') {
+      const parts = Object.keys(v)
+        .map(k => { const inner = coVal(v[k]); return inner ? esc(k.replace(/_/g, ' ')) + ' ' + inner : null; })
+        .filter(Boolean);
+      return parts.length ? parts.join(', ') : null;
+    }
+    return esc(v);
+  }
+
+  // One section. `fact` is {value, established_by, issue} — the provenance shape
+  // shared with the entity-fact writer, so an auditor learns it once.
+  function coSection(name, fact, thin) {
+    const isThin = (thin || []).indexOf(name) !== -1;
+    // The marker renders AT THE POINT OF THE ABSENCE. A sparse dossier must read
+    // as unmeasured, never as a small company — several of the most important
+    // competitors are China-listed, the rank-1 blind spot.
+    const head = '<h4>' + esc(CO_SECTION_LABEL[name] || name) +
+      (isThin ? '<span class="cothin">not measured</span>' : '') +
+      (fact && fact.established_by ? '<span class="coestab">established by ' + esc(fact.established_by) +
+        (fact.issue ? ' · ' + esc(fact.issue) : '') + '</span>' : '') + '</h4>';
+    const value = fact ? fact.value : null;
+    let body;
+    if (value == null || (Array.isArray(value) && !value.length) ||
+        (typeof value === 'object' && !Array.isArray(value) && !Object.keys(value).length)) {
+      body = '<p class="empty">' + (isThin ? 'No scan has established this section yet.'
+                                           : 'Nothing recorded.') + '</p>';
+    } else if (Array.isArray(value)) {
+      body = value.map(row => {
+        if (typeof row !== 'object' || row === null) return '<div class="coitem">' + esc(row) + '</div>';
+        const keys = Object.keys(row);
+        const title = row.name || row.title || row.asset || row.counterparty || row.round || keys[0];
+        const rest = keys.filter(k => row[k] !== title)
+          .map(k => { const v = coVal(row[k]); return v ? esc(k.replace(/_/g, ' ')) + ': ' + v : null; })
+          .filter(Boolean);
+        return '<div class="coitem"><span class="t">' + esc(title) + '</span>' +
+          (rest.length ? '<span class="m">' + rest.join(' · ') + '</span>' : '') + '</div>';
+      }).join('');
+    } else {
+      const rows = Object.keys(value)
+        .map(k => { const v = coVal(value[k]); return v ? '<div class="k">' + esc(k.replace(/_/g, ' ')) +
+          '</div><div>' + v + '</div>' : ''; })
+        .filter(Boolean);
+      // Every member rendered to nothing (an object of empty arrays) is the same
+      // claim as an empty section, and must read the same way.
+      body = rows.length ? '<div class="corow">' + rows.join('') + '</div>'
+                         : '<p class="empty">' + (isThin ? 'No scan has established this section yet.' : 'Nothing recorded.') + '</p>';
+    }
+    return '<section class="cosec">' + head + body + '</section>';
+  }
+
+  // The drift log. A dossier that rendered only current values would throw away
+  // the one thing that makes it different from a company's own about-page.
+  function coDrift(log) {
+    if (!Array.isArray(log) || !log.length) {
+      return '<section class="cosec"><h4>History of corrections</h4>' +
+        '<p class="empty">Nothing has been corrected yet — every section still reads as first established.</p></section>';
+    }
+    const rows = log.slice().reverse().map(e => {
+      const label = esc(CO_SECTION_LABEL[e.field] || e.field || '');
+      const was = e.from == null ? '' :
+        '<div class="was">was: <pre>' + esc(JSON.stringify(e.from, null, 1)) + '</pre></div>';
+      return '<div class="driftrow"><div class="when">' + esc(e.date || '') + '</div><div>' +
+        '<span class="act ' + esc(e.action || '') + '">' + esc(e.action || '') + '</span> ' + label +
+        (e.run_id ? ' <span class="when">· ' + esc(e.run_id) + '</span>' : '') + was + '</div></div>';
+    }).join('');
+    return '<section class="cosec"><h4>History of corrections' +
+      '<span class="coestab">append-only — the prior belief survives in the record</span></h4>' +
+      '<div class="drift">' + rows + '</div></section>';
+  }
+
+  function closeCompany() {
+    const d = $('coDrawer'), s = $('coScrim');
+    if (d) d.remove();
+    if (s) s.remove();
+    if (CO_OPENER && document.contains(CO_OPENER)) CO_OPENER.focus();
+    CO_OPENER = null;
+  }
+  let CO_OPENER = null;
+
+  function coShell(inner) {
+    closeCompany();
+    document.body.insertAdjacentHTML('beforeend',
+      '<div class="coscrim" id="coScrim"></div><aside class="codrawer" id="coDrawer" role="dialog" ' +
+      'aria-modal="true" aria-label="Company dossier" tabindex="-1">' + inner + '</aside>');
+    $('coScrim').addEventListener('click', closeCompany);
+    const close = document.querySelector('#coDrawer .coclose');
+    if (close) close.addEventListener('click', closeCompany);
+    $('coDrawer').focus();
+  }
+
+  async function openCompany(entityId) {
+    const row = COMPANIES && COMPANIES.get(entityId);
+    const name = (row && row.name) || entityId;
+    const head = '<div class="cohead"><div><div class="coname">' + esc(name) + '</div>' +
+      '<div class="coid">' + esc(entityId) + '</div></div>' +
+      '<button type="button" class="coclose">Close</button></div>';
+    coShell(head + '<div class="cobody" id="coBody"><p class="empty">Loading dossier…</p></div>');
+
+    let dossier = COMPANY_CACHE.get(entityId);
+    if (!dossier) {
+      try {
+        dossier = PROTOTYPE ? SAMPLE_COMPANY_DOSSIERS[entityId]
+                            : await getJSON(ISSUES_BASE + 'companies/' + entityId + '.json');
+        if (!dossier) throw new Error('HTTP 404');
+        COMPANY_CACHE.set(entityId, dossier);
+      } catch (err) {
+        // A failed fetch says so. The sample is never substituted (spec/08).
+        $('coBody').innerHTML = '<div class="loaderr"><b>Could not load this dossier</b>' +
+          'Fetch of <code>' + esc(ISSUES_BASE + 'companies/' + entityId + '.json') + '</code> failed: ' +
+          esc(err.message) + '.</div>';
+        return;
+      }
+    }
+    const facts = dossier.facts || {};
+    const coverage = dossier.coverage || {};
+    const thin = coverage.thin_sections || [];
+    const meta = '<section class="cosec"><h4>Record' +
+      '<span class="coestab">as of ' + esc(dossier.as_of || '—') +
+      ' · first seen ' + esc(dossier.first_seen || '—') +
+      ' · v' + esc(dossier.version == null ? '—' : dossier.version) + '</span></h4>' +
+      (coverage.degradation ? '<p class="empty">' + esc(coverage.degradation) + '</p>' : '') +
+      '</section>';
+    $('coBody').innerHTML = meta +
+      CO_SECTIONS.map(n => coSection(n, facts[n], thin)).join('') +
+      coDrift(dossier.drift_log);
+  }
+
+  // Delegated, so cards re-rendered by a tab switch keep working without rebinding.
+  document.addEventListener('click', (ev) => {
+    const btn = ev.target.closest && ev.target.closest('.colink, .cocard');
+    if (!btn) return;
+    CO_OPENER = btn;
+    openCompany(btn.dataset.company);
+  });
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') closeCompany(); });
 
   // ══════════════════════════════════════════════════════════════════════════
   // THE DATA LAYER — registry → program manifest → issue (spec/08).
@@ -987,7 +1336,15 @@ const SAMPLE = {"schema_version":"2.0.0","issue":{"id":"2026-07-18","program_id"
   async function loadIssue(programId, issueId) {
     setIssueMsg('skel', 'Loading issue ' + esc(issueId) + ' …');
     try {
-      render(await getJSON(ISSUES_BASE + programId + '/' + issueId + '.json'));
+      // The company index is needed BEFORE the render, because it decides which
+      // holders are openable. It resolves to an empty map when no dossier has
+      // ever been published, and it never rejects — so a missing company layer
+      // costs the issue nothing but the links.
+      const [issue] = await Promise.all([
+        getJSON(ISSUES_BASE + programId + '/' + issueId + '.json'),
+        loadCompanyIndex(),
+      ]);
+      render(issue);
     } catch (err) {
       // Issue dead → identity card and switcher HOLD; only the body errors, naming the issue that failed.
       setIssueMsg('loaderr', '<b>Could not load issue ' + esc(issueId) + '</b>' +
@@ -1069,7 +1426,7 @@ const SAMPLE = {"schema_version":"2.0.0","issue":{"id":"2026-07-18","program_id"
   // ── PROTOTYPE MODE (file://) — the inlined sample, under a banner that says so.
   //    ZERO fetches: the page must stay double-clickable with no server and no
   //    sibling files, so nothing here may depend on a fetch resolving. ──
-  function bootPrototype() {
+  async function bootPrototype() {
     $('protoBanner').hidden = false;
     $('protoBanner').innerHTML =
       '<div class="pbt">Prototype mode — fixed sample, not published data</div>' +
@@ -1106,6 +1463,9 @@ const SAMPLE = {"schema_version":"2.0.0","issue":{"id":"2026-07-18","program_id"
       stats: SAMPLE.stats,
       flags: [],
     }]);
+    // Same ordering rule as the live path: the index decides which holders are
+    // openable, so it must be in hand before the first render.
+    await loadCompanyIndex();
     render(SAMPLE);
   }
 

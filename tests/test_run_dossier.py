@@ -508,6 +508,48 @@ class TestTheRefreshDial:
         assert not any(f"companies/{COMPANY}.json" in p for p in _staged(wired["commit"]))
 
 
+class TestAnEmptyCandidateSetIsNotAQuietDial:
+    """`_plan_dossier_scans_v2` returns the candidate COUNT beside the apertures
+    so the caller can tell "the dial held everyone back" from "there was nobody
+    to hold back".
+
+    The live pipeline reported the second as the first for its whole life: the
+    roster is asset-typed, no asset names a holder, so `company_ids_from_entities`
+    returned `[]`, every trigger was vacuously satisfied over an empty set, and
+    the run logged "every company record is inside the refresh dial" — a healthy
+    sentence about a set with no members. That is a gate announcing itself clean
+    because it had nothing to read.
+    """
+
+    def test_no_companies_reports_no_candidates(self, tmp_path):
+        entities = {"asset_rc148": {"kind": "asset", "facts": {}}}
+        apertures, candidates = run._plan_dossier_scans_v2(
+            tmp_path, entities, date.fromisoformat(TODAY)
+        )
+        assert apertures == []
+        assert candidates == 0
+
+    def test_a_known_company_counts_even_when_nothing_is_due(self, tmp_path):
+        """The distinguishing case: one candidate, held back by the dial."""
+        path = tmp_path / "state" / "entities" / "companies" / f"{COMPANY}.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"entity_id": COMPANY, "as_of": TODAY}) + "\n")
+        apertures, candidates = run._plan_dossier_scans_v2(
+            tmp_path,
+            {COMPANY: {"kind": "company"}},
+            date.fromisoformat(TODAY),
+        )
+        assert apertures == []
+        assert candidates == 1
+
+    def test_the_run_warns_rather_than_reporting_a_healthy_dial(self, wired, caplog):
+        for record in (wired["root"] / "state" / "entities").rglob("*.json"):
+            record.unlink()
+        assert _run(wired["root"], runner=FakeRunner()) == run.EXIT_OK
+        assert "no company records exist" in caplog.text
+        assert "inside the refresh dial" not in caplog.text
+
+
 class TestTheKnownGap:
     """The material-event trigger, asserted rather than hidden — as the attendee
     set already is. The seam is live code; only the data source is undecided."""
@@ -533,7 +575,9 @@ class TestTheCycleIsUnaffected:
     def test_a_program_with_no_companies_plans_no_dossier_scans(self, wired, caplog):
         (wired["root"] / "state" / "entities" / f"{COMPANY}.json").unlink()
         assert _run(wired["root"], runner=FakeRunner()) == run.EXIT_OK
-        assert "dossier scans: none due" in caplog.text
+        # The cycle still completes — but with no companies at all this is the
+        # unreachable-aperture warning, not the refresh dial holding anyone back.
+        assert "no company records exist" in caplog.text
 
     def test_dossier_findings_never_reach_the_manager_or_the_critic(self, wired):
         """Out of scope by decision: no read-through is authored from a dossier,

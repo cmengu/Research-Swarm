@@ -63,6 +63,16 @@ The refresh dial is **⚑ 91 days** (one quarter) — a stated default, flippabl
 
 **Discovery feeds the roster.** A newly discovered competitor queues a dossier scan, so the roster deepens automatically as it widens rather than being bounded by what a human remembered to seed.
 
+### How a company enters the roster at all
+
+The dossier scan ranges over **companies**; the roster is **assets**. The bridge is the asset's `holders` — the company or companies developing it, which the manager names on every asset it emits and the state edits persist onto the asset's record. Cycle N publishes "RC148, holders: RemeGen Co., Ltd."; cycle N+1's planner sees a company with no dossier and queues its first sighting.
+
+**Without that bridge the aperture is unreachable, not merely idle** — a layer holding only assets yields no companies, every trigger is vacuously satisfied over an empty set, and the run reports "none due" forever. The orchestrator therefore distinguishes *no candidates* (a warning: the aperture cannot fire) from *candidates held back by the dial* (the dial working). A gate that announces itself clean because it had nothing to read is the failure this spec exists to prevent.
+
+A holder name is resolved to a `co_` entity_id by a single pure function: lowercase, drop punctuation, strip trailing legal-form tokens, join with underscores. So "RemeGen" and "RemeGen Co., Ltd." both land on `co_remegen` — the merge that matters, since one company written two ways must not become two dossiers.
+
+**This is identity resolution from prose, and it is the weakest link in the `entity_id` spine.** It cannot distinguish names that differ only by a stripped token. The posture is a stable, auditable guess a human curation session can merge — *not* a cleverer heuristic that fails less visibly, because a wrong merge puts two companies' histories in one record and is strictly worse than a duplicate. `kgaa` is deliberately **not** stripped for exactly this reason: it would map "Merck KGaA" onto "Merck & Co."
+
 ### Cost is capped, and the cap is measured by the orchestrator
 
 History search is unbounded by nature, so each dossier scan carries an explicit ceiling — ⚑ `max_turns=24`, `max_sources=40`, `max_usd=4.0`. Exceeding it degrades with a receipt (`dossier_scan_cost_capped`, [the register](06-validator-and-critic.md#the-register)) rather than truncating silently.

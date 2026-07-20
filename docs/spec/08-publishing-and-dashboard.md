@@ -142,6 +142,41 @@ That last clause is the whole lesson of the `_sample.js` incident, and it is wor
 
 **The pre-first-run state is distinct from a transport failure**, and the page must not conflate them. Before *any* run has completed there is no registry at all, so the fetch 404s — but the reader has configured nothing wrong, and telling them to serve the repo over HTTP is advice that cannot help, because they already are. A **404 on the registry** therefore reads *"nothing published yet — the registry is written by the first successful run"*; any other registry failure reads as transport and keeps the serve-over-HTTP hint. A new repo is the one state every reader passes through exactly once, and it should not look like a misconfiguration.
 
+## The company dossier layer
+
+The deep company record ([#92](https://github.com/cmengu/Research-Swarm/issues/92)) has its own published layer, because the record it publishes is **shared across programs** and every other published artifact is per-program.
+
+```
+issues/companies/index.json     what companies we hold, and how thin each is
+issues/companies/<co_id>.json   one company's published dossier
+```
+
+**It sits beside the registry, not inside a program**, and that placement is the argument. Nesting a dossier under `issues/<program>/` would duplicate one company into every program that names it and freeze each copy at that issue's publication date. A dossier accumulates; an issue is immutable. They cannot be the same file.
+
+**Rebuilt wholesale on every run**, for the registry's reason: nothing reads the published layer, so nothing can carry forward from it and a stale published dossier is impossible by construction rather than by locking. A company deleted from state disappears from the layer on the next run.
+
+**A company with no dossier is absent, not present-and-empty.** The index lists what we hold. A company we have merely *named* — a holder string on an asset — has no row until a scan has actually built its record. When no dossiers exist at all, **no index is written**: an index asserting zero companies and the absence of the file mean the same thing, and writing it would put an artifact in git for every deployment that has never run a dossier scan.
+
+**Provenance survives publication.** Sections ship in the `{value, established_by, issue}` shape the entity-fact writer already uses. Flattening to bare values would make the published dossier uncitable, and per-field provenance is the difference between intelligence and a company profile. `last_edited_by` does *not* ship — it adjudicates a human/machine write conflict ([03] clause 1) and has no reader meaning.
+
+**The drift log ships whole.** It is the append-only record of what we believed before and what corrected it, and it is the single thing that distinguishes this from a company's own about-page.
+
+**Emission is total.** It runs after the run has committed to succeeding, so an unreadable record on disk is skipped with a warning and every other company still publishes. A dossier that took the emission seam down would kill the run *after* the intelligence was written.
+
+## The company view
+
+A holder is a door. Every competitor, setting rival and catalyst-queue item already carries `holders[]`; the page resolves a holder name to a `co_` id and, when the index has that id, renders it as a control that opens the dossier.
+
+**A holder without a published dossier stays plain text** — never a dead link, never a spinner over an empty page. "We have not looked yet" is a rendered state and must stay distinguishable from "we looked and found nothing".
+
+**A fourth hop, fetched on click.** The index is fetched once, before the first render that needs to know which holders are openable; a dossier body is fetched only when its drawer opens. An unopened company costs nothing.
+
+**A drawer, not a route.** Opening a company must not cost the reader their place in the issue they were reading.
+
+**The name resolver exists twice** — `apertures.company_entity_id` in Python, `companyIdFromName` in the page — because the page must resolve a holder with no server round trip. The two are **drift-tested** (`tests/test_dashboard_vocabulary.py`), like the degradation vocabulary: two lists that disagree produce dead links for exactly the companies whose names are written two ways, which is the case the resolver exists for. `kgaa` is deliberately absent from both — stripping it maps "Merck KGaA" onto `co_merck`, the same id as "Merck & Co.", two entirely different companies.
+
+**What the view shows:** each section with its own `established_by` (provenance is per field, so no single date is hoisted to the top to imply the record was verified at once), `coverage.thin_sections[]` rendered **at the point of the absence** in the section that is thin, and the drift log. A view that rendered only current values would throw away the reason the dossier exists.
+
 ## Vocabulary homes
 
 v3 carried curated single-home constants (`STATUS`, `FLAG_LABEL`, `FINDING`, `BEAT_SECTIONS`, `MARKER`); v4 deleted them. They are **restored in the page**, with two changes the v2 schema earns:
