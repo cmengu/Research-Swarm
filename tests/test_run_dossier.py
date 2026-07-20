@@ -654,3 +654,61 @@ class TestTheCalendarIsVerifiedOnTheV2Path:
             run_id="run_x", now=datetime(2026, 7, 20), dry_run=False,
         )
         assert out is sentinel
+
+
+class TestReusingFindings:
+    """The fan-out is ~90% of a cycle's cost and the part least likely to be wrong.
+
+    A researcher that honestly reports "nothing in this window" has done its job.
+    But a run that then died in the manager or the validator discarded all of it,
+    so every iteration on a downstream contract re-bought research that had not
+    changed — two live cycles paid ~$9 to re-answer the same question about the
+    same 48 hours. The findings were always persisted; nothing read them back.
+    """
+
+    def _findings(self, root, run_id, aperture_id, **over):
+        d = root / "runs" / run_id / "findings"
+        d.mkdir(parents=True, exist_ok=True)
+        payload = {"aperture": aperture_id, "quiet": True, "findings": [], "errors": []}
+        payload.update(over)
+        (d / f"{aperture_id.replace(':', '-')}.json").write_text(json.dumps(payload))
+
+    def test_findings_are_restored_without_calling_a_researcher(self, tmp_path):
+        from researchswarm.apertures import Aperture
+        from run import _reuse_findings_v2
+
+        self._findings(tmp_path, "run_x", "biology_scan", findings=[{"headline": "x"}])
+        ap = Aperture(id="biology_scan", kind="biology_scan", scope="HER3", active=True)
+        stage = _reuse_findings_v2(tmp_path, "run_x", [ap])
+        assert stage.findings_by_aperture["biology_scan"]["findings"] == [{"headline": "x"}]
+        assert stage.apertures_run == [{"aperture": "biology_scan", "scope": "HER3", "status": "ok"}]
+
+    def test_a_dormant_aperture_stays_dormant_from_todays_plan(self, tmp_path):
+        """Dormancy is a property of THIS cycle's config, not of the reused run —
+        inheriting it would let a stale roster masquerade as today's."""
+        from researchswarm.apertures import Aperture
+        from run import _reuse_findings_v2
+
+        (tmp_path / "runs" / "run_x" / "findings").mkdir(parents=True)
+        ap = Aperture(id="arena_scan:nrg1", kind="arena_scan", scope="nrg1", active=False)
+        stage = _reuse_findings_v2(tmp_path, "run_x", [ap])
+        assert stage.apertures_degraded == ["arena_scan:nrg1"]
+        assert stage.apertures_run[0]["status"] == "dormant"
+
+    def test_a_missing_file_degrades_rather_than_vanishing(self, tmp_path):
+        """From the manager's side a scan that failed and a scan whose findings are
+        gone are the same fact, and neither may silently disappear."""
+        from researchswarm.apertures import Aperture
+        from run import _reuse_findings_v2
+
+        (tmp_path / "runs" / "run_x" / "findings").mkdir(parents=True)
+        ap = Aperture(id="house_sweep", kind="house_sweep", scope="all", active=True)
+        stage = _reuse_findings_v2(tmp_path, "run_x", [ap])
+        assert stage.apertures_degraded == ["house_sweep"]
+        assert stage.apertures_run[0]["status"] == "failed"
+
+    def test_an_unknown_run_id_fails_loudly(self, tmp_path):
+        from run import _reuse_findings_v2
+
+        with pytest.raises(FileNotFoundError):
+            _reuse_findings_v2(tmp_path, "run_nope", [])

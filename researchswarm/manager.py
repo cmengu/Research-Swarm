@@ -200,8 +200,22 @@ def _validate_issue_draft_v2(draft, *, thesis_version, run_id) -> None:
         if key not in draft:
             problems.append(f"missing required top-level key {key!r}")
 
+    # `stats` is NORMALIZED, not blocked. It was blocked, and it was the single
+    # most persistent failure in the system: it appeared in every live run,
+    # including ones that were otherwise converging, and it burned a retry each
+    # time. The block bought nothing — `publish.derive_full_stats` recomputes the
+    # whole block from the issue and overwrites whatever arrives here, so the
+    # rejected value was already destined for the bin. Refusing a draft over a
+    # field the orchestrator is about to discard is a gate defending an invariant
+    # that the next stage enforces unconditionally.
+    #
+    # The rule itself still holds — the manager does not get to author counts —
+    # so a non-empty stats is emptied here and logged. The contract is enforced by
+    # construction rather than by argument, which is the same trade the source and
+    # entity writers already make.
     if draft.get("stats") != {}:
-        problems.append("stats must be exactly {} — the orchestrator derives counts, never the manager")
+        log.info("manager: emptying author-supplied stats — the orchestrator derives them")
+        draft["stats"] = {}
 
     program = draft.get("program")
     if not isinstance(program, dict) or not program:

@@ -766,3 +766,27 @@ class TestFailureModes:
         result = run_cli("--today", "2026-07-13", "--root", str(fake_repo))
         assert result.returncode == 2
         assert "thesis.json" in result.stderr
+
+
+class TestTheBackfillWindow:
+    """`--since` overrides where coverage starts — the seeding-session lever.
+
+    A healthy cadence binds the window to the last issue that covered days, which
+    is two or three days wide. That is correct for a cycle and useless for a first
+    look: every section reads empty because almost nothing happens in 72 hours.
+    Overriding it re-reads days another issue may already cover, so it warns.
+    """
+
+    def test_since_widens_the_window_and_says_it_is_a_backfill(self, fake_repo):
+        result = run_cli("--program", "hmbd-001", "--push", "--since", "2026-05-01",
+                         "--today", "2026-07-20", "--root", str(fake_repo), "--dry-run")
+        assert "BACKFILL" in result.stderr
+        # The override applies whatever the join would have been — including the
+        # cold-start fallback, which is the state a fresh install is actually in.
+        assert "overridden to 2026-05-01" in result.stderr
+
+    def test_without_since_the_join_is_untouched(self, fake_repo):
+        """The override must not leak into a normal cadence run."""
+        result = run_cli("--program", "hmbd-001", "--push", "--today", "2026-07-20",
+                         "--root", str(fake_repo), "--dry-run")
+        assert "BACKFILL" not in result.stderr
