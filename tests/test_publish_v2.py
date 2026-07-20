@@ -587,3 +587,149 @@ class TestTheDroppedReceiptHole:
 
     def test_no_dropped_items_is_not_a_finding(self):
         assert self._check([]) == []
+
+
+# ---------------------------------------------------------------------------
+# The company dossier layer (#97) — the emission seam #92 never got
+# ---------------------------------------------------------------------------
+
+
+def _dossier(root: Path, entity_id: str, **over) -> Path:
+    """A dossier on disk in the shape `dossiers.build_company_dossier_record` writes."""
+    record = {
+        "entity_id": entity_id,
+        "kind": "company",
+        "first_seen": "2026-07-18",
+        "as_of": "2026-07-20",
+        "version": 2,
+        "last_edited_by": "loop",
+        "facts": {
+            "identity": {
+                "value": {"legal_name": "RemeGen Co., Ltd.", "hq": "Yantai, China"},
+                "established_by": "run_20260718_0700",
+                "issue": "2026-07-18",
+            },
+        },
+        "coverage": {"thin_sections": ["funding", "people"], "degradation": "HKEX filings unreachable"},
+        "drift_log": [
+            {"date": "2026-07-18", "action": "established", "field": "identity",
+             "from": None, "to": {"legal_name": "RemeGen"}, "run_id": "run_20260718_0700"},
+            {"date": "2026-07-20", "action": "corrected", "field": "identity",
+             "from": {"legal_name": "RemeGen"}, "to": {"legal_name": "RemeGen Co., Ltd."},
+             "run_id": "run_20260720_0700"},
+        ],
+    }
+    record.update(over)
+    path = root / "state" / "entities" / "companies" / f"{entity_id}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(record))
+    return path
+
+
+class TestTheCompanyDossierLayer:
+    """The published projection of `state/entities/companies/`.
+
+    It lives beside the registry rather than inside a program because a dossier is
+    SHARED across programs. Nesting it under `issues/<program>/` would duplicate
+    one company into every program that names it and freeze each copy at that
+    issue's date — a dossier accumulates, an issue is immutable.
+    """
+
+    def test_a_dossier_on_disk_reaches_the_published_layer(self, root):
+        _dossier(root, "co_remegen")
+        result = _publish(root, _issue("2026-07-20"))
+        published = _read(root / "issues" / "companies" / "co_remegen.json")
+        assert published["entity_id"] == "co_remegen"
+        assert result.company_paths
+
+    def test_provenance_survives_publication(self, root):
+        # Flattening {value, established_by, issue} to a bare value would make the
+        # published dossier uncitable. Provenance is per FIELD and it ships.
+        _dossier(root, "co_remegen")
+        _publish(root, _issue("2026-07-20"))
+        identity = _read(root / "issues" / "companies" / "co_remegen.json")["facts"]["identity"]
+        assert identity["established_by"] == "run_20260718_0700"
+        assert identity["issue"] == "2026-07-18"
+
+    def test_the_drift_log_ships_whole(self, root):
+        # THE POINT OF THE WHOLE TICKET. The append-only record of what we believed
+        # before and what corrected it is what makes this different from a
+        # company's own about-page.
+        _dossier(root, "co_remegen")
+        _publish(root, _issue("2026-07-20"))
+        log = _read(root / "issues" / "companies" / "co_remegen.json")["drift_log"]
+        assert [e["action"] for e in log] == ["established", "corrected"]
+        assert log[1]["from"] == {"legal_name": "RemeGen"}
+
+    def test_thin_sections_reach_the_reader(self, root):
+        # A sparse dossier must read as UNMEASURED, never as a small company. The
+        # rank-1 blind spot is China-listed competitors; getting this wrong
+        # actively misinforms.
+        _dossier(root, "co_remegen")
+        _publish(root, _issue("2026-07-20"))
+        row = _read(root / "issues" / "companies" / "index.json")["companies"][0]
+        assert row["thin_sections"] == ["funding", "people"]
+        assert row["degradation"] == "HKEX filings unreachable"
+
+    def test_governance_fields_stay_behind(self, root):
+        # `last_edited_by` adjudicates a human/machine write conflict — internal,
+        # with no reader meaning.
+        _dossier(root, "co_remegen")
+        _publish(root, _issue("2026-07-20"))
+        assert "last_edited_by" not in _read(root / "issues" / "companies" / "co_remegen.json")
+
+    def test_the_index_names_a_company_it_can_name(self, root):
+        _dossier(root, "co_remegen")
+        _publish(root, _issue("2026-07-20"))
+        row = _read(root / "issues" / "companies" / "index.json")["companies"][0]
+        assert row["name"] == "RemeGen Co., Ltd."
+        assert row["sections_held"] == ["identity"]
+        assert row["drift_entries"] == 2
+
+    def test_a_never_scanned_company_falls_back_to_its_id(self, root):
+        # No identity section yet. The row still needs a label or the index renders
+        # something a reader cannot recognise.
+        _dossier(root, "co_abbvie", facts={})
+        _publish(root, _issue("2026-07-20"))
+        assert _read(root / "issues" / "companies" / "index.json")["companies"][0]["name"] == "co_abbvie"
+
+    def test_no_dossiers_writes_no_index(self, root):
+        # An index asserting zero companies and the absence of the file mean the
+        # same thing; writing it would put an artifact in git for every deployment
+        # that has never run a dossier scan.
+        result = _publish(root, _issue("2026-07-20"))
+        assert not (root / "issues" / "companies" / "index.json").exists()
+        assert result.companies_index_path is None
+        assert result.paths == (result.issue_path, result.manifest_path, result.registry_path)
+
+    def test_an_unreadable_dossier_is_skipped_not_raised(self, root, caplog):
+        # Publishing happens after the run has committed to succeeding. A dossier
+        # that took this seam down would kill the run AFTER the intelligence was
+        # written — the failure this repo has shipped five times.
+        _dossier(root, "co_remegen")
+        bad = root / "state" / "entities" / "companies" / "co_broken.json"
+        bad.write_text("{not json")
+        result = _publish(root, _issue("2026-07-20"))
+        assert (root / "issues" / "companies" / "co_remegen.json").exists()
+        assert not (root / "issues" / "companies" / "co_broken.json").exists()
+        assert "skipping unreadable dossier" in caplog.text
+        assert len(result.company_paths) == 1
+
+    def test_every_written_file_is_staged(self, root):
+        # run.py stages `paths` into the run's single commit. A published dossier
+        # missing from it would be a file no reader can reach.
+        _dossier(root, "co_remegen")
+        result = _publish(root, _issue("2026-07-20"))
+        assert result.companies_index_path in result.paths
+        assert all(p in result.paths for p in result.company_paths)
+
+    def test_the_layer_is_rebuilt_wholesale(self, root):
+        # Nothing reads the published layer, so nothing can carry forward from it.
+        # A company deleted from state must not survive in `issues/companies/`.
+        _dossier(root, "co_remegen")
+        _publish(root, _issue("2026-07-20"))
+        (root / "state" / "entities" / "companies" / "co_remegen.json").unlink()
+        _dossier(root, "co_abbvie", facts={})
+        _publish(root, _issue("2026-07-21"))
+        listed = [r["entity_id"] for r in _read(root / "issues" / "companies" / "index.json")["companies"]]
+        assert listed == ["co_abbvie"]

@@ -37,6 +37,7 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -48,6 +49,7 @@ from researchswarm.critic import (
     PUBLISHED_WITH_UNRESOLVED,
 )
 from researchswarm.critique import CritiqueStageResult
+from researchswarm.dossiers import COMPANIES_DIRNAME, DOSSIER_SECTIONS
 from researchswarm.programs import load_program
 from researchswarm.runs import latest_covering_issue
 from researchswarm.state import State
@@ -645,11 +647,22 @@ class PublishResultV2:
     issue_path: Path
     manifest_path: Path
     registry_path: Path
+    companies_index_path: Path | None = None
+    company_paths: tuple[Path, ...] = ()
 
     @property
     def paths(self) -> tuple[Path, ...]:
-        """The three, in write order — what run.py stages."""
-        return (self.issue_path, self.manifest_path, self.registry_path)
+        """Everything written, in write order — what run.py stages.
+
+        The company layer is last and is OPTIONAL: a run with no dossiers on disk
+        writes no index and returns nothing extra, so a deployment that has never
+        scanned a company stages exactly the three files it always did.
+        """
+        written = [self.issue_path, self.manifest_path, self.registry_path]
+        if self.companies_index_path is not None:
+            written.append(self.companies_index_path)
+        written.extend(self.company_paths)
+        return tuple(written)
 
 
 # ---------------------------------------------------------------------------
@@ -677,6 +690,28 @@ def issue_path_v2(root: Path, program_id: str, issue_id: str) -> Path:
 def registry_path(root: Path) -> Path:
     """`issues/index.json` — the cross-program registry (spec/08)."""
     return Path(root) / "issues" / "index.json"
+
+
+def companies_dir(root: Path) -> Path:
+    """`issues/companies/` — the published dossier layer (#97).
+
+    Beside the registry, NOT inside a program, and that placement is the whole
+    argument. A dossier is shared across programs (`dossiers` rule 1); nesting it
+    under `issues/<program>/` would duplicate one company into every program that
+    names it and freeze each copy at that issue's date. A dossier accumulates and
+    an issue is immutable — they cannot be the same file.
+    """
+    return Path(root) / "issues" / "companies"
+
+
+def companies_index_path(root: Path) -> Path:
+    """`issues/companies/index.json` — what companies we hold, and how thin each is."""
+    return companies_dir(root) / "index.json"
+
+
+def company_publish_path(root: Path, entity_id: str) -> Path:
+    """`issues/companies/<entity_id>.json` — one company's published dossier."""
+    return companies_dir(root) / f"{entity_id}.json"
 
 
 # ---------------------------------------------------------------------------
@@ -948,7 +983,154 @@ def _registry_row(root: Path, program) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# The v2 recipe — the three writes, in order
+# Step 5 — the company dossier layer (#97)
+# ---------------------------------------------------------------------------
+
+# Governance fields that stay behind. `last_edited_by` records WHO wrote (loop vs
+# owner) and is how [03] adjudicates a human/machine write conflict — an internal
+# concern with no reader meaning. Everything else on the record ships, because
+# everything else is the answer to "who are these people and what have they
+# already abandoned".
+_UNPUBLISHED_DOSSIER_FIELDS = frozenset({"last_edited_by"})
+
+
+def company_display_name(record: Mapping) -> str | None:
+    """The name to show for a dossier — its legal name, else its entity_id tail.
+
+    A dossier whose identity section has not been scanned yet still needs a label,
+    or the index renders a row a reader cannot recognise. Falling back to the id
+    keeps a never-scanned company nameable without inventing a name for it.
+    """
+    facts = record.get("facts")
+    identity = facts.get("identity") if isinstance(facts, Mapping) else None
+    value = identity.get("value") if isinstance(identity, Mapping) else None
+    legal_name = value.get("legal_name") if isinstance(value, Mapping) else None
+    if isinstance(legal_name, str) and legal_name.strip():
+        return legal_name.strip()
+    entity_id = record.get("entity_id")
+    if isinstance(entity_id, str) and entity_id.strip():
+        return entity_id.strip()
+    return None
+
+
+def project_company_dossier(record: Mapping) -> dict:
+    """The published projection of one dossier record.
+
+    Near-total: the state record and the published one are almost the same file,
+    and that is deliberate. The temptation is to flatten `{value, established_by,
+    issue}` down to bare values so the dashboard has less to walk — and that would
+    throw away the citation. Provenance is per FIELD here (`dossiers` rule 2);
+    a published dossier that cannot say which run established which section is a
+    company profile, not intelligence.
+
+    `drift_log` ships whole. It is the append-only record of what we believed
+    before and what corrected it, and it is the single thing that makes this
+    different from a company's own about-page — the actual answer to "show me the
+    entire history".
+    """
+    published = {
+        key: value
+        for key, value in record.items()
+        if key not in _UNPUBLISHED_DOSSIER_FIELDS
+    }
+    published["name"] = company_display_name(record)
+    return published
+
+
+def _company_index_row(entity_id: str, record: Mapping) -> dict:
+    """One index row — enough to list and triage a company without fetching it.
+
+    Carries `thin_sections` in full rather than a count, for the same reason the
+    registry carries `flags`: this is the pre-fetch triage signal, and *which*
+    sections are unmeasured is the signal. A count says "incomplete"; the list
+    says "we have never looked at their funding", which is actionable.
+    """
+    coverage = record.get("coverage")
+    coverage = coverage if isinstance(coverage, Mapping) else {}
+    facts = record.get("facts")
+    facts = facts if isinstance(facts, Mapping) else {}
+    drift_log = record.get("drift_log")
+    row = {
+        "entity_id": entity_id,
+        "name": company_display_name(record),
+        "as_of": record.get("as_of"),
+        "version": record.get("version"),
+        "first_seen": record.get("first_seen"),
+        "sections_held": [name for name in DOSSIER_SECTIONS if name in facts],
+        "thin_sections": list(coverage.get("thin_sections") or []),
+        "drift_entries": len(drift_log) if isinstance(drift_log, list) else 0,
+    }
+    degradation = coverage.get("degradation")
+    if degradation:
+        row["degradation"] = degradation
+    return row
+
+
+def write_company_dossiers(
+    root: Path, *, generated_at: str | None = None
+) -> tuple[Path | None, tuple[Path, ...]]:
+    """Publish every dossier on disk. Returns `(index_path, dossier_paths)`.
+
+    Wholesale on every run, for the registry's reason and not a new one: nothing
+    here reads the published layer, so nothing can carry forward from it and a
+    stale published dossier is impossible by construction rather than by locking.
+
+    **A company with no dossier is absent, not present-and-empty.** The index
+    lists what we hold; a company we have merely *named* (a holder string on an
+    asset) has no row until a scan has actually built its record. That keeps
+    "we have not looked yet" distinguishable from "we looked and found nothing",
+    which is the distinction the whole honesty layer rests on.
+
+    Returns `(None, ())` when no dossiers exist — no empty index is written. An
+    index asserting zero companies and the absence of the file both mean "nothing
+    published yet", and writing the file would put an artifact in git for every
+    deployment that has never run a dossier scan.
+
+    TOTAL. This runs after the run has committed to succeeding, so an unreadable
+    record is skipped with a warning and every other company still publishes. A
+    dossier that took the emission seam down would kill the run *after* the
+    intelligence was written — the failure this repo has shipped five times.
+    """
+    root = Path(root)
+    source_dir = root / "state" / "entities" / COMPANIES_DIRNAME
+    rows: list[dict] = []
+    written: list[Path] = []
+
+    for path in sorted(source_dir.glob("*.json")) if source_dir.exists() else []:
+        if path.name == "index.json":
+            continue
+        try:
+            record = json.loads(path.read_text())
+        except (OSError, ValueError) as exc:
+            log.warning(
+                "publish: skipping unreadable dossier %s (%s) — every other company still publishes",
+                path.name, exc,
+            )
+            continue
+        if not isinstance(record, dict):
+            log.warning("publish: skipping %s — not an object", path.name)
+            continue
+        entity_id = record.get("entity_id") or path.stem
+        out = company_publish_path(root, entity_id)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        write_json(out, project_company_dossier(record))
+        written.append(out)
+        rows.append(_company_index_row(entity_id, record))
+
+    if not rows:
+        return None, ()
+
+    index = companies_index_path(root)
+    index.parent.mkdir(parents=True, exist_ok=True)
+    write_json(index, {
+        "generated_at": generated_at or stamp_generated_at(),
+        "companies": rows,
+    })
+    return index, tuple(written)
+
+
+# ---------------------------------------------------------------------------
+# The v2 recipe — the writes, in order
 # ---------------------------------------------------------------------------
 
 
@@ -989,10 +1171,20 @@ def run_publish_stage_v2(
         program_issues_dir(root, program_id), program_id, generated_at=generated_at
     )
     registry = write_registry(root, generated_at=generated_at)
+    # LAST, and outside the program's directory: the dossier layer is global, so
+    # it is written after the per-program files and rebuilt wholesale like the
+    # registry above it. A run that has never scanned a company writes nothing
+    # here and stages exactly the three files it always did.
+    companies_index, company_files = write_company_dossiers(root, generated_at=generated_at)
     log.info(
-        "publish: %s → issue, manifest, and a wholesale registry rewrite",
+        "publish: %s → issue, manifest, a wholesale registry rewrite%s",
         issue_file.name,
+        f", and {len(company_files)} company dossier(s)" if company_files else "",
     )
     return PublishResultV2(
-        issue_path=issue_file, manifest_path=manifest, registry_path=registry
+        issue_path=issue_file,
+        manifest_path=manifest,
+        registry_path=registry,
+        companies_index_path=companies_index,
+        company_paths=company_files,
     )
