@@ -96,8 +96,26 @@
   main { display: flex; flex-direction: column; }
   section { padding: var(--s5) 0; border-top: 1px solid var(--rule); display: flex; flex-direction: column; gap: var(--s3); }
   .sechead { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); align-items: baseline; justify-content: space-between; }
-  .sechead h2 { font-family: var(--mono); font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; color: var(--ink); font-weight: 600; }
-  .sechead .sub { font-size: .86rem; color: var(--ink-3); flex: 1 1 20rem; }
+  /* Section headings were .72rem mono against 1.08rem body — the label was
+     smaller than everything it labelled, so the page read as one long column
+     with no landmarks. A heading has to outrank its own content. */
+  .sechead h2 { font-family: var(--serif); font-size: 1.75rem; line-height: 1.15; letter-spacing: -.015em;
+                color: var(--ink); font-weight: 600; }
+  .sechead .sub { font-size: .92rem; color: var(--ink-3); flex: 1 1 20rem; max-width: 46ch; }
+  /* Anything openable looks openable. The first reader could not find the
+     company drawer because a link that looks like body text is not a control. */
+  .eopen { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer;
+           text-align: left; border-bottom: 1px dashed var(--rule-strong); }
+  .eopen:hover { color: var(--hema); border-bottom-color: var(--hema); }
+  .eopen:focus-visible { outline: 2px solid var(--hema); outline-offset: 3px; border-radius: 2px; }
+  .eopen::after { content: " ›"; color: var(--ink-3); font-family: var(--mono); font-size: .8em; }
+  .eopen:hover::after { color: var(--hema); }
+  /* The dossier-status block: why this thing does or does not have a deep record. */
+  .dstat { border: 1px solid var(--rule); border-left: 3px solid var(--hema); border-radius: 3px;
+           padding: var(--s2) var(--s3); display: flex; flex-direction: column; gap: var(--s1); }
+  .dstat.none { border-left-color: var(--challenges); }
+  .dstat .dlbl { font-family: var(--mono); font-size: .64rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+  .dstat p { font-size: .95rem; color: var(--ink-2); }
   .ghost { font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2);
            background: none; border: 1px solid var(--rule-strong); border-radius: 4px; padding: .35rem .6rem; cursor: pointer;
            transition: color .15s, border-color .15s; white-space: nowrap; }
@@ -741,7 +759,7 @@ const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_
       '<div class="drow"><div class="dk">Patents</div><div class="dv muted">Not tracked in v1 — record not signal, ~18-month latency (source-set #51). Manual low-cadence enrichment at the monthly knob.</div></div>' +
       '</div></details>';
     return '<article class="entity ' + esc(bear) + archived + '"><div class="ehead">' +
-      '<div class="enameline"><h3>' + esc(e.name) + '</h3>' + relBadge(e.read_through ? e.read_through.relation : (e.proposed_relation||'')) + '<span class="slug">' + esc(e.entity_id) + '</span></div>' +
+      '<div class="enameline"><h3>' + entityBtn(e.entity_id, e.name) + '</h3>' + relBadge(e.read_through ? e.read_through.relation : (e.proposed_relation||'')) + '<span class="slug">' + esc(e.entity_id) + '</span></div>' +
       '<div class="etags">' + chip(e.priority) + (e.categories||[]).map(c => '<span class="cat">' + esc(c) + '</span>').join('') +
       (e.status ? '<span class="meta ' + esc(e.status) + '">' + esc(e.status) + '</span>' : '') +
       '<span class="holders">' + holdersHTML(e.holders, ' · ') + '</span></div></div>' +
@@ -762,7 +780,7 @@ const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_
 
   // ── indications: arena + treatment landscape ──
   const arenaCard = (r) => '<article class="entity ' + esc(r.read_through ? r.read_through.thesis_bearing : 'neutral') + '"><div class="ehead">' +
-    '<div class="enameline"><h3 style="font-size:1.3rem">' + esc(r.name) + '</h3>' + relBadge(r.read_through.relation) +
+    '<div class="enameline"><h3 style="font-size:1.3rem">' + entityBtn(r.entity_id, r.name) + '</h3>' + relBadge(r.read_through.relation) +
     (r.line ? '<span class="cat">' + esc(r.line) + '</span>' : '') + '</div>' +
     '<div class="holders">' + holdersHTML(r.holders, ' · ') + (r.biomarker_subgroup ? ' · ' + esc(r.biomarker_subgroup) : '') + '</div></div>' +
     '<p class="summary">' + esc(r.summary || r.role) + '</p>' + rtBlock(r.read_through) + srcs(r.sources) + '</article>';
@@ -784,7 +802,7 @@ const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_
     const rivals = ind.arena.setting_rivals.map(arenaCard).join('');
     const socs = ind.arena.benchmark_soc.map(arenaCard).join('');
     const arenaEmpty = (!ind.arena.setting_rivals.length && !ind.arena.benchmark_soc.length);
-    return '<div class="indic"><div class="ih"><h3>' + esc(ind.name) + '</h3><span class="role">' + esc(ind.role).replace(/_/g,' ') + '</span><span class="slug">' + esc(ind.indication_id) + '</span></div>' +
+    return '<div class="indic"><div class="ih"><h3>' + indicationBtn(ind.indication_id, ind.name) + '</h3><span class="role">' + esc(ind.role).replace(/_/g,' ') + '</span><span class="slug">' + esc(ind.indication_id) + '</span></div>' +
       '<div class="ctx">' + esc(ind.program_context) + '</div>' +
       // a dead aperture marks every section its SCOPE fed — derived, not table-driven
       ((APMARK[ind.indication_id] || []).join('')) +
@@ -797,7 +815,7 @@ const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_
   // ── quiet ──
   const q = d.quiet_this_cycle;
   $('quietBody').innerHTML =
-    '<div class="pills">' + q.no_news.map(n => '<span class="pill"><b>' + esc(n.name) + '</b> &middot; ' + n.cycles_quiet +
+    '<div class="pills">' + q.no_news.map(n => '<span class="pill"><b>' + entityBtn(n.entity_id, n.name) + '</b> &middot; ' + n.cycles_quiet +
       ' cycle' + (n.cycles_quiet > 1 ? 's' : '') + '</span>').join('') + '</div>' +
     q.critic_catches.map(c => '<div class="catch"><div class="stamp">Rejected &middot; ' + esc(c.rejected_because) + '</div><div class="claim">' +
       esc(c.claim) + '</div><div class="why">' + esc(c.detail) + '</div>' + srcs(c.sources) + '</div>').join('') +
@@ -964,7 +982,10 @@ const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_
       '<p>run ' + esc(run.run_id) + ' &middot; ' + esc(b.published_at) + '</p>');
   }
 
+  let ISSUE = null;   // the rendered issue — the drawer reads entities out of it
+
   function render(issue) {
+    ISSUE = issue;
     if (!issue || !issue.issue) {
       setIssueMsg('loaderr', '<b>Malformed issue</b>The issue file has no <code>issue</code> block.');
       return;
@@ -974,6 +995,150 @@ const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_
   }
 
   // ══════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════════
+  // THE ENTITY DRAWER (#101) — click any asset or indication, get what we hold.
+  //
+  // The page named dozens of things and let you open none of them. An entity_id
+  // appears on a competitor card, in an arena, in the quiet list, in a catalyst
+  // item and in a theme's evidence_refs — five places, one entity, no way to see
+  // it whole. This gathers every mention out of the rendered issue and shows the
+  // union, so "what do we actually know about RC148" is one click and not a
+  // reading exercise across five sections.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function entityBtn(id, label) {
+    if (!id) return esc(label);
+    return '<button type="button" class="eopen" data-entity="' + esc(id) + '">' + esc(label) + '</button>';
+  }
+  function indicationBtn(id, label) {
+    if (!id) return esc(label);
+    return '<button type="button" class="eopen" data-indication="' + esc(id) + '">' + esc(label) + '</button>';
+  }
+
+  // Every mention of one entity_id anywhere in the issue, with the section that
+  // carried it. Order matters: the richest record first, so the drawer's header
+  // uses the best name and type available.
+  function gatherEntity(id) {
+    const d = ISSUE || {};
+    const hits = [];
+    const push = (where, rec) => { if (rec) hits.push({ where, rec }); };
+    (d.competitors || []).forEach(e => { if (e.entity_id === id) push('Competitors that moved', e); });
+    (d.newly_discovered || []).forEach(e => { if (e.entity_id === id) push('Newly discovered', e); });
+    (d.indications || []).forEach(ind => {
+      ((ind.arena || {}).setting_rivals || []).forEach(r => {
+        if (r.entity_id === id) push('Arena — ' + ind.name, r); });
+      ((ind.arena || {}).benchmark_soc || []).forEach(r => {
+        if (r.entity_id === id) push('Standard of care — ' + ind.name, r); });
+    });
+    ((d.quiet_this_cycle || {}).no_news || []).forEach(n => {
+      if (n.entity_id === id) push('Quiet this cycle', n); });
+    ((d.catalyst_queue || {}).items || []).forEach(it => {
+      if ((it.entity_ids || []).includes(id)) push('Catalyst queue', it); });
+    return hits;
+  }
+
+  // WHY THIS THING DOES OR DOES NOT HAVE A DEEP RECORD.
+  //
+  // The most-asked question the page could not answer. A dossier is kept on a
+  // COMPANY, never on an asset — so an asset's answer is always about its
+  // holders, and the interesting case is the one where it has none: an asset
+  // with no holder named cannot put a company into the roster, which is exactly
+  // why the dossier aperture has nothing to scan. Saying so on the asset makes
+  // the system's own gap legible where the reader meets it, instead of leaving
+  // them to conclude the company is uninteresting.
+  function dossierStatus(rec) {
+    const holders = rec.holders || [];
+    if (!holders.length) {
+      return '<div class="dstat none"><span class="dlbl">No dossier — and here is why</span>' +
+        '<p>A dossier is kept on a <b>company</b>, never on an asset. No holder is named on this ' +
+        'entry, so this asset puts no company into the roster and there is nothing for a dossier ' +
+        'scan to research. This is the gap, not a judgement about the asset: name a holder and a ' +
+        'first-sighting scan is queued on the next cycle.</p></div>';
+    }
+    const known = holders.filter(h => { const cid = companyIdFromName(h); return cid && COMPANIES && COMPANIES.has(cid); });
+    const unknown = holders.filter(h => known.indexOf(h) === -1);
+    let html = '<div class="dstat' + (known.length ? '' : ' none') + '">' +
+      '<span class="dlbl">' + (known.length ? 'Dossiers' : 'No dossier yet') + '</span>';
+    if (known.length) {
+      html += '<p>Held by ' + known.map(holderHTML).join(' and ') + ' — open for the deep record: ' +
+        'origin, funding, pipeline, deals, and every correction we have logged.</p>';
+    }
+    if (unknown.length) {
+      html += '<p>' + unknown.map(esc).join(' and ') + ': named as a holder, but no dossier scan has ' +
+        'run yet. The company is known to the roster and a first sighting is queued — "we have not ' +
+        'looked yet" is a different state from "there was nothing to find".</p>';
+    }
+    return html + '</div>';
+  }
+
+  function openEntity(id) {
+    const hits = gatherEntity(id);
+    if (!hits.length) { openShellMsg(id, 'Nothing in this issue mentions <code>' + esc(id) + '</code>.'); return; }
+    const best = hits[0].rec;
+    const name = best.name || id;
+    const head = '<div class="cohead"><div><div class="coname">' + esc(name) + '</div>' +
+      '<div class="coid">' + esc(id) + (best.type ? ' · ' + esc(best.type).replace(/_/g,' ') : '') + '</div></div>' +
+      '<button type="button" class="coclose">Close</button></div>';
+    const body = hits.map(h => {
+      const r = h.rec;
+      const rows = [];
+      if (r.holders) rows.push(['Holders', holdersHTML(r.holders, ' · ')]);
+      if (r.line) rows.push(['Line', esc(r.line)]);
+      if (r.status) rows.push(['Status', esc(r.status)]);
+      if (r.priority) rows.push(['Priority', esc(r.priority)]);
+      if (r.cycles_quiet != null) rows.push(['Cycles quiet', esc(r.cycles_quiet)]);
+      if (r.catalyst) rows.push(['Catalyst', esc(r.catalyst)]);
+      if (r.expected_window) rows.push(['Expected', esc(r.expected_window)]);
+      if (r.what_it_would_prove) rows.push(['Would prove', esc(r.what_it_would_prove)]);
+      const prose = r.summary || r.what_it_is || '';
+      return '<section class="cosec"><h4>' + esc(h.where) + '</h4>' +
+        (prose ? '<p>' + esc(prose) + '</p>' : '') +
+        (rows.length ? '<div class="corow">' + rows.map(x => '<div class="k">' + x[0] + '</div><div>' + x[1] + '</div>').join('') + '</div>' : '') +
+        (r.degradation ? degrMarker(r.degradation) : '') +
+        (r.read_through ? rtBlockRO(r.read_through) : '') +
+        (r.sources ? srcs(r.sources) : '') + '</section>';
+    }).join('');
+    coShell(head + '<div class="cobody">' + dossierStatus(best) + body + '</div>');
+  }
+
+  function openIndication(id) {
+    const ind = ((ISSUE || {}).indications || []).find(x => x.indication_id === id);
+    if (!ind) { openShellMsg(id, 'No indication <code>' + esc(id) + '</code> in this issue.'); return; }
+    const head = '<div class="cohead"><div><div class="coname">' + esc(ind.name) + '</div>' +
+      '<div class="coid">' + esc(ind.indication_id) + ' · ' + esc(ind.role).replace(/_/g,' ') + '</div></div>' +
+      '<button type="button" class="coclose">Close</button></div>';
+    const tl = ind.treatment_landscape || {};
+    const rivals = ((ind.arena || {}).setting_rivals || []).concat(((ind.arena || {}).benchmark_soc || []));
+    const who = rivals.length
+      ? '<div class="corow">' + rivals.map(r => '<div class="k">' + esc(r.line || '—') + '</div><div>' +
+          entityBtn(r.entity_id, r.name) + (r.holders ? ' <span class="coestab">' + holdersHTML(r.holders, ' · ') + '</span>' : '') +
+          '</div>').join('') + '</div>'
+      : '<p class="empty">No arena entries this cycle.</p>';
+    const lines = (tl.lines || []).length
+      ? '<div class="corow">' + tl.lines.map(l => '<div class="k">' + esc(l.line) + '</div><div>' +
+          esc(l.standard_of_care) + '<br><span class="coestab">' + esc(l.bar_direction) + '</span></div>').join('') + '</div>'
+      : '<p class="empty">No lines recorded — the landscape has not been touched this cycle.</p>';
+    coShell(head + '<div class="cobody">' +
+      '<section class="cosec"><h4>Why this indication matters here</h4><p>' + esc(ind.program_context) + '</p></section>' +
+      '<section class="cosec"><h4>Who shares these patients</h4>' + who + '</section>' +
+      '<section class="cosec"><h4>Where the bar is heading' +
+        '<span class="coestab">as of ' + esc(tl.as_of || '—') + '</span></h4>' +
+        (tl.degradation ? degrMarker(tl.degradation) : '') + lines + '</section>' +
+      '</div>');
+  }
+
+  function openShellMsg(id, html) {
+    coShell('<div class="cohead"><div><div class="coname">' + esc(id) + '</div></div>' +
+      '<button type="button" class="coclose">Close</button></div>' +
+      '<div class="cobody"><p class="empty">' + html + '</p></div>');
+  }
+
+  // Read-only read-through, reusing the page's own block if it exists yet.
+  function rtBlockRO(rt) {
+    return '<div class="rt"><div class="rtlbl">Read-through</div><p>' + esc(rt.text) + '</p>' +
+      (rt.established_by ? '<span class="estab">established by ' + esc(rt.established_by) + '</span>' : '') + '</div>';
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // THE COMPANY VIEW (#98) — a fourth hop, fetched only when a reader opens one.
   //
@@ -1238,10 +1403,12 @@ const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_
 
   // Delegated, so cards re-rendered by a tab switch keep working without rebinding.
   document.addEventListener('click', (ev) => {
-    const btn = ev.target.closest && ev.target.closest('.colink, .cocard');
+    const btn = ev.target.closest && ev.target.closest('.colink, .cocard, .eopen');
     if (!btn) return;
     CO_OPENER = btn;
-    openCompany(btn.dataset.company);
+    if (btn.dataset.company) openCompany(btn.dataset.company);
+    else if (btn.dataset.indication) openIndication(btn.dataset.indication);
+    else if (btn.dataset.entity) openEntity(btn.dataset.entity);
   });
   document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') closeCompany(); });
 
