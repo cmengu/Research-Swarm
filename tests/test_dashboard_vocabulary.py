@@ -226,3 +226,46 @@ class TestTheCompanyResolverMirror:
         the rank-1 blind spot is China-listed competitors."""
         block = page[page.index("function coSection") : page.index("function coDrift")]
         assert "thin" in block and "not measured" in block
+
+
+class TestTheManagerPromptVocabulary:
+    """The manager prompt must offer the SAME closed vocabulary the register declares.
+
+    The first live v2 run coined `no_in_window_item` — a kind that exists nowhere,
+    reaching the dashboard as a raw string. The prompt now lists the kinds inline,
+    and a list in a prompt drifts from the register exactly the way the dashboard's
+    did, so it is pinned the same way.
+    """
+
+    def test_the_prompt_offers_exactly_the_declared_kinds(self, declared_degradations):
+        prompt = (REPO / "prompts" / "manager-v2.md").read_text()
+        block = prompt[prompt.index("`kind` IS A CLOSED VOCABULARY") :]
+        block = block[: block.index("If a window simply contained")]
+        offered = set(re.findall(r"[a-z][a-z_]{6,}", block)) & declared_degradations
+        missing = declared_degradations - offered
+        assert not missing, (
+            f"the manager prompt does not offer {missing}; a kind the manager is "
+            "never shown is a kind it will coin a replacement for"
+        )
+
+    def test_the_prompt_names_holders_as_required(self):
+        """`holders` is the only path a company has into the roster. The first live
+        run returned it as None on every competitor, which is why it is now stated
+        as REQUIRED in the schema block rather than listed among the fields."""
+        prompt = (REPO / "prompts" / "manager-v2.md").read_text()
+        assert '"holders"' in prompt, "the worked competitor example must show holders"
+        assert "holders` is REQUIRED" in prompt
+
+    def test_the_prompt_forbids_the_invented_fields(self):
+        """The first live run emitted `relationship`, `movements` and
+        `why_it_matters` — a schema it made up. Naming them as forbidden is
+        cheaper than another failed run discovering it again."""
+        prompt = (REPO / "prompts" / "manager-v2.md").read_text()
+        for invented in ("relationship", "movements", "why_it_matters"):
+            assert invented in prompt, f"the prompt should explicitly rule out {invented}"
+
+    def test_the_prompt_forbids_double_accounting(self):
+        """Listing an entity in competitors[] AND no_news reads as "this moved" and
+        "this did not move" in the same issue. The live run did it for every entity."""
+        prompt = (REPO / "prompts" / "manager-v2.md").read_text()
+        assert "EXACTLY ONE of those places, never both" in prompt
