@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-20T14:25:12+08:00",
+  "generated_at": "2026-07-20T14:58:46+08:00",
   "programs": [
     {
       "program_id": "hmbd-001",
@@ -7,7 +7,7 @@
       "sponsor": "Hummingbird Bioscience",
       "mechanism": "HER3 signalling blockade",
       "latest_issue": "2026-07-20",
-      "latest_published_at": "2026-07-20T14:25:12.219234",
+      "latest_published_at": "2026-07-20T14:58:46.377659",
       "issue_count": 2,
       "flags": [
         "failed"

@@ -3,13 +3,13 @@
   "issue": {
     "id": "2026-07-20",
     "program_id": "hmbd-001",
-    "published_at": "2026-07-20T14:25:12.219234",
+    "published_at": "2026-07-20T14:58:46.377659",
     "coverage_window": {
       "from": "2026-05-01",
       "to": "2026-07-20"
     },
     "run": {
-      "run_id": "run_20260720_1425",
+      "run_id": "run_20260720_1458",
       "status": "failed",
       "critic_verdict": "not_run",
       "critic_retries": 0,
@@ -18,8 +18,8 @@
       "models": {}
     },
     "failure": {
-      "stage": "validation",
-      "detail": "validation still blocking after 2 retries: dangling_entity@quiet_this_cycle.open_threads[0].entity_id, dangling_entity@quiet_this_cycle.open_threads[1].entity_id, malformed_shape@stats"
+      "stage": "synthesis",
+      "detail": "manager: claude exited 1: stdout='{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":true,\"api_error_status\":null,\"duration_ms\":173574,\"duration_api_ms\":0,\"num_turns\":1,\"result\":\"API Error: Unable to connect to API (ENOTFOUND)\",\"stop_reason\":\"stop_sequence\",\"session_id\":\"97c4f282-6a5d-4832-8316-635b9c1503f6\",\"total_cost_usd\":0,\"usage\":{\"input_tokens\":0,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"output_tokens\":0,\"ser' stderr=''"
     }
   },
   "program": {
