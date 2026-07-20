@@ -67,11 +67,22 @@ class TestTheV2SeamContract:
         with pytest.raises(IssueDraftInvalid, match="house_view"):
             _validate(draft)
 
-    def test_authored_stats_is_a_contract_breach(self):
+    def test_authored_stats_is_emptied_not_rejected(self):
+        """The manager does not author counts — but the seam NORMALIZES that now.
+
+        It used to block, and it was the most persistent failure in the system:
+        it appeared in every live run, including ones otherwise converging, and
+        burned a retry each time. The block bought nothing, because
+        `publish.derive_full_stats` recomputes the block from the issue and
+        overwrites whatever arrives. Refusing a draft over a field the next stage
+        unconditionally discards is a gate defending an invariant something else
+        already guarantees. The rule still holds; it is now enforced by
+        construction.
+        """
         draft = _draft()
-        draft["stats"] = {"competitors_moved": 2}
-        with pytest.raises(IssueDraftInvalid, match="stats"):
-            _validate(draft)
+        draft["stats"] = {"competitors_moved": 9}
+        validate_issue_draft(draft, thesis_version=THESIS_VERSION, run_id=RUN_ID)
+        assert draft["stats"] == {}
 
     def test_a_headline_without_so_what_is_rejected(self):
         draft = _draft()
