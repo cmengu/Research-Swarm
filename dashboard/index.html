@@ -177,11 +177,33 @@
      The two must not look alike: an unscanned company that rendered as a link
      would promise a page that does not exist, and "we have not looked yet" is a
      state this page renders rather than hides. */
-  .colink { font: inherit; color: var(--hema); background: none; border: 0; padding: 0;
-            cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
-            text-decoration-thickness: 1px; }
-  .colink:hover { color: var(--eosin); }
+  .colink { font: inherit; color: var(--hema); background: var(--eosin-soft); border: 1px solid var(--rule-strong);
+            border-radius: 3px; padding: .05em .4em .05em .35em; cursor: pointer; text-decoration: none;
+            font-weight: 600; white-space: nowrap; }
+  /* A trailing marker, because the holders line is small grey mono type and an
+     underline alone did not read as "openable" — the first reader could not find
+     the feature at all. */
+  .colink::after { content: "›"; margin-left: .3em; opacity: .7; }
+  .colink:hover { color: var(--eosin); border-color: var(--eosin); }
   .colink:focus-visible { outline: 2px solid var(--hema); outline-offset: 2px; border-radius: 2px; }
+
+  /* The Companies section — the entry point. The holder links alone were not
+     discoverable: they sit in a small grey mono line and the first reader could
+     not find the feature. A named section with its own cards is what makes a
+     dossier something you can go looking for rather than stumble onto. */
+  .cogrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); gap: var(--s3); }
+  .cocard { text-align: left; font: inherit; color: inherit; background: var(--paper-2);
+            border: 1px solid var(--rule); border-radius: 4px; padding: var(--s3);
+            cursor: pointer; display: flex; flex-direction: column; gap: var(--s1); }
+  .cocard:hover { border-color: var(--hema); }
+  .cocard:focus-visible { outline: 2px solid var(--hema); outline-offset: 2px; }
+  .cocard .cn { font-family: var(--serif); font-size: 1.15rem; line-height: 1.25; }
+  .cocard .cid { font-family: var(--mono); font-size: .62rem; color: var(--ink-3); letter-spacing: .06em; }
+  .cocard .cmeta { font-family: var(--mono); font-size: .64rem; color: var(--ink-3); margin-top: var(--s1); }
+  .cocard .cthin { font-family: var(--mono); font-size: .62rem; color: var(--challenges); }
+  .cocard .copen { font-family: var(--mono); font-size: .62rem; letter-spacing: .08em;
+                   text-transform: uppercase; color: var(--hema); margin-top: var(--s1); }
+  .coempty { color: var(--ink-3); font-style: italic; }
 
   /* A drawer, not a route: opening a company must not cost the reader their
      place in the issue they were reading. */
@@ -450,6 +472,9 @@
         <span class="sub">Typed by relation to HMBD-001. The badge is the answer to "why is this a competitor."</span>
         <button class="ghost" id="toggleAll" type="button">Open all dossiers</button></div>
         <div id="competitorsBody" style="display:flex;flex-direction:column;gap:2.25rem"></div></section>
+      <section id="companies"><div class="sechead"><h2>Companies</h2>
+        <span class="sub">The deep record behind the assets — who they are, where they came from, what they have already abandoned. Every fact cites the run that established it, and corrections append rather than overwrite.</span></div>
+        <div id="companiesBody" class="cogrid"></div></section>
       <section id="indications"><div class="sechead"><h2>Indications</h2>
         <span class="sub">First-class arenas. Each carries its setting rivals, its standard of care, and where the bar is heading.</span></div>
         <div id="indicationsBody" style="display:flex;flex-direction:column;gap:1.75rem"></div></section>
@@ -903,6 +928,8 @@ const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_
     '<div class="arena-lbl">as of ' + esc(ind.treatment_landscape.as_of) + ' · last changed ' + esc(ind.treatment_landscape.last_changed) + ' by ' + esc(ind.treatment_landscape.changed_by || '—') + '</div>' +
     landTable(ind.treatment_landscape) + '</div>').join('');
 
+  renderCompanies();
+
   // ── open/close all dossiers (rebound after every render; the button is static,
   //    so `onclick` replaces rather than stacks listeners) ──
   const btn = $('toggleAll');
@@ -1018,15 +1045,64 @@ const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_
     return (list || []).map(holderHTML).join(sep);
   }
 
+  // The Companies section. Renders from the INDEX alone — no dossier body is
+  // fetched until a card is opened — so the section costs one request no matter
+  // how many companies we hold.
+  function renderCompanies() {
+    const body = $('companiesBody');
+    if (!body) return;
+    const rows = COMPANIES ? [...COMPANIES.values()] : [];
+    if (!rows.length) {
+      // Absence is a rendered state, not a hidden section. A reader who cannot
+      // see this section would never learn the layer exists.
+      body.innerHTML = '<p class="coempty">No company records yet. A company enters the roster when an asset ' +
+        'names it as a holder and a dossier scan builds its record — until then this is empty because nothing ' +
+        'has been scanned, not because nothing was found.</p>';
+      return;
+    }
+    body.innerHTML = rows.map(r => {
+      const held = (r.sections_held || []).length;
+      const thin = r.thin_sections || [];
+      return '<button type="button" class="cocard" data-company="' + esc(r.entity_id) + '">' +
+        '<span class="cn">' + esc(r.name || r.entity_id) + '</span>' +
+        '<span class="cid">' + esc(r.entity_id) + '</span>' +
+        '<span class="cmeta">' + held + ' section' + (held === 1 ? '' : 's') + ' held · ' +
+          esc(r.drift_entries || 0) + ' correction' + (r.drift_entries === 1 ? '' : 's') + ' logged · ' +
+          'as of ' + esc(r.as_of || '—') + '</span>' +
+        (thin.length ? '<span class="cthin">not measured: ' + thin.map(esc).join(', ') + '</span>' : '') +
+        '<span class="copen">Open dossier ›</span></button>';
+    }).join('');
+  }
+
   const CO_SECTIONS = ['identity', 'origin', 'funding', 'pipeline', 'deals', 'people', 'pivots', 'setbacks'];
   const CO_SECTION_LABEL = {
     identity: 'Identity', origin: 'Origin', funding: 'Funding', pipeline: 'Pipeline',
     deals: 'Deals', people: 'People', pivots: 'Pivots', setbacks: 'Setbacks',
   };
 
-  const coVal = (v) => v == null || v === '' ? null
-    : (Array.isArray(v) ? (v.length ? v.map(x => typeof x === 'string' ? esc(x) : esc(JSON.stringify(x))).join(', ') : null)
-    : (typeof v === 'object' ? null : esc(v)));
+  // A value rendered as prose, or null when there is nothing to show.
+  //
+  // Nested objects are FLATTENED to "key: value" pairs rather than stringified.
+  // A listing rendering as {"exchange":"HKEX","ticker":"9926"} is machine output
+  // leaking into a reader surface — it says the same thing as "exchange: HKEX ·
+  // ticker: 9926" and says it in a shape nobody reads. Null-for-empty is what
+  // lets the caller drop the row entirely: an empty `rounds: []` printed as "[]"
+  // claims we looked and found none, which is a different and stronger claim
+  // than the silence the record actually holds.
+  function coVal(v) {
+    if (v == null || v === '') return null;
+    if (Array.isArray(v)) {
+      const parts = v.map(coVal).filter(Boolean);
+      return parts.length ? parts.join(' · ') : null;
+    }
+    if (typeof v === 'object') {
+      const parts = Object.keys(v)
+        .map(k => { const inner = coVal(v[k]); return inner ? esc(k.replace(/_/g, ' ')) + ' ' + inner : null; })
+        .filter(Boolean);
+      return parts.length ? parts.join(', ') : null;
+    }
+    return esc(v);
+  }
 
   // One section. `fact` is {value, established_by, issue} — the provenance shape
   // shared with the entity-fact writer, so an auditor learns it once.
@@ -1050,15 +1126,21 @@ const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_
         if (typeof row !== 'object' || row === null) return '<div class="coitem">' + esc(row) + '</div>';
         const keys = Object.keys(row);
         const title = row.name || row.title || row.asset || row.counterparty || row.round || keys[0];
-        const rest = keys.filter(k => row[k] != null && row[k] !== '' && row[k] !== title)
-          .map(k => esc(k.replace(/_/g, ' ')) + ': ' + (coVal(row[k]) || esc(JSON.stringify(row[k]))));
+        const rest = keys.filter(k => row[k] !== title)
+          .map(k => { const v = coVal(row[k]); return v ? esc(k.replace(/_/g, ' ')) + ': ' + v : null; })
+          .filter(Boolean);
         return '<div class="coitem"><span class="t">' + esc(title) + '</span>' +
           (rest.length ? '<span class="m">' + rest.join(' · ') + '</span>' : '') + '</div>';
       }).join('');
     } else {
-      body = '<div class="corow">' + Object.keys(value).map(k =>
-        '<div class="k">' + esc(k.replace(/_/g, ' ')) + '</div><div>' +
-        (coVal(value[k]) || esc(JSON.stringify(value[k]))) + '</div>').join('') + '</div>';
+      const rows = Object.keys(value)
+        .map(k => { const v = coVal(value[k]); return v ? '<div class="k">' + esc(k.replace(/_/g, ' ')) +
+          '</div><div>' + v + '</div>' : ''; })
+        .filter(Boolean);
+      // Every member rendered to nothing (an object of empty arrays) is the same
+      // claim as an empty section, and must read the same way.
+      body = rows.length ? '<div class="corow">' + rows.join('') + '</div>'
+                         : '<p class="empty">' + (isThin ? 'No scan has established this section yet.' : 'Nothing recorded.') + '</p>';
     }
     return '<section class="cosec">' + head + body + '</section>';
   }
@@ -1142,7 +1224,7 @@ const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_
 
   // Delegated, so cards re-rendered by a tab switch keep working without rebinding.
   document.addEventListener('click', (ev) => {
-    const btn = ev.target.closest && ev.target.closest('.colink');
+    const btn = ev.target.closest && ev.target.closest('.colink, .cocard');
     if (!btn) return;
     CO_OPENER = btn;
     openCompany(btn.dataset.company);
