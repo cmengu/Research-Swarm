@@ -1,0 +1,28 @@
+{
+  "entity_id": "asset_ivonescimab",
+  "kind": "asset",
+  "first_seen": "2026-07-20",
+  "as_of": "2026-07-20",
+  "facts": {
+    "name": {
+      "value": "Ivonescimab (AK112)",
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
+    },
+    "type": {
+      "value": "frontier_asset",
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
+    },
+    "holders": {
+      "value": [
+        "Akeso",
+        "Summit Therapeutics"
+      ],
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
+    }
+  },
+  "last_edited_by": "owner",
+  "drift_log": []
+}

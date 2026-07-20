@@ -1,0 +1,28 @@
+{
+  "entity_id": "asset_her3_dxd",
+  "kind": "asset",
+  "first_seen": "2026-07-20",
+  "as_of": "2026-07-20",
+  "facts": {
+    "name": {
+      "value": "Patritumab deruxtecan (HER3-DXd)",
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
+    },
+    "type": {
+      "value": "frontier_asset",
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
+    },
+    "holders": {
+      "value": [
+        "Daiichi Sankyo",
+        "Merck & Co."
+      ],
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
+    }
+  },
+  "last_edited_by": "owner",
+  "drift_log": []
+}

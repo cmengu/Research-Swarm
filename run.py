@@ -1074,6 +1074,19 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None, runner=None) ->
     )
 
     # --- Stage 4: validate -------------------------------------------------
+    # DERIVE STATS FIRST. The contract deadlocked here: the manager seam requires
+    # `stats == {}` (the manager does not author counts) while the issue validator
+    # requires stats fully populated — and derivation lived in the PUBLISH stage,
+    # after validation. So a draft that obeyed the seam failed the validator, and
+    # one that satisfied the validator failed the seam. There was no passing path;
+    # three live runs bounced between the two halves of it.
+    #
+    # Deriving here closes the loop without weakening either rule: the manager
+    # still authors nothing, the validator still sees real counts, and the counts
+    # are computed by the same `derive_stats` the gate itself uses, so the numbers
+    # it validates are the numbers that ship.
+    result.draft["stats"] = derive_full_stats(result.draft, issues_dir)
+
     try:
         validation = run_validation_stage_v2(
             draft=result.draft,
