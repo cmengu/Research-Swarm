@@ -25,7 +25,6 @@ import pytest
 from researchswarm.apertures import plan_apertures
 from researchswarm.calendar import SurgeState
 from researchswarm.programs import (
-    load_edges,
     load_interests,
     load_program,
 )
@@ -56,8 +55,16 @@ def interests(repo_root):
 
 
 @pytest.fixture
-def edges(repo_root):
-    return load_edges(repo_root / "state", "hmbd-001")
+def edges():
+    """COLD START — no promoted edges. A literal, deliberately not a disk read.
+
+    Edges are run output, not authored config, and reading them from `state/`
+    made the cold-start roster assertions below hold only until the promotion
+    path first fired (it did, 20 Jul 2026). The authored surfaces these tests
+    guard are still read from the repo; see the twin fixture in
+    test_manager_prompt_v2.py.
+    """
+    return []
 
 
 @pytest.fixture

@@ -100,8 +100,25 @@ class TestLoadTheRealInterestList:
 
 
 class TestTheSeedStateLayer:
-    def test_the_pilot_edges_seed_empty(self):
-        assert load_edges(STATE, "hmbd-001") == []
+    def test_every_edge_on_disk_carries_its_relation_and_provenance(self):
+        """Was `test_the_pilot_edges_seed_empty`, which held only until the
+        promotion path first fired — 20 Jul 2026 published a run that typed four
+        competitors onto hmbd-001, and the seed file stopped being empty.
+
+        Exactly the lifespan `test_every_entity_record_on_disk_cites_its_provenance`
+        already ran into one layer down, and it gets the same answer: assert the
+        property that has to hold as the layer GROWS, not the one that holds only
+        while it is untouched. Keeping the old assertion green would have meant
+        deleting real run output.
+
+        The empty case is not lost — cold start is a property of `program_roster`
+        given no edges, tested directly below, and the loaders are proven against
+        a temp fixture in TestTheStateLayerOncePopulated.
+        """
+        for edge in load_edges(STATE, "hmbd-001"):
+            assert edge.relation, f"{edge.entity_id} is promoted with no relation"
+            assert edge.promoted_by, f"{edge.entity_id} names no promoting run"
+            assert edge.read_through, f"{edge.entity_id} carries no read-through"
 
     def test_every_entity_record_on_disk_cites_its_provenance(self):
         """Was `test_the_entities_layer_seeds_empty`, which held only until the
@@ -120,10 +137,22 @@ class TestTheSeedStateLayer:
             for field, fact in (record.get("facts") or {}).items():
                 assert fact.get("established_by"), f"{entity_id}.{field} cites no run"
 
-    def test_roster_at_seed_is_exactly_the_seed_competitors(self):
+    def test_roster_at_cold_start_is_exactly_the_seed_competitors(self):
+        """Cold start is a property of the DERIVATION, so it is asserted against
+        no edges rather than against a disk that no longer has none."""
         program = load_program(CONFIG, "hmbd-001")
-        edges = load_edges(STATE, "hmbd-001")
-        assert program_roster(program, edges) == {"asset_her3_dxd", "asset_ivonescimab"}
+        assert program_roster(program, []) == {"asset_her3_dxd", "asset_ivonescimab"}
+
+    def test_the_seeds_stay_on_the_roster_once_promotion_has_run(self):
+        """A promoted edge ADDS to the roster; it never evicts a config seed.
+
+        The live-state half of the pair above: whatever the promotion path has
+        written by now, the two entities the config names are still accountable.
+        A seed dropping off the roster would silently stop it being researched.
+        """
+        program = load_program(CONFIG, "hmbd-001")
+        roster = program_roster(program, load_edges(STATE, "hmbd-001"))
+        assert {"asset_her3_dxd", "asset_ivonescimab"} <= roster
 
 
 class TestTheStateLayerOncePopulated:

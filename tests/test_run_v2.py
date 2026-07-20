@@ -108,7 +108,13 @@ def seeded_repo(fake_repo):
         non-null stance, so the loop is allowed to revise it (a dormant slot is
         refused, which is a separate test);
       - the program's `seed_competitors` narrowed to the one entity the sample
-        accounts for, so the roster coverage check has an honest set.
+        accounts for, so the roster coverage check has an honest set;
+      - the program's edges reset to EMPTY, because `fake_repo` copies the live
+        `state/` and the roster must be the seed the line above sets. Once the
+        promotion path first fired (20 Jul 2026) the copied edges carried four
+        typed competitors into every fixture repo, widening the roster past what
+        the sample accounts for and failing the coverage check for a reason that
+        has nothing to do with the orchestration under test.
     """
     issue = _load_sample()
     entities_dir = fake_repo / "state" / "entities"
@@ -137,6 +143,12 @@ def seeded_repo(fake_repo):
             'seed_competitors = ["asset_her3_dxd"]',
         )
     )
+
+    edges = fake_repo / "state" / "programs" / "hmbd-001" / "edges.json"
+    payload = json.loads(edges.read_text())
+    payload["edges"] = []
+    payload["drift_log"] = []
+    edges.write_text(json.dumps(payload, indent=2) + "\n")
     return fake_repo
 
 

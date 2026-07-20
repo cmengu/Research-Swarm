@@ -22,7 +22,7 @@ import pytest
 
 from researchswarm.apertures import plan_apertures
 from researchswarm.programs import (
-    load_edges,
+    Edge,
     load_entities,
     load_interests,
     load_program,
@@ -71,8 +71,21 @@ def catalyst_queue(repo_root):
 
 
 @pytest.fixture
-def edges(repo_root):
-    return load_edges(repo_root / "state", "hmbd-001")
+def edges():
+    """COLD START — no promoted edges. A literal, deliberately not a disk read.
+
+    Edges are RUN OUTPUT, not authored config. This fixture used to load them
+    from `state/`, which made every cold-start assertion below a one-shot: green
+    while the promotion path had never fired, red the moment it did. It fired on
+    20 Jul 2026 and typed four competitors onto hmbd-001.
+
+    The authored surfaces these tests exist to guard — the program config, the
+    interest list, the thesis, the template — are still read from the repo, so
+    config/renderer drift still fails here. Only the mutable half is pinned, and
+    the typed branch gets its own test rather than riding on whatever the last
+    live run happened to leave behind.
+    """
+    return []
 
 
 @pytest.fixture
@@ -325,6 +338,32 @@ class TestTheCompetitorRoster:
         competitors, each marked untyped so the manager knows to type it."""
         assert "asset_her3_dxd · (seed — untyped)" in rendered
         assert "asset_ivonescimab · (seed — untyped)" in rendered
+
+    def test_a_promoted_edge_renders_with_its_relation(
+        self, template, program, interests, thesis, catalyst_queue, entities, findings
+    ):
+        """The other side of the roster: once typed, the relation is what the
+        manager sees, and `(seed — untyped)` must be gone for that entity.
+
+        Previously untested — the fixture read live state, so this branch was
+        exercised only by accident, and only after a run had promoted something.
+        """
+        typed = [
+            Edge(
+                entity_id="asset_her3_dxd",
+                relation="target_twin",
+                read_through={"text": "..."},
+                promoted_by="run_20260720_1521",
+                drift_log=(),
+            )
+        ]
+        out = _render(
+            template, program, interests, thesis, catalyst_queue, typed, entities, findings
+        )
+        assert "asset_her3_dxd · target_twin" in out
+        assert "asset_her3_dxd · (seed — untyped)" not in out
+        # the unpromoted seed still rides along, still marked untyped
+        assert "asset_ivonescimab · (seed — untyped)" in out
 
 
 class TestFindingsCorpus:
