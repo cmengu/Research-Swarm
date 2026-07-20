@@ -73,13 +73,28 @@ def _proposal(starts=ASCO_STARTS, ends=ASCO_ENDS, source="https://asco.org/am", 
 
 class TestLoadCalendar:
     def test_loads_the_real_seeded_config(self, repo_root):
-        """The committed calendar must parse — and it ships seeded UNVERIFIED,
-        which is the honest starting state, not a bug to fix before launch."""
+        """The committed calendar must parse, and every window it claims to have
+        verified must be well-formed.
+
+        This test used to assert that NO window was verified. That was true, and
+        it was true for the wrong reason: `_main_v2` never called the verifier, so
+        the calendar could not become fresh and "all unverified" had quietly
+        become an invariant of a bug. The moment verification was wired up, ASH
+        resolved against hematology.org and this test failed — correctly.
+
+        So it no longer asserts the verification STATE at all. This file is
+        loop-maintained; its dates are runtime data, and a test that pins runtime
+        data breaks every time the maintenance works. What must hold is the
+        structure: the six windows exist, and anything marked verified carries
+        dates that actually parse."""
         calendar = load_calendar(repo_root / "config" / "calendar.toml")
         ids = {w.id for w in calendar.windows}
         assert ids == {"jpm", "aacr", "asco", "wclc", "esmo", "ash"}
-        assert all(not w.verified for w in calendar.windows)
         assert calendar.valid_through == date(2027, 1, 31)
+        for window in calendar.windows:
+            if window.verified:
+                assert window.starts and window.ends and window.verified_at
+                assert date.fromisoformat(window.starts) <= date.fromisoformat(window.ends)
 
     def test_missing_file_is_an_error(self, tmp_path):
         with pytest.raises(FileNotFoundError):

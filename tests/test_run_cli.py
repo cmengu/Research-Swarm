@@ -6,6 +6,7 @@ operator (or the OS scheduler) actually observes.
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -557,6 +558,22 @@ def _seed_verified_window(fake_repo, window_id, starts, ends, verified_at="2026-
     )
 
 
+
+def _unverify_calendar(root) -> None:
+    """Blank every window's verification in a fake repo's calendar.
+
+    The shipped calendar is runtime data: the loop resolves windows against the
+    societies' own pages and writes the dates back. Any test asserting on the
+    UNverified path has to say so explicitly, or it passes only until the
+    verifier next succeeds.
+    """
+    path = root / "config" / "calendar.toml"
+    text = path.read_text()
+    for key in ("starts", "ends", "verified_at"):
+        text = re.sub(rf'^{key}(\s*)= .*$', rf'{key}\1= ""', text, flags=re.M)
+    path.write_text(text)
+
+
 class TestSurge:
     def test_a_verified_window_makes_a_non_run_day_a_run_day(self, fake_repo):
         """The whole point: ASCO Monday must not read at the Tuesday rate. A
@@ -596,8 +613,16 @@ class TestSurge:
         assert stale is True and reason  # calendar_stale advisory will be filed
 
     def test_unverified_calendar_surges_nothing_and_says_so(self, fake_repo):
-        """The seeded calendar ships unverified — surge fires nothing and the
-        stale marker explains the gap (an honest gap beats a confident guess)."""
+        """An unverified calendar surges nothing and the stale marker explains the
+        gap (an honest gap beats a confident guess).
+
+        The unverified state is written here rather than inherited. `fake_repo`
+        copies the REAL config, and config/calendar.toml is loop-maintained — the
+        first cycle that actually verified a window (ASH, against hematology.org)
+        broke this test, because it had been relying on the shipped file staying
+        forever unverified. A test about unverified behaviour must construct that
+        state, not borrow it from a file the system rewrites."""
+        _unverify_calendar(fake_repo)
         result = run_cli("--today", "2026-07-14", "--root", str(fake_repo))
         # Tuesday with an unverified calendar is still a no-op...
         assert "not a run day" in result.stderr
