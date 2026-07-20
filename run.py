@@ -83,6 +83,7 @@ from researchswarm.publish import (
     stamp_run_fields,
 )
 from researchswarm.research import (
+    ResearchStageV2,
     persist_findings_v2,
     render_all_prompts,
     render_all_prompts_v2,
@@ -165,6 +166,16 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "named program. Bypasses the cadence gate and changes nothing else — same "
         "apertures, same gates, same rubric, a normal dated issue. Requires "
         "--program; it is a per-program trigger, not a global one.",
+    )
+    parser.add_argument(
+        "--reuse-findings",
+        metavar="RUN_ID",
+        default=None,
+        help="Reuse a previous run's researcher findings instead of paying for the "
+        "fan-out again (e.g. run_20260720_1102). The research is the expensive "
+        "part and it is already on disk under runs/<RUN_ID>/findings/; a run that "
+        "died in the manager or the validator should not re-buy it. Requires "
+        "--program.",
     )
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args(argv)
@@ -475,6 +486,57 @@ def _verify_calendar_v2(
             root, run_id, [calendar_path], message=f"run {run_id}: verify calendar — {cited}"
         )
     return load_calendar(calendar_path)
+
+
+def _reuse_findings_v2(root: Path, source_run_id: str, apertures) -> ResearchStageV2:
+    """Rebuild stage 2 from a previous run's findings on disk. No model calls.
+
+    WHY THIS EXISTS. The fan-out is ~90% of a cycle's cost and it is the part
+    LEAST likely to be wrong: a researcher that returns an honest "nothing in
+    this window" has done its job perfectly. Yet a run that then dies in the
+    manager or the validator threw all of it away, so every iteration on a
+    downstream contract re-bought research that had not changed. Two live cycles
+    paid roughly $9 to re-answer the same question about the same 48 hours.
+
+    The findings were always persisted (`runs/<run_id>/findings/<aperture>.json`,
+    written as each lands so a crash keeps what completed). Nothing ever read
+    them back. This does.
+
+    The aperture ROSTER still comes from the current plan, not from the reused
+    run: dormancy and the degradation register are properties of THIS cycle's
+    config, and inheriting them would let a stale roster masquerade as today's.
+    Only the findings themselves are reused. An aperture with no file on disk is
+    reported degraded rather than silently dropped — the same status a failed
+    scan gets, because from the manager's side they are the same fact.
+    """
+    findings_dir = Path(root) / "runs" / source_run_id / "findings"
+    if not findings_dir.is_dir():
+        raise FileNotFoundError(f"no findings to reuse at {findings_dir}")
+
+    findings_by_aperture: dict[str, dict] = {}
+    apertures_run: list[dict] = []
+    degraded: list[str] = []
+    for aperture in apertures:
+        path = findings_dir / f"{aperture.id.replace(':', '-')}.json"
+        if aperture.dormant:
+            apertures_run.append({"aperture": aperture.kind, "scope": aperture.scope, "status": "dormant"})
+            degraded.append(aperture.id)
+            continue
+        try:
+            findings_by_aperture[aperture.id] = json.loads(path.read_text())
+            apertures_run.append({"aperture": aperture.kind, "scope": aperture.scope, "status": "ok"})
+        except (OSError, ValueError) as exc:
+            log.warning("reuse: %s has no usable findings (%s) — degraded", aperture.id, exc)
+            apertures_run.append({"aperture": aperture.kind, "scope": aperture.scope, "status": "failed"})
+            degraded.append(aperture.id)
+    log.info(
+        "reusing findings from %s: %d aperture(s) restored, %d degraded — no researcher was called",
+        source_run_id, len(findings_by_aperture), len(degraded),
+    )
+    return ResearchStageV2(
+        apertures_run=apertures_run, apertures_degraded=degraded,
+        findings_by_aperture=findings_by_aperture,
+    )
 
 
 def _plan_dossier_scans_v2(root: Path, entities, today: date) -> tuple[list, int]:
@@ -918,13 +980,16 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None, runner=None) ->
     known_entity_ids = set(entities) | roster
     researcher_model = models_config.get("researchers", RESEARCHER_MODEL_DEFAULT_V2)
 
-    log.info("fanning out %d researcher(s) on %s", len(active), researcher_model)
-    stage = run_research_stage_v2(
-        apertures, researcher_template, ctx, root,
-        program=program, interests=interests, edges=edges, thesis=thesis,
-        known_entity_ids=known_entity_ids, model=researcher_model,
-        runner=runner or subprocess.run,
-    )
+    if args.reuse_findings:
+        stage = _reuse_findings_v2(root, args.reuse_findings, apertures)
+    else:
+        log.info("fanning out %d researcher(s) on %s", len(active), researcher_model)
+        stage = run_research_stage_v2(
+            apertures, researcher_template, ctx, root,
+            program=program, interests=interests, edges=edges, thesis=thesis,
+            known_entity_ids=known_entity_ids, model=researcher_model,
+            runner=runner or subprocess.run,
+        )
 
     # The dossier fan-out rides beside the cycle's, on the same model and the same
     # transport, and is NEVER allowed to decide the run's fate: its corpus is
