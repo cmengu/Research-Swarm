@@ -198,3 +198,75 @@ class TestSurgeCarveOut:
         assert "Carve-out: during the current ASCO 2026 window" in out
         assert "even if outside this run's one-day coverage window" in out
         assert "No carve-outs." not in out
+
+
+class TestNoTemplateIsSilentlyTruncated:
+    """Every prompt document's template must extract WHOLE.
+
+    The extractor was fence-length-blind, so the first nested ``` inside a
+    ```text block ended the match. manager-v2.md opens a ```json worked example
+    two-thirds down its template and everything after it — six sections' authored
+    output contract — was silently dropped from the prompt the model received.
+    Nothing failed loudly: the document still read correctly, the render still
+    succeeded, the placeholders all resolved. Only the model was left guessing,
+    and the validator then blocked it for guessing wrong.
+
+    A truncation has no natural symptom, so it needs a direct test.
+    """
+
+    @staticmethod
+    def _docs(repo_root):
+        return sorted((repo_root / "prompts").glob("*.md"))
+
+    def test_every_template_reaches_its_documents_closing_fence(self, repo_root):
+        """The extracted body must end where the template block ends.
+
+        Checked structurally rather than by asserting on any one file's content:
+        the body must contain a balanced number of fence lines, which a truncated
+        extraction cannot (it stops on an OPENING fence, leaving it unclosed).
+        """
+        for doc in self._docs(repo_root):
+            body = load_template(doc)
+            fences = [ln for ln in body.split("\n") if ln.startswith("```")]
+            assert len(fences) % 2 == 0, (
+                f"{doc.name}: template has {len(fences)} fence line(s) — an odd "
+                "count means extraction stopped on an unclosed nested fence"
+            )
+
+    def test_the_manager_v2_template_carries_its_whole_output_contract(self, repo_root):
+        """The concrete regression: the sections that sat past the cut.
+
+        Each of these is a REQUIRED top-level key the manager must shape
+        correctly, and each was invisible to it while the truncation stood.
+        """
+        body = load_template(repo_root / "prompts" / "manager-v2.md")
+        for section in (
+            "quiet_this_cycle",
+            "newly_discovered",
+            "house_view",
+            "thesis_updates",
+            "critic_report",
+            "sources_and_method",
+            "apertures_degraded",
+        ):
+            assert section in body, f"manager-v2 template lost its {section} contract"
+
+    def test_the_manager_v2_template_keeps_its_worked_examples(self, repo_root):
+        """The examples live PAST the old cut, so their presence proves the fix."""
+        body = load_template(repo_root / "prompts" / "manager-v2.md")
+        assert body.count("```json") == 4
+
+    def test_a_nested_fence_does_not_end_a_four_backtick_template(self, tmp_path):
+        """The extractor rule itself, stated on a minimal document."""
+        doc = tmp_path / "nested.md"
+        doc.write_text(
+            "notes\n\n````text\nBEFORE\n```json\n{}\n```\nAFTER\n````\n\ntrailing notes\n"
+        )
+        body = load_template(doc)
+        assert "BEFORE" in body and "AFTER" in body
+
+    def test_a_plain_three_backtick_template_still_works(self, tmp_path):
+        """Backward compatibility: every other prompt file is this shape."""
+        doc = tmp_path / "plain.md"
+        doc.write_text("notes\n\n```text\nHELLO {{name}}\n```\n\ntrailing notes\n")
+        assert load_template(doc) == "HELLO {{name}}"

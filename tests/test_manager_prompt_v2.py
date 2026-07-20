@@ -362,3 +362,119 @@ class TestCatalystQueueSnapshot:
 class TestPriorQuietCounts:
     def test_run_one_has_no_previous_issue(self, rendered):
         assert "(no previous issue)" in rendered
+
+
+class TestTheWorkedExamplesMatchTheGate:
+    """The prompt's copy-this-shape JSON must be shapes the validator accepts.
+
+    An example is the strongest instruction in the file — the manager copies it
+    literally, which is why `competitors[]` was for a long time the one section
+    that kept coming back correct while the sections with only prose kept
+    missing keys. That leverage cuts both ways: an example that drifts from
+    ISSUE_SHAPE_V2 teaches a contract the gate will then reject, and the run pays
+    the whole validation budget discovering it. Checking them against the table
+    itself, rather than against a retyped copy, means the two cannot disagree.
+    """
+
+    @staticmethod
+    def _examples(repo_root):
+        import re
+
+        text = (repo_root / "prompts" / "manager-v2.md").read_text()
+        return [json.loads(b) for b in re.findall(r"```json\n(.*?)\n```", text, re.S)]
+
+    @staticmethod
+    def _shape(path):
+        from researchswarm.validator import ISSUE_SHAPE_V2
+
+        for shape in ISSUE_SHAPE_V2:
+            if shape.path == path:
+                return shape
+        raise AssertionError(f"no shape row for {path!r}")
+
+    def _assert_satisfies(self, obj, path):
+        shape = self._shape(path)
+        missing = [k for k in shape.keys if k not in obj]
+        assert not missing, f"{path} example is missing required key(s): {missing}"
+        for key, allowed in (shape.enums or {}).items():
+            value = obj.get(key)
+            # Angle-bracket slots are prose placeholders the manager fills in.
+            if value is not None and not str(value).startswith("<"):
+                assert value in allowed, f"{path}.{key}={value!r} not in {sorted(allowed)}"
+
+    def test_every_fenced_example_is_valid_json(self, repo_root):
+        """A malformed example teaches malformed output."""
+        assert self._examples(repo_root), "the worked examples went missing"
+
+    def test_the_four_sections_each_have_one(self, repo_root):
+        """competitors, quiet_this_cycle, newly_discovered, house_view.
+
+        Pinned as a count so deleting an example is a test failure rather than a
+        silent regression to prose-only guidance.
+        """
+        assert len(self._examples(repo_root)) == 4
+
+    def test_the_competitor_example_satisfies_the_table(self, repo_root):
+        example = next(
+            e for e in self._examples(repo_root)
+            if "read_through" in e and "promotion_proposal" not in e and "entity_id" in e
+        )
+        self._assert_satisfies(example, "competitors[]")
+
+    def test_the_quiet_this_cycle_example_satisfies_the_table(self, repo_root):
+        example = next(e for e in self._examples(repo_root) if "no_news" in e)
+        self._assert_satisfies(example, "quiet_this_cycle")
+        for entry in example["no_news"]:
+            self._assert_satisfies(entry, "quiet_this_cycle.no_news[]")
+        for entry in example["open_threads"]:
+            self._assert_satisfies(entry, "quiet_this_cycle.open_threads[]")
+        for entry in example["dropped_with_receipt"]:
+            self._assert_satisfies(entry, "quiet_this_cycle.dropped_with_receipt[]")
+
+    def test_the_newly_discovered_example_satisfies_the_table(self, repo_root):
+        example = next(e for e in self._examples(repo_root) if "promotion_proposal" in e)
+        self._assert_satisfies(example, "newly_discovered[]")
+        self._assert_satisfies(example["read_through"], "newly_discovered[].read_through")
+        self._assert_satisfies(
+            example["promotion_proposal"], "newly_discovered[].promotion_proposal"
+        )
+
+    def test_the_house_view_example_satisfies_the_table(self, repo_root):
+        example = next(e for e in self._examples(repo_root) if "partnership_bd" in e)
+        self._assert_satisfies(example, "house_view")
+        for lens in ("partnership_bd", "threat_financing"):
+            for entry in example[lens]:
+                self._assert_satisfies(entry, f"house_view.{lens}[]")
+                self._assert_satisfies(
+                    entry["read_through"], f"house_view.{lens}[].read_through"
+                )
+        for entry in example["themes_and_signals"]:
+            self._assert_satisfies(entry, "house_view.themes_and_signals[]")
+        self._assert_satisfies(example["blind_spots"], "house_view.blind_spots")
+        for entry in example["blind_spots"]["ranked"]:
+            self._assert_satisfies(entry, "house_view.blind_spots.ranked[]")
+
+    def test_a_house_read_through_carries_a_lens_not_a_thesis_bearing(self, repo_root):
+        """The house aperture is wider than the thesis — the one place the
+        read-through vocabulary deliberately differs."""
+        example = next(e for e in self._examples(repo_root) if "partnership_bd" in e)
+        rt = example["partnership_bd"][0]["read_through"]
+        assert rt["lens"] == "partnership_bd"
+        assert "thesis_bearing" not in rt
+
+
+class TestTheEntityResolutionRule:
+    """The rule the last three live runs actually died on."""
+
+    def test_the_template_states_that_every_entity_id_must_resolve(self, rendered):
+        assert "MUST RESOLVE" in rendered
+
+    def test_it_names_newly_discovered_as_the_way_to_introduce_a_slug(self, rendered):
+        body = rendered[rendered.index("MUST RESOLVE"):]
+        assert "newly_discovered" in body
+
+    def test_it_offers_declining_promotion_as_a_legal_answer(self, rendered):
+        """Otherwise a thread about an untypable company has nowhere to go and
+        the manager coins a slug — which is the dangling_entity block."""
+        assert "promote_to_competitors" in rendered
+        assert "false" in rendered

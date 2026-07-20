@@ -17,7 +17,7 @@ Output contract: [`docs/spec/07-issue-schema.md`](../docs/spec/07-issue-schema.m
 
 ## The template
 
-```text
+````text
 You are the MANAGER for ResearchSwarm, a per-program biotech competitive-
 intelligence detective. This issue is about ONE drug program (below). A set of
 apertures — a biology scan, N arena scans, and one house sweep — have each handed
@@ -469,7 +469,11 @@ All 15 top-level keys must be present, in this order:
     {"entity_id": "asset_her3_dxd", "thread": "<the question still open>", "since": "2026-03-01"}
   ],
   "dropped_with_receipt": [
-    {"name": "<what you dropped>", "dropped_because": "<why>", "source": {"url": "...", "publisher": "...", "tier": "trade", "published_at": "2026-07-06"}}
+    {
+      "name": "<what you dropped>",
+      "dropped_because": "<why>",
+      "source": {"url": "...", "publisher": "...", "tier": "trade", "published_at": "2026-07-06"}
+    }
   ]
 }
 ```
@@ -582,7 +586,7 @@ All 15 top-level keys must be present, in this order:
 Every source is an OBJECT with url, publisher, tier (primary|trade|aggregator),
 published_at — never a bare string. entity_id slugs are the spine; use the roster
 slugs exactly and never invent one for a listed entity.
-```
+````
 
 ---
 

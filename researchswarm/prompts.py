@@ -56,7 +56,24 @@ QUEUE_SNAPSHOT_FIELDS = (
 # argument belongs.
 QUEUE_SNAPSHOT_FIELDS_V2 = QUEUE_SNAPSHOT_FIELDS + ("fed_by",)
 
-TEMPLATE_FENCE = re.compile(r"```text\n(.*?)```", re.DOTALL)
+# The opening fence's LENGTH is captured and back-referenced by the closing one,
+# so a template may contain shorter fences without being cut short by them.
+#
+# This is not a nicety. The old pattern was ```text\n(.*?)``` — non-greedy, blind
+# to fence length — so the first nested ``` ended the match. manager-v2.md opens a
+# ```json worked example two-thirds of the way down its template, and EVERYTHING
+# from that line on was silently dropped from the prompt the manager actually
+# received: the worked example itself, and the authored contract for
+# quiet_this_cycle, newly_discovered, house_view, thesis_updates, critic_report
+# and sources_and_method. The model was left to infer six sections' shapes, then
+# blocked by a validator holding it to the shapes it had never been shown. It cost
+# several live runs, and it was invisible because the template still LOOKED right
+# in the document — only the extraction was short.
+#
+# A doc that needs nested fences opens with four backticks (CommonMark: a fence is
+# closed only by one at least as long). Three-backtick templates with no nesting
+# are unaffected, which is every other prompt file.
+TEMPLATE_FENCE = re.compile(r"^(`{3,})text\n(.*?)\n\1[ \t]*$", re.DOTALL | re.MULTILINE)
 PLACEHOLDER = re.compile(r"\{\{(\w+)\}\}")
 
 DORMANT_SLOT = "(no stance seeded)"
@@ -85,12 +102,15 @@ class RunContext:
 
 
 def load_template(path: Path) -> str:
-    """Extract the fenced template from the prompt document."""
+    """Extract the fenced template from the prompt document.
+
+    Fence-length aware — see TEMPLATE_FENCE for the truncation this closes.
+    """
     path = Path(path)
     match = TEMPLATE_FENCE.search(path.read_text())
     if not match:
         raise ValueError(f"{path}: no fenced ```text template block found")
-    return match.group(1).strip()
+    return match.group(2).strip()
 
 
 def _watchlist_roster(state: State) -> str:
