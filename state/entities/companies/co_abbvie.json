@@ -1,0 +1,143 @@
+{
+  "entity_id": "co_abbvie",
+  "kind": "company",
+  "first_seen": "2026-07-20",
+  "coverage": {
+    "thin_sections": [
+      "funding",
+      "people",
+      "pivots",
+      "setbacks"
+    ],
+    "degradation": "Seeded by hand during the roster migration from public company and deal sources \u2014 no dossier scan has run on this company yet. Current leadership was not verified and is deliberately absent rather than stated stale."
+  },
+  "as_of": "2026-07-20",
+  "facts": {
+    "identity": {
+      "value": {
+        "legal_name": "AbbVie Inc.",
+        "aliases": [
+          "AbbVie"
+        ],
+        "founded": "2013",
+        "hq": "North Chicago, Illinois, United States",
+        "status": "public",
+        "listings": [
+          {
+            "exchange": "NYSE",
+            "ticker": "ABBV"
+          }
+        ]
+      },
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
+    },
+    "origin": {
+      "value": {
+        "founding_story": "Created on 1 January 2013 when Abbott Laboratories distributed all outstanding AbbVie shares to Abbott shareholders, separating the research-based biopharmaceutical business into an independent company.",
+        "spun_out_of": "Abbott Laboratories"
+      },
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
+    },
+    "pipeline": {
+      "value": [
+        {
+          "asset_entity_id": "asset_rc148",
+          "indication": "Advanced solid tumours (NSCLC, CRC)",
+          "phase": "Phase 2",
+          "status": "in-licensed ex-Greater China",
+          "first_disclosed": "2026-01-12"
+        }
+      ],
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
+    },
+    "deals": {
+      "value": [
+        {
+          "date": "2026-01-12",
+          "counterparty": "RemeGen",
+          "direction": "in",
+          "upfront": "$650M",
+          "milestones": "up to $4.95B",
+          "royalty": "tiered double-digit on ex-China sales",
+          "territory": "exclusive rights to develop, manufacture and commercialise RC148 outside Greater China"
+        }
+      ],
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
+    }
+  },
+  "drift_log": [
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "identity",
+      "from": null,
+      "to": {
+        "legal_name": "AbbVie Inc.",
+        "aliases": [
+          "AbbVie"
+        ],
+        "founded": "2013",
+        "hq": "North Chicago, Illinois, United States",
+        "status": "public",
+        "listings": [
+          {
+            "exchange": "NYSE",
+            "ticker": "ABBV"
+          }
+        ]
+      },
+      "run_id": "seed:roster-migration-2026-07-20"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "origin",
+      "from": null,
+      "to": {
+        "founding_story": "Created on 1 January 2013 when Abbott Laboratories distributed all outstanding AbbVie shares to Abbott shareholders, separating the research-based biopharmaceutical business into an independent company.",
+        "spun_out_of": "Abbott Laboratories"
+      },
+      "run_id": "seed:roster-migration-2026-07-20"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "pipeline",
+      "from": null,
+      "to": [
+        {
+          "asset_entity_id": "asset_rc148",
+          "indication": "Advanced solid tumours (NSCLC, CRC)",
+          "phase": "Phase 2",
+          "status": "in-licensed ex-Greater China",
+          "first_disclosed": "2026-01-12"
+        }
+      ],
+      "run_id": "seed:roster-migration-2026-07-20"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "deals",
+      "from": null,
+      "to": [
+        {
+          "date": "2026-01-12",
+          "counterparty": "RemeGen",
+          "direction": "in",
+          "upfront": "$650M",
+          "milestones": "up to $4.95B",
+          "royalty": "tiered double-digit on ex-China sales",
+          "territory": "exclusive rights to develop, manufacture and commercialise RC148 outside Greater China"
+        }
+      ],
+      "run_id": "seed:roster-migration-2026-07-20"
+    }
+  ],
+  "version": 1,
+  "last_edited_by": "owner"
+}

@@ -31,6 +31,12 @@
   body { background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 1.0625rem; line-height: 1.62; -webkit-font-smoothing: antialiased; }
   .shell { max-width: 48rem; margin: 0 auto; padding: 0 var(--s3) var(--s5); }
   hr { border: 0; border-top: 1px solid var(--rule); }
+  /* `hidden` is an ATTRIBUTE and the UA styles it as display:none — but any class
+     rule that sets `display` outranks that, so an element the JS believes is
+     hidden paints anyway. `.protobanner` did exactly this: on the live site it
+     rendered as an empty bordered box above the program card, a banner about
+     nothing. Restated with !important so the attribute always wins. */
+  [hidden] { display: none !important; }
 
   /* ── masthead bar ── */
   .topbar { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; justify-content: space-between; padding: var(--s3) 0; }
@@ -470,6 +476,14 @@
   <div id="panel-issue" role="tabpanel" aria-labelledby="tab-issue">
     <!-- skeleton / empty state / issue-scoped error — the identity card above holds regardless -->
     <div id="issueMsg" hidden></div>
+    <!-- Companies is PROGRAM-level, not issue-level: which companies we hold a
+         deep record on does not change because one cycle failed. It sits outside
+         #issueView deliberately — the first time the newest issue was a failure
+         stub, the whole section vanished with the issue body, which is exactly
+         the silent-absence failure this page is built to refuse. -->
+    <section id="companies"><div class="sechead"><h2>Companies</h2>
+      <span class="sub">The deep record behind the assets — who they are, where they came from, what they have already abandoned. Every fact cites the run that established it, and corrections append rather than overwrite.</span></div>
+      <div id="companiesBody" class="cogrid"></div></section>
     <div id="issueView" hidden>
     <div class="masthead">
       <div class="kicker" id="kicker"></div>
@@ -491,9 +505,6 @@
         <span class="sub">Typed by relation to HMBD-001. The badge is the answer to "why is this a competitor."</span>
         <button class="ghost" id="toggleAll" type="button">Open all dossiers</button></div>
         <div id="competitorsBody" style="display:flex;flex-direction:column;gap:2.25rem"></div></section>
-      <section id="companies"><div class="sechead"><h2>Companies</h2>
-        <span class="sub">The deep record behind the assets — who they are, where they came from, what they have already abandoned. Every fact cites the run that established it, and corrections append rather than overwrite.</span></div>
-        <div id="companiesBody" class="cogrid"></div></section>
       <section id="indications"><div class="sechead"><h2>Indications</h2>
         <span class="sub">First-class arenas. Each carries its setting rivals, its standard of care, and where the bar is heading.</span></div>
         <div id="indicationsBody" style="display:flex;flex-direction:column;gap:1.75rem"></div></section>
@@ -947,8 +958,6 @@ const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_
     '<div class="arena-lbl">as of ' + esc(ind.treatment_landscape.as_of) + ' · last changed ' + esc(ind.treatment_landscape.last_changed) + ' by ' + esc(ind.treatment_landscape.changed_by || '—') + '</div>' +
     landTable(ind.treatment_landscape) + '</div>').join('');
 
-  renderCompanies();
-
   // ── open/close all dossiers (rebound after every render; the button is static,
   //    so `onclick` replaces rather than stacks listeners) ──
   const btn = $('toggleAll');
@@ -986,6 +995,8 @@ const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_
 
   function render(issue) {
     ISSUE = issue;
+    // Before the stub/full branch: a failed cycle must not hide the company layer.
+    renderCompanies();
     if (!issue || !issue.issue) {
       setIssueMsg('loaderr', '<b>Malformed issue</b>The issue file has no <code>issue</code> block.');
       return;

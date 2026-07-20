@@ -1,0 +1,47 @@
+{
+  "generated_at": "2026-07-20T11:30:47+08:00",
+  "companies": [
+    {
+      "entity_id": "co_abbvie",
+      "name": "AbbVie Inc.",
+      "as_of": "2026-07-20",
+      "version": 1,
+      "first_seen": "2026-07-20",
+      "sections_held": [
+        "identity",
+        "origin",
+        "pipeline",
+        "deals"
+      ],
+      "thin_sections": [
+        "funding",
+        "people",
+        "pivots",
+        "setbacks"
+      ],
+      "drift_entries": 4,
+      "degradation": "Seeded by hand during the roster migration from public company and deal sources \u2014 no dossier scan has run on this company yet. Current leadership was not verified and is deliberately absent rather than stated stale."
+    },
+    {
+      "entity_id": "co_remegen",
+      "name": "RemeGen Co., Ltd.",
+      "as_of": "2026-07-20",
+      "version": 1,
+      "first_seen": "2026-07-20",
+      "sections_held": [
+        "identity",
+        "origin",
+        "pipeline",
+        "deals",
+        "people"
+      ],
+      "thin_sections": [
+        "funding",
+        "pivots",
+        "setbacks"
+      ],
+      "drift_entries": 5,
+      "degradation": "Seeded by hand during the roster migration from public company and deal sources \u2014 no dossier scan has run on this company yet. Funding, pivots and setbacks were not researched, so they read as unmeasured rather than empty."
+    }
+  ]
+}

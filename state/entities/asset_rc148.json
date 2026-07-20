@@ -32,6 +32,19 @@
       ],
       "established_by": "run_20260718_2258",
       "issue": "2026-07-18"
+    },
+    "held_by": {
+      "value": "co_remegen",
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
+    },
+    "holders": {
+      "value": [
+        "RemeGen Co., Ltd.",
+        "AbbVie"
+      ],
+      "established_by": "seed:roster-migration-2026-07-20",
+      "issue": null
     }
   },
   "drift_log": [
@@ -77,8 +90,17 @@
         }
       ],
       "run_id": "run_20260718_2258"
+    },
+    {
+      "date": "2026-07-20",
+      "action": "established",
+      "field": "held_by",
+      "from": null,
+      "to": "co_remegen",
+      "run_id": "seed:roster-migration-2026-07-20"
     }
   ],
-  "version": 1,
-  "last_edited_by": "loop"
+  "version": 2,
+  "last_edited_by": "owner",
+  "kind": "asset"
 }
