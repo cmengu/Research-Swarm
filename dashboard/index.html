@@ -197,7 +197,7 @@
             cursor: pointer; display: flex; flex-direction: column; gap: var(--s1); }
   .cocard:hover { border-color: var(--hema); }
   .cocard:focus-visible { outline: 2px solid var(--hema); outline-offset: 2px; }
-  .cocard .cn { font-family: var(--serif); font-size: 1.15rem; line-height: 1.25; }
+  .cocard .cn { font-family: var(--serif); font-size: 1.45rem; line-height: 1.2; letter-spacing: -.01em; }
   .cocard .cid { font-family: var(--mono); font-size: .62rem; color: var(--ink-3); letter-spacing: .06em; }
   .cocard .cmeta { font-family: var(--mono); font-size: .64rem; color: var(--ink-3); margin-top: var(--s1); }
   .cocard .cthin { font-family: var(--mono); font-size: .62rem; color: var(--challenges); }
@@ -217,27 +217,28 @@
   }
   .cohead { position: sticky; top: 0; background: var(--paper); border-bottom: 1px solid var(--rule);
             padding: var(--s3); display: flex; align-items: flex-start; gap: var(--s3); }
-  .cohead .coname { font-family: var(--serif); font-size: 1.5rem; letter-spacing: -.01em; }
+  .cohead .coname { font-family: var(--serif); font-size: 2.1rem; line-height: 1.12; letter-spacing: -.015em; }
   .cohead .coid { font-family: var(--mono); font-size: .64rem; color: var(--ink-3); letter-spacing: .06em; }
   .coclose { margin-left: auto; font: inherit; font-size: .8rem; background: none; border: 1px solid var(--rule-strong);
              color: var(--ink-2); border-radius: 3px; padding: .2rem .55rem; cursor: pointer; flex: none; }
   .coclose:focus-visible { outline: 2px solid var(--hema); outline-offset: 2px; }
   .cobody { padding: var(--s3); display: flex; flex-direction: column; gap: var(--s4); }
   .cosec { display: flex; flex-direction: column; gap: var(--s2); }
-  .cosec > h4 { font-family: var(--mono); font-size: .66rem; letter-spacing: .1em; text-transform: uppercase;
-                color: var(--ink-3); display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
+  .cosec > h4 { font-family: var(--serif); font-size: 1.3rem; letter-spacing: -.01em; color: var(--ink);
+                padding-bottom: var(--s1); border-bottom: 1px solid var(--rule);
+                display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
   /* Provenance is per FIELD, so each section carries its own. Hoisting one date
      to the top would imply the whole record was verified at once. */
   .coestab { font-family: var(--mono); font-size: .6rem; color: var(--ink-3); text-transform: none; letter-spacing: 0; }
   .cothin { font-family: var(--mono); font-size: .6rem; letter-spacing: .04em; color: var(--challenges);
             border: 1px dashed var(--challenges); border-radius: 3px; padding: .1rem .4rem; text-transform: none; }
   .cosec .empty { color: var(--ink-3); font-style: italic; font-size: .92rem; }
-  .corow { display: grid; grid-template-columns: 9rem 1fr; gap: var(--s1) var(--s3); font-size: .95rem; }
-  .corow .k { font-family: var(--mono); font-size: .64rem; letter-spacing: .06em; text-transform: uppercase;
-              color: var(--ink-3); padding-top: .2rem; }
+  .corow { display: grid; grid-template-columns: 10rem 1fr; gap: var(--s2) var(--s3); font-size: 1rem; }
+  .corow .k { font-family: var(--mono); font-size: .74rem; letter-spacing: .04em; text-transform: uppercase;
+              color: var(--ink-3); padding-top: .15rem; }
   .coitem { border-left: 2px solid var(--rule-strong); padding-left: var(--s2); display: flex;
             flex-direction: column; gap: .15rem; font-size: .95rem; }
-  .coitem .t { font-weight: 600; }
+  .coitem .t { font-weight: 600; font-size: 1.08rem; }
   .coitem .m { font-family: var(--mono); font-size: .66rem; color: var(--ink-3); }
   /* The drift log is the whole point — what we believed before, and what corrected it. */
   .drift { display: flex; flex-direction: column; gap: var(--s2); }
@@ -1075,9 +1076,22 @@ const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_
   }
 
   const CO_SECTIONS = ['identity', 'origin', 'funding', 'pipeline', 'deals', 'people', 'pivots', 'setbacks'];
+  // Reader-facing section names. They say what the section ANSWERS rather than
+  // naming the field, because the drawer is read by someone asking "who are
+  // these people" — "Origin" is a schema key, "Where they came from" is the
+  // question they actually have.
   const CO_SECTION_LABEL = {
-    identity: 'Identity', origin: 'Origin', funding: 'Funding', pipeline: 'Pipeline',
-    deals: 'Deals', people: 'People', pivots: 'Pivots', setbacks: 'Setbacks',
+    identity: 'Who they are', origin: 'Where they came from', funding: 'How they are funded',
+    pipeline: 'What they are building', deals: 'Deals they have signed',
+    people: 'Who runs it', pivots: 'What they walked away from',
+    setbacks: 'What has already failed',
+  };
+  // The short form. A drift row reads "corrected <field>" and a thin marker reads
+  // "not measured: <field>", where the question-form heading would not fit the
+  // sentence — "corrected Where they came from" is a heading pretending to be a noun.
+  const CO_FIELD_LABEL = {
+    identity: 'identity', origin: 'origin', funding: 'funding', pipeline: 'pipeline',
+    deals: 'deals', people: 'people', pivots: 'pivots', setbacks: 'setbacks',
   };
 
   // A value rendered as prose, or null when there is nothing to show.
@@ -1153,7 +1167,7 @@ const SAMPLE_COMPANY_DOSSIERS = {"co_daiichi_sankyo": {"entity_id": "co_daiichi_
         '<p class="empty">Nothing has been corrected yet — every section still reads as first established.</p></section>';
     }
     const rows = log.slice().reverse().map(e => {
-      const label = esc(CO_SECTION_LABEL[e.field] || e.field || '');
+      const label = esc(CO_FIELD_LABEL[e.field] || e.field || '');
       const was = e.from == null ? '' :
         '<div class="was">was: <pre>' + esc(JSON.stringify(e.from, null, 1)) + '</pre></div>';
       return '<div class="driftrow"><div class="when">' + esc(e.date || '') + '</div><div>' +
