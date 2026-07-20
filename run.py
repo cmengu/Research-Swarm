@@ -36,6 +36,7 @@ import logging
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import replace
 from datetime import date, datetime
 from pathlib import Path
 
@@ -176,6 +177,18 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "part and it is already on disk under runs/<RUN_ID>/findings/; a run that "
         "died in the manager or the validator should not re-buy it. Requires "
         "--program.",
+    )
+    parser.add_argument(
+        "--since",
+        type=date.fromisoformat,
+        default=None,
+        metavar="YYYY-MM-DD",
+        help="Override where this run's coverage window STARTS — a backfill. "
+        "Normally the window binds to the last issue that covered days, which on "
+        "a healthy cadence is two or three days wide and is why a fresh install "
+        "reads empty everywhere. A seeding session wants to look back months, "
+        "and the window is the only thing standing in the way. Pair with --today "
+        "to date the issue that comes out.",
     )
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args(argv)
@@ -857,6 +870,19 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None, runner=None) ->
     window = resolve_coverage_window(
         issues_dir, today=today, cold_start_days=program.cold_start_lookback_days
     )
+    if args.since:
+        # A BACKFILL, and it is deliberately loud. The join to the previous issue
+        # is what makes coverage continuous and gap-free, so overriding it is not
+        # a knob to leave turned on: it re-reads days another issue may already
+        # have covered, which is correct for a seeding session and wrong for a
+        # cadence run. `previous_issue` is kept as-is so the issue still records
+        # what it joined to and the overlap stays auditable.
+        window = replace(window, from_=args.since)
+        log.warning(
+            "BACKFILL: coverage start overridden to %s (%d days) — this re-reads "
+            "days an earlier issue may already cover; intended for a seeding run",
+            args.since, (window.to - window.from_).days,
+        )
     if window.previous_issue:
         log.info("coverage %s → %s (joins %s)", window.from_, window.to, window.previous_issue)
     elif window.baseline_expired:
