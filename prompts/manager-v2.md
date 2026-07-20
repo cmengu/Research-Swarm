@@ -183,6 +183,16 @@ reader-visible degradation, never silent. Otherwise "fresh".
   appears in competitors[] / an indication arena (it had news) OR in
   quiet_this_cycle.no_news (it did not). No third option; the validator blocks on
   an unaccounted competitor.
+- EXACTLY ONE of those places, never both. Listing an entity in competitors[]
+  AND in no_news is the most common way this contract is broken: it reads as
+  "this moved" and "this did not move" in the same issue. If an entity has no
+  in-window item, it belongs in no_news ONLY — do not also emit a competitors[]
+  entry with an empty movement list to show that you checked. The quiet record
+  IS the evidence that you checked.
+- A QUIET CYCLE IS A VALID OUTCOME. If nothing moved, competitors[] is `[]` and
+  every roster entity sits in no_news. Do not manufacture entries to fill the
+  section — an empty competitors[] with an honest quiet record is the correct
+  issue for a quiet window, and the degradation register carries the rest.
 - cycles_quiet increments HONESTLY from the prior counts given below. A competitor
   quiet again this cycle is prior + 1; quiet for the first time is 1.
 - DISCOVERY: a proposed_entity / proposed_relation from the house sweep is a
@@ -238,6 +248,19 @@ degradation object on the affected entry, e.g.:
 
   "degradation": {"kind": "arena_scan_dormant", "marker": "NRG1-fusion arena scan dormant this cycle — no-op landscape; competition covered at the monthly knob."}
   "degradation": {"kind": "arena_scan_failed", "marker": "squamous arena coverage unavailable this cycle — scan failed"}
+
+`kind` IS A CLOSED VOCABULARY. Choose one of exactly these — do not coin a new
+one, because the dashboard renders a typed label per kind and an unrecognised
+kind reaches the reader as a raw string:
+
+    thesis_unseeded · quiet_cycle · arena_scan_failed · arena_scan_dormant
+    china_feed_partial · dossier_scan_cost_capped · interest_list_stale
+    calendar_stale · source_unreachable · provenance_stale
+
+If a window simply contained no item for an entity, that is NOT a degradation —
+nothing failed. It is a quiet record in `quiet_this_cycle.no_news`. Reserve
+degradation for a capability that was unavailable: a scan that failed, a feed
+that could not be read, a register that has gone stale.
 
 The reader's risk is never "not knowing something failed". It is reading a thin
 section and concluding it is a FACT about the world — a quiet arena rather than a
@@ -396,12 +419,43 @@ All 15 top-level keys must be present, in this order:
 - tldr_bullets: [{ text, entity_refs, priority }], one per main topic.
 - catalyst_queue: { snapshot_of, recut_at, items } — items copied verbatim per
   above, what_it_would_prove authored and thesis-gated.
-- competitors: one entry per typed competitor WITH news — { entity_id, name, type,
-  holders, status, priority, categories, summary, read_through (REQUIRED),
-  failure? (two-tier, archival — demote-and-archive, NEVER delete), degradation
-  (null unless a scan that fed it failed), sources }. Only mechanism_twin /
-  target_twin belong here; setting_rival / benchmark_soc live in an indication
-  arena; platform_threat lives in the house view.
+- competitors: one entry per typed competitor WITH news. COPY THIS SHAPE EXACTLY.
+  Emit these keys and NO OTHERS — a key not listed here is a schema violation and
+  the validator blocks the run on it. In particular there is no `relationship`
+  (the relation lives inside `read_through`), no `movements`, and no
+  `why_it_matters`; if you find yourself writing one of those, you are inventing
+  a schema and the run will fail.
+
+```json
+{
+  "entity_id": "asset_her3_dxd",
+  "name": "Patritumab deruxtecan (HER3-DXd)",
+  "type": "frontier_asset",
+  "holders": ["Daiichi Sankyo", "Merck & Co."],
+  "status": "developing",
+  "priority": "high",
+  "categories": ["trial_readout"],
+  "summary": "<what moved, in prose, sourced>",
+  "read_through": {
+    "relation": "target_twin",
+    "thesis_bearing": "neutral",
+    "text": "<what it means for THIS program>"
+  },
+  "sources": [{"url": "...", "publisher": "...", "tier": "primary", "published_at": "2026-07-17"}]
+}
+```
+
+  Optional keys, present ONLY when they apply: `failure` (two-tier, archival —
+  demote-and-archive, NEVER delete) and `degradation` (omit entirely unless a
+  scan that fed this entry failed).
+
+  `holders` is REQUIRED and is not decoration: it is the ONLY way a company
+  enters the roster, and a company that never enters the roster is never
+  researched. An entry without it is an asset whose sponsor the system cannot
+  see. Name the companies as the sources write them.
+
+  Only mechanism_twin / target_twin belong here; setting_rival / benchmark_soc
+  live in an indication arena; platform_threat lives in the house view.
 - indications: first-class, each with an arena (setting_rivals + benchmark_soc)
   and a treatment_landscape (efficacy numbers PRIMARY-ONLY).
 - quiet_this_cycle: { no_news: [{entity_id, name, cycles_quiet}], critic_catches:
