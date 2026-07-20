@@ -1,22 +1,24 @@
 <meta charset="utf-8">
 <title>ResearchSwarm — HMBD-001 detective (v4 IA)</title>
 <style>
+  /* DARK IS THE DEFAULT, deliberately not `prefers-color-scheme`.
+     The dark H&E palette is the house look, so it is the base :root rather than
+     a media-query branch — a viewer whose OS is set to light still opens on dark.
+     Following the OS instead would mean the default is whatever the reader's
+     laptop happens to be set to, which is not a default at all.
+     Light is still fully defined and reachable via data-theme="light". */
   :root {
-    --ink: #1B1832; --ink-2: #4A4463; --ink-3: #7C7594;
-    --paper: #FAF7F9; --paper-2: #F3EFF5; --rule: #E2DBE8; --rule-strong: #C9BFD4;
-    --hema: #4A3F8F; --eosin: #C8375D; --eosin-soft: #FBEDF1;
-    --confirms: #2E7D6B; --challenges: #B4661E; --neutral: #7C7594;
+    --ink: #EDE9F2; --ink-2: #B5AECA; --ink-3: #837B9E;
+    --paper: #141120; --paper-2: #1D1930; --rule: #2E2745; --rule-strong: #453C63;
+    --hema: #9B8FE0; --eosin: #F0708F; --eosin-soft: #2C1A25;
+    --confirms: #5FBFA6; --challenges: #E0A055; --neutral: #837B9E;
     --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
     --sans: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
     --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
     --s1: .375rem; --s2: .75rem; --s3: 1.25rem; --s4: 2rem; --s5: 3rem;
-    --shadow: 0 1px 2px rgba(27,24,50,.06), 0 4px 12px rgba(27,24,50,.04);
-    color-scheme: light;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+    color-scheme: dark;
   }
-  @media (prefers-color-scheme: dark) { :root {
-    --ink: #EDE9F2; --ink-2: #B5AECA; --ink-3: #837B9E; --paper: #141120; --paper-2: #1D1930; --rule: #2E2745; --rule-strong: #453C63;
-    --hema: #9B8FE0; --eosin: #F0708F; --eosin-soft: #2C1A25; --confirms: #5FBFA6; --challenges: #E0A055; --neutral: #837B9E;
-    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3); color-scheme: dark; } }
   :root[data-theme="dark"] {
     color-scheme: dark;
     --ink: #EDE9F2; --ink-2: #B5AECA; --ink-3: #837B9E; --paper: #141120; --paper-2: #1D1930; --rule: #2E2745; --rule-strong: #453C63;

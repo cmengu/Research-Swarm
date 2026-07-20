@@ -21,7 +21,7 @@ Palette is **H&E stain** — the actual colors of a tumor biopsy under a microsc
 
 Type: journal serif (Iowan/Palatino/Georgia) for headline and Research Angles — the argued prose; system sans for reading; monospace for the terminal layer (entity slugs, dates, tiers, counts). All are OS-native stacks — no webfonts, so no CDN dependency and no silent fallback.
 
-Both light and dark themes defined at token level (`prefers-color-scheme` + `data-theme` override).
+Both light and dark themes defined at token level. **Dark is the default** — the dark palette is the base `:root`, not a `prefers-color-scheme` branch, so the page opens dark regardless of the reader's OS setting. Following the OS would make the default whatever a given laptop happens to be set to, which is not a default. Light remains fully defined and reachable via the `data-theme="light"` override.
 
 ## The design thesis: epistemic status is the loudest thing on the page
 
