@@ -214,6 +214,7 @@ def run_validation_stage_v2(
     run_id: str,
     thesis_version,
     calendar_stale: bool = False,
+    derive_stats=None,
     runner=subprocess.run,
 ) -> ValidationStageResult:
     """The v2 stage 4 — the same loop, against the v2 check-suite.
@@ -244,6 +245,8 @@ def run_validation_stage_v2(
     - `beats_failed` is absent: v2's degradation audit is `apertures_degraded`, and
       the v2 check-suite reads it off the issue's own `sources_and_method` rather
       than taking it from the caller.
+    - `derive_stats` is the orchestrator's stats derivation, applied to EVERY draft
+      this loop judges. See the call site below for why it cannot live outside.
     """
     baseline = find_latest_issue_with(
         issues_dir, lambda payload: bool(payload.get("catalyst_queue"))
@@ -254,6 +257,22 @@ def run_validation_stage_v2(
     retries_used = 0
 
     while True:
+        # DERIVE INSIDE THE LOOP, not before it. The manager seam requires
+        # `stats == {}` and the validator requires stats populated; the
+        # orchestrator closes that gap by deriving. But a RETRY calls the manager
+        # again, and the manager obeys its seam again — so every retry draft
+        # arrives with `stats` reset to {} and re-fails the shape check it was
+        # never asked to fix. Deriving once before the loop fixes only round 1,
+        # which is why runs kept exhausting the budget on `malformed_shape@stats`
+        # while the manager dutifully fixed everything it was actually told about.
+        #
+        # The derivation is injected rather than imported: it needs `issues_dir`
+        # for `previous_issue` and belongs to the publish altitude, and the stage
+        # stays a loop over a gate rather than growing a second opinion about
+        # what the counts are.
+        if derive_stats is not None:
+            draft["stats"] = derive_stats(draft)
+
         result = validate_issue(
             draft,
             state=state,

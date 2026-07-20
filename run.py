@@ -1081,12 +1081,15 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None, runner=None) ->
     # one that satisfied the validator failed the seam. There was no passing path;
     # three live runs bounced between the two halves of it.
     #
-    # Deriving here closes the loop without weakening either rule: the manager
-    # still authors nothing, the validator still sees real counts, and the counts
-    # are computed by the same `derive_stats` the gate itself uses, so the numbers
-    # it validates are the numbers that ship.
-    result.draft["stats"] = derive_full_stats(result.draft, issues_dir)
-
+    # Deriving closes the loop without weakening either rule: the manager still
+    # authors nothing, the validator still sees real counts, and the counts are
+    # computed by the same `derive_stats` the gate itself uses, so the numbers it
+    # validates are the numbers that ship.
+    #
+    # It is handed to the stage rather than applied here because a validation
+    # RETRY calls the manager again, and the manager obeys its seam again — a
+    # draft derived only here would arrive at round 2 with `stats` reset to {}.
+    # The stage applies this to every draft it judges, retries included.
     try:
         validation = run_validation_stage_v2(
             draft=result.draft,
@@ -1099,6 +1102,7 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None, runner=None) ->
             run_id=run_id,
             thesis_version=thesis.get("version"),
             calendar_stale=calendar_stale,
+            derive_stats=lambda draft: derive_full_stats(draft, issues_dir),
         )
     except (ManagerFailed, ValidationExhausted) as exc:
         return _fail_run_v2(

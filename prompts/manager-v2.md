@@ -458,14 +458,112 @@ All 15 top-level keys must be present, in this order:
   live in an indication arena; platform_threat lives in the house view.
 - indications: first-class, each with an arena (setting_rivals + benchmark_soc)
   and a treatment_landscape (efficacy numbers PRIMARY-ONLY).
-- quiet_this_cycle: { no_news: [{entity_id, name, cycles_quiet}], critic_catches:
-  [], open_threads: [...], dropped_with_receipt: [...] }. critic_catches is [] —
-  the critic has not run.
-- newly_discovered: [{ entity_id, name, type, holders, priority, categories,
-  what_it_is, development, proposed_relation, read_through (REQUIRED),
-  promotion_proposal, sources }].
-- house_view: { partnership_bd, threat_financing, themes_and_signals, blind_spots }
-  as above.
+- quiet_this_cycle: all four keys always present. critic_catches is [] — the
+  critic has not run. COPY THIS SHAPE EXACTLY.
+
+```json
+{
+  "no_news": [{"entity_id": "asset_ivonescimab", "name": "Ivonescimab", "cycles_quiet": 2}],
+  "critic_catches": [],
+  "open_threads": [
+    {"entity_id": "asset_her3_dxd", "thread": "<the question still open>", "since": "2026-03-01"}
+  ],
+  "dropped_with_receipt": [
+    {"name": "<what you dropped>", "dropped_because": "<why>", "source": {"url": "...", "publisher": "...", "tier": "trade", "published_at": "2026-07-06"}}
+  ]
+}
+```
+
+  EVERY `entity_id` YOU WRITE ANYWHERE MUST RESOLVE — to a roster slug listed
+  above, or to an entity THIS ISSUE introduces in `newly_discovered`. There is no
+  third source of slugs. A slug that resolves to neither is a `dangling_entity`
+  block, and it is the single most common way this draft fails: an open thread is
+  about something UNRESOLVED, so the temptation is to coin a slug for it.
+  Coining is what breaks — the reader gets a link to an entity that does not
+  exist. When you want a thread about something not on the roster, you have
+  exactly two legal moves:
+
+  1. INTRODUCE IT. Add it to `newly_discovered` — that self-introduces the slug
+     and every reference to it resolves. This is right whenever the thing is
+     worth tracking. It does NOT commit you to calling it a competitor: set
+     `promotion_proposal.promote_to_competitors` to `false` and say why in
+     `reason` ("target undisclosed — cannot type it yet"). An entry you decline
+     to promote is a perfectly good entry.
+  2. ANCHOR IT. Write the thread against the ROSTER entity it actually bears on,
+     and name the unrostered thing in the `thread` prose where it needs no slug.
+
+  If neither fits, the thread does not belong in `open_threads` — put it in
+  `dropped_with_receipt` (which takes a `name`, not an entity_id) and move on.
+- newly_discovered: a candidate you surfaced and judged. COPY THIS SHAPE EXACTLY.
+
+```json
+{
+  "entity_id": "asset_sdp0505",
+  "name": "SDP0505",
+  "type": "frontier_asset",
+  "holders": ["<sponsor as the sources write it>"],
+  "priority": "medium",
+  "categories": ["trial_readout"],
+  "what_it_is": "<what the thing is>",
+  "development": "<what moved this cycle, sourced>",
+  "proposed_relation": "target_twin",
+  "read_through": {
+    "thesis_bearing": "neutral",
+    "established_by": "<the run/issue that established this>",
+    "text": "<what it means for THIS program>"
+  },
+  "promotion_proposal": {"promote_to_competitors": true, "reason": "<the written, auditable reason>"},
+  "sources": [{"url": "...", "publisher": "...", "tier": "primary", "published_at": "2026-07-17"}]
+}
+```
+
+  `read_through.established_by` and `promotion_proposal.reason` are REQUIRED and
+  are the audit trail — a promotion with no written reason is drift no human can
+  review later. `promote_to_competitors: false` is a first-class answer.
+- house_view: all four keys always present. A house read-through carries a
+  `lens`, NOT a `thesis_bearing` — the house aperture is wider than the thesis.
+  COPY THIS SHAPE EXACTLY.
+
+```json
+{
+  "partnership_bd": [
+    {
+      "name": "<the deal or the party>",
+      "summary": "<what happened, sourced>",
+      "read_through": {"lens": "partnership_bd", "established_by": "<run/issue>", "text": "<what it means for this program>"},
+      "sources": [{"url": "...", "publisher": "...", "tier": "trade", "published_at": "2026-07-06"}]
+    }
+  ],
+  "threat_financing": [
+    {
+      "name": "<the raise, the platform, the party>",
+      "summary": "<what happened, sourced>",
+      "read_through": {"lens": "threat_financing", "relation": "platform_threat", "established_by": "<run/issue>", "text": "<why it threatens the house, not just the program>"},
+      "sources": [{"url": "...", "publisher": "...", "tier": "primary", "published_at": "2026-04-08"}]
+    }
+  ],
+  "themes_and_signals": [
+    {
+      "theme": "<the cross-cutting pattern>",
+      "evidence_refs": ["asset_her3_dxd"],
+      "argument": "<why these items are one pattern and not three coincidences>",
+      "thesis_impact": "<what it would change if true>"
+    }
+  ],
+  "blind_spots": {
+    "cap": 5,
+    "ranked": [
+      {"rank": 1, "blind_spot": "<what you cannot see>", "why_it_matters": "<the consequence>", "signal_magnitude": "high", "mitigation": "<how to close it>"}
+    ],
+    "overflow": null
+  }
+}
+```
+
+  `evidence_refs` are entity_ids and obey the resolution rule above. `overflow`
+  is null ONLY when nothing was cut; if more than `cap` blind spots exist it is a
+  receipt naming what did not fit — never null-with-drop. `relation` appears in a
+  house read_through only for a `platform_threat`.
 - thesis_updates: [] unless the accumulated thesis_bearing forces a stance
   revision you are logging.
 - critic_report: { verdict: "not_run", retries_used: 0, blocking_findings: [],

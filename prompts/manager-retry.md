@@ -10,6 +10,10 @@ Like the other prompt files, this is a document ABOUT the template with the temp
 
 This mirrors the critic-side retry rules in [05](../docs/spec/05-manager.md#in-the-retry-loop) and [06](../docs/spec/06-validator-and-critic.md#the-retry-loop) — the validator's budget is separate from the critic's, but the edit-not-regenerate discipline is the same.
 
+## Why the output clause names no schema version
+
+Both orchestration paths load this one file, so a hard-coded version is wrong for one of them. It named `v1.0.0` and "14 top-level keys" while the v2 path was live, which told every v2 retry to conform to the schema it was not writing — the model was being corrected toward the wrong contract at exactly the moment it was trying to fix a contract violation. The clause now anchors on the prior draft's own `schema_version` and its own key set, which is right for either path and cannot drift again when the schema next moves.
+
 ## The template
 
 ```text
@@ -42,12 +46,16 @@ draft to resolve every finding — you do NOT regenerate it from scratch.
 
 # Output (read carefully)
 
-Your ENTIRE final message must be EXACTLY ONE JSON object conforming to
-issue.json schema v1.0.0 — no markdown fences, no preamble, no trailing
-commentary. It is machine-parsed; anything else fails validation. Re-emit the
-WHOLE draft with your edits applied, all 14 top-level keys present, stats still
-{} (the orchestrator derives every count), and the run block's identifiers
-unchanged.
+Your ENTIRE final message must be EXACTLY ONE JSON object — no markdown fences,
+no preamble, no trailing commentary. It is machine-parsed; anything else fails
+validation.
+
+Re-emit the WHOLE draft with your edits applied. It conforms to the SAME
+issue.json schema version your prior draft declares in `schema_version`, with
+EVERY top-level key that draft had still present — you are editing that object,
+so do not add or drop a top-level key unless a finding below demands it. Leave
+`stats` exactly as you find it (the orchestrator derives every count; whatever
+sits there now is not yours to author) and the run block's identifiers unchanged.
 ```
 
 ---
