@@ -434,6 +434,49 @@ def _default_publisher_v2(now: datetime):
 # publishing. That bug has shipped five times in this repo.
 
 
+def _verify_calendar_v2(
+    root: Path, *, cadence, calendar, models_config, run_id: str, now: datetime, dry_run: bool
+):
+    """Re-verify the conference windows against their sources. Returns the calendar.
+
+    THE STEP THE v1->v2 RE-ROOT LEFT BEHIND. `_main_v2` resolved surge and
+    staleness from the calendar but never verified it, and a window is only
+    `verified` once a run has resolved its dates against the society's own page.
+    So on the v2 path the calendar could never become fresh: every run warned
+    "calendar stale — surge disabled", every run was right, and no run could ever
+    fix it. A permanently-disabled surge is exactly the silent failure the
+    staleness marker exists to prevent, wearing the marker as a disguise.
+
+    Identical rules to v1's copy, deliberately: the verifier PROPOSES and the
+    orchestrator decides (`calendar._accept_dates`), so a date that was not read
+    from `source` is never written. A verifier failure never crashes the run —
+    background maintenance is subordinate to the cycle's intelligence.
+
+    The write lands as its own commit, before the run knows its own outcome,
+    because a verified date is worth keeping even if this cycle later stubs.
+    """
+    if dry_run or cadence.surge is None:
+        return calendar
+    verification = verify_calendar(
+        calendar, model=models_config["verifier"], max_surge_days=cadence.surge.max_surge_days
+    )
+    if not verification.updated:
+        return calendar
+    calendar_path = root / "config" / "calendar.toml"
+    dates = {
+        v.window_id: {"starts": v.starts, "ends": v.ends}
+        for v in verification.windows
+        if v.verified
+    }
+    if write_verified_dates(calendar_path, now.isoformat(timespec="seconds"), dates):
+        cited = ", ".join(f"{wid} ({verification.sources[wid]})" for wid in verification.updated)
+        log.info("calendar: verified %s", cited)
+        git_commit_run(
+            root, run_id, [calendar_path], message=f"run {run_id}: verify calendar — {cited}"
+        )
+    return load_calendar(calendar_path)
+
+
 def _plan_dossier_scans_v2(root: Path, entities, today: date) -> tuple[list, int]:
     """Which companies need a dossier scan this run — `(apertures, candidates)`.
 
@@ -682,6 +725,18 @@ def _main_v2(args, *, root: Path, now: datetime, publisher=None, runner=None) ->
     # rule unchanged. Step two is the PROGRAM: does that window hold one of THIS
     # program's competitors? An ASH window is a real surge for a heme program and a
     # dead week for HMBD-001 (spec/02).
+    # Verify BEFORE resolving, and before the cadence gate, so a window verified
+    # today can surge today rather than one cycle late. `resolve_run_id` is a pure
+    # function of `now`, so calling it here and again below yields the same id.
+    calendar = _verify_calendar_v2(
+        root,
+        cadence=cadence,
+        calendar=calendar,
+        models_config=models_config,
+        run_id=resolve_run_id(now),
+        now=now,
+        dry_run=getattr(args, "dry_run", False),
+    )
     window_surge, calendar_stale, stale_detail = _resolve_surge_and_staleness(
         cadence, calendar, today, issues_dir
     )

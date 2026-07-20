@@ -29,8 +29,9 @@ import json
 import re
 import shutil
 import subprocess
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -591,3 +592,57 @@ class TestTheCycleIsUnaffected:
         assert _run(wired["root"], "--dry-run") == run.EXIT_OK
         assert f"[dry-run] {APERTURE}: rendered" in caplog.text
         assert {p for p in wired["root"].rglob("*")} == before
+
+
+class TestTheCalendarIsVerifiedOnTheV2Path:
+    """The v1->v2 re-root left the verification step behind.
+
+    `_main_v2` resolved surge and staleness from the calendar but never verified
+    it. A window is only `verified` once a run resolves its dates against the
+    society's own page, so on v2 the calendar could never become fresh: every run
+    warned "calendar stale — surge disabled", every run was right, and no run
+    could fix it. A permanently-disabled surge wearing the staleness marker as a
+    disguise is exactly the silent failure that marker exists to prevent.
+    """
+
+    def test_the_v2_path_calls_the_verifier(self):
+        import inspect
+        from run import _main_v2
+
+        assert "_verify_calendar_v2" in inspect.getsource(_main_v2), (
+            "_main_v2 resolves surge from a calendar it never verifies — "
+            "the calendar can never stop being stale"
+        )
+
+    def test_verification_precedes_surge_resolution(self):
+        """Verifying after resolving would surge one cycle late — the window would
+        be verified for the NEXT run, not the one that verified it."""
+        import inspect
+        from run import _main_v2
+
+        src = inspect.getsource(_main_v2)
+        assert src.index("_verify_calendar_v2") < src.index("_resolve_surge_and_staleness")
+
+    def test_a_dry_run_verifies_nothing(self, tmp_path):
+        """--dry-run calls no models and writes nothing. Verification is a model
+        call and a git commit, so it is skipped wholesale."""
+        from run import _verify_calendar_v2
+
+        sentinel = object()
+        out = _verify_calendar_v2(
+            tmp_path, cadence=None, calendar=sentinel, models_config={},
+            run_id="run_x", now=datetime(2026, 7, 20), dry_run=True,
+        )
+        assert out is sentinel
+
+    def test_surge_off_verifies_nothing(self, tmp_path):
+        """No [surge] means the feature is off — no verification, no shadow default."""
+        from run import _verify_calendar_v2
+
+        sentinel = object()
+        cadence = SimpleNamespace(surge=None)
+        out = _verify_calendar_v2(
+            tmp_path, cadence=cadence, calendar=sentinel, models_config={},
+            run_id="run_x", now=datetime(2026, 7, 20), dry_run=False,
+        )
+        assert out is sentinel
